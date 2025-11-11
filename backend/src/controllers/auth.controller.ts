@@ -1,0 +1,199 @@
+import { Request, Response } from 'express';
+import { validationResult } from 'express-validator';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
+import { formatTutor } from '../utils/formatters';
+import { getAdminSettings } from '../services/settings.service';
+import { sendTemplatedEmail } from '../services/emailTemplate.service';
+
+const prisma = new PrismaClient();
+type UserRole = 'STUDENT' | 'TUTOR' | 'ADMIN';
+
+export const register = async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password, role } = req.body;
+    const normalizedRole = typeof role === 'string' ? role.toUpperCase() : '';
+
+    if (!['STUDENT', 'TUTOR', 'ADMIN'].includes(normalizedRole)) {
+      return res.status(400).json({ error: 'Role must be STUDENT, TUTOR or ADMIN' });
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists with this email' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const settings = await getAdminSettings();
+    const shouldSendConfirmationEmail = settings.sendSignupConfirmation;
+
+    // Create user with corresponding role profile
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        role: normalizedRole,
+        emailConfirmed: true,
+        ...(normalizedRole === 'TUTOR' && {
+          tutor: {
+            create: {}
+          }
+        }),
+        ...(normalizedRole === 'STUDENT' && {
+          student: {
+            create: {}
+          }
+        })
+      },
+      include: {
+        tutor: true,
+        student: true
+      }
+    });
+
+    if (shouldSendConfirmationEmail) {
+      sendTemplatedEmail('SIGNUP_SUCCESS', email, {
+        userName: email,
+        email: email,
+      }).catch((emailErr) => {
+        console.error('Failed to send signup confirmation email:', emailErr);
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, role: user.role as UserRole },
+      process.env.JWT_SECRET!,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      message: shouldSendConfirmationEmail
+        ? 'User registered successfully. A confirmation email has been sent.'
+        : 'User registered successfully',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        emailConfirmed: user.emailConfirmed
+      }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Error during registration' });
+  }
+};
+
+export const login = async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        tutor: true,
+        student: true
+      }
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        emailConfirmed: user.emailConfirmed,
+        tutorId: user.tutor?.id,
+        studentId: user.student?.id
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Error during login' });
+  }
+};
+
+export const getCurrentUser = async (req: Request, res: Response) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; role: UserRole };
+    
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        tutor: {
+          include: {
+            experiences: true,
+            educations: true,
+            subjects: {
+              include: {
+                subject: true
+              }
+            },
+            availabilities: true,
+            backgroundCheck: true
+          }
+        },
+        student: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { password, ...userWithoutPassword } = user;
+    const formattedTutor = user.tutor ? formatTutor(user.tutor) : null;
+
+    res.json({
+      ...userWithoutPassword,
+      tutor: formattedTutor
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({ error: 'Error fetching user data' });
+  }
+};
+
