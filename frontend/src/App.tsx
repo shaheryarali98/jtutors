@@ -11,6 +11,9 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import { User } from './store/authStore'
 
+import HowItWorksForStudents from './pages/how-it-works-for-student/page';
+import HowItWorksForTutors from './pages/how-it-works-for-tutor/page'
+
 function App() {
   const { user } = useAuthStore()
 
@@ -18,6 +21,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/how-it-works-for-students" element={<HowItWorksForStudents />} />
+        <Route path="/how-it-works-for-tutors" element={<HowItWorksForTutors />} />
         <Route
           path="/login"
           element={
