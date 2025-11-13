@@ -44,15 +44,15 @@ const Navbar = () => {
     <nav className="bg-white/90 backdrop-blur sticky top-0 z-30 border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-primary-600 text-white font-semibold shadow">
-              J
-            </div>
-            <div>
-              <span className="block text-lg font-bold text-slate-900 tracking-tight">JTutor</span>
-              <span className="block text-xs text-slate-500 -mt-1">Personalised learning journeys</span>
-            </div>
-          </Link>
+        <Link to="/" className="flex items-center">
+  <img
+    src="/logo.jpg"
+    alt="JTutor Logo"
+    className="h-10 w-auto object-contain"
+    style={{ height: '5rem' }}
+  />
+</Link>
+
 
           <div className="hidden md:flex items-center gap-6">
             {links.map((link) => (

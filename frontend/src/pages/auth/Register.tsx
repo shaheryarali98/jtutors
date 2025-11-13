@@ -70,11 +70,12 @@ const Register = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-2 gap-10 items-center bg-white rounded-3xl shadow-2xl overflow-hidden">
           <div className="hidden lg:block h-full">
-            <img
-              src="https://images.unsplash.com/photo-1584697964192-6bbe2496c345?auto=format&fit=crop&w=900&q=80"
-              alt="Create JTutor account"
-              className="h-full w-full object-cover"
-            />
+          <img
+  src="/logo.jpg"
+  alt="Create JTutor account"
+  className="h-full w-full object-cover"
+/>
+
           </div>
 
           <div className="p-8 md:p-12">

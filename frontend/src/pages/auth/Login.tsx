@@ -52,7 +52,7 @@ const Login = () => {
         <div className="grid lg:grid-cols-2 gap-10 items-center bg-white rounded-3xl shadow-2xl overflow-hidden">
           <div className="hidden lg:block h-full">
             <img
-              src="https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&fit=crop&w=900&q=80"
+              src="/logo.jpg"
               alt="JTutor login"
               className="h-full w-full object-cover"
             />
