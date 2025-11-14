@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
   GraduationCap, 
@@ -14,14 +13,13 @@ import {
   Zap,
   Heart,
   Star,
-  Menu,
-  X
+  
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import { NavLink } from 'react-router-dom'
+import Footer from '../components/Footer'
 
 const HomePage = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const features = [
     {
@@ -75,36 +73,15 @@ const HomePage = () => {
   ];
 
   const stats = [
-    { value: "4.9/5", label: "Average tutor rating", icon: Star, color: "from-yellow-400 to-orange-500" },
-    { value: "120+", label: "Subjects covered", icon: BookOpen, color: "from-blue-400 to-cyan-500" },
-    { value: "3k+", label: "Learners supported", icon: Users, color: "from-green-400 to-emerald-500" },
-    { value: "98%", label: "Parent satisfaction", icon: Heart, color: "from-pink-400 to-rose-500" }
-  ];
-
-  const testimonials = [
-    {
-      quote: "JTutor transformed my daughter's learning experience. Her confidence has soared!",
-      author: "Sarah M.",
-      role: "Parent",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop"
-    },
-    {
-      quote: "The platform made it so easy to connect with students who need my expertise.",
-      author: "Rabbi David L.",
-      role: "Tutor",
-      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop"
-    },
-    {
-      quote: "Finally found a tutor who understands our community's values and academic needs!",
-      author: "Michael R.",
-      role: "Student",
-      image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop"
-    }
+    { value: "4.9/5", label: "Average tutor rating", icon: Star, color: "from-blue-400 to-purple-500" },
+    { value: "120+", label: "Subjects covered", icon: BookOpen, color: "from-cyan-400 to-blue-500" },
+    { value: "3k+", label: "Learners supported", icon: Users, color: "from-purple-400 to-pink-500" },
+    { value: "98%", label: "Parent satisfaction", icon: Heart, color: "from-blue-500 to-indigo-500" }
   ];
 
   const cardVariants = {
     hidden: { opacity: 0, y: 50 },
-    visible: (i) => ({
+    visible: (i:number) => ({
       opacity: 1,
       y: 0,
       transition: {
@@ -115,18 +92,17 @@ const HomePage = () => {
     })
   };
 
-  const floatingAnimation = {
-    y: [0, -20, 0],
-    transition: {
-      duration: 3,
-      repeat: Infinity,
-      ease: "easeInOut"
-    }
-  };
+  // const floatingAnimation = {
+  //   y: [0, -20, 0],
+  //   transition: {
+  //     duration: 3,
+  //     repeat: Infinity,
+  //     ease: "easeInOut"
+  //   }
+  // };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-sky-50 to-cyan-50 overflow-hidden">
-      {/* Navbar */}
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-blue-50 to-cyan-50 overflow-hidden">
       <Navbar/>
 
       {/* Animated Background Elements */}
@@ -173,19 +149,18 @@ const HomePage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="mt-6 text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 leading-tight"
+              className="mt-6 text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-blue-600 to-cyan-600 leading-tight"
             >
-              Personalised Tutoring Designed Around Every Learner's Goals
+              Where Jewish Students and Tutors Connect
             </motion.h1>
             
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="mt-6 text-xl text-slate-700 leading-relaxed font-medium"
+              className="mt-6 text-lg text-slate-700 leading-relaxed font-medium"
             >
-              JTutor connects ambitious students with inspiring tutors. Build a rich learning profile, find your perfect match,
-              and track progress all in one beautiful dashboard.
+             JTutors connects students and families with trusted, vetted tutors who understand the academic needs of the Jewish community.
             </motion.p>
 
             <motion.div
@@ -194,20 +169,20 @@ const HomePage = () => {
               transition={{ delay: 0.5 }}
               className="mt-10 flex flex-wrap gap-4"
             >
-              <button className="group relative overflow-hidden bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-lg px-8 py-4 rounded-2xl shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105">
+              <NavLink to="/register?role=student" className="group relative overflow-hidden bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-base px-8 py-4 rounded-2xl shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105">
                 <span className="relative z-10 flex items-center">
                   Explore Tutors
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-transform" />
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </button>
+              </NavLink>
               
-              <button className="group bg-white text-violet-600 font-bold text-lg px-8 py-4 rounded-2xl shadow-xl border-2 border-violet-200 hover:border-violet-400 hover:shadow-2xl hover:shadow-violet-200 transition-all duration-300 hover:scale-105">
+              <NavLink to="/register?role=teacher" className="group bg-white text-violet-600 font-bold text-base px-8 py-4 rounded-2xl shadow-xl border-2 border-violet-200 hover:border-violet-400 hover:shadow-2xl hover:shadow-violet-200 transition-all duration-300 hover:scale-105">
                 <span className="flex items-center">
                   Apply as a Tutor
                   <Zap className="ml-2 w-5 h-5 group-hover:rotate-12 transition-transform" />
                 </span>
-              </button>
+              </NavLink>
             </motion.div>
 
             {/* Stats */}
@@ -228,7 +203,7 @@ const HomePage = () => {
                     <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-20 group-hover:opacity-30 rounded-2xl transition-opacity duration-300`} />
                     <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-5 shadow-xl border border-white/50 group-hover:shadow-2xl transition-all duration-300">
                       <Icon className={`w-6 h-6 mb-2 text-slate-600`} />
-                      <p className={`text-3xl font-black bg-gradient-to-r ${stat.color} text-transparent bg-clip-text`}>{stat.value}</p>
+                      <p className={`text-2xl font-black bg-gradient-to-r ${stat.color} text-transparent bg-clip-text`}>{stat.value}</p>
                       <p className="mt-1 text-xs uppercase tracking-wider text-slate-600 font-semibold">{stat.label}</p>
                     </div>
                   </motion.div>
@@ -244,11 +219,11 @@ const HomePage = () => {
             className="relative"
           >
             <motion.div
-              animate={floatingAnimation}
+              // animate={{floatingAnimation}}
               className="relative"
             >
               <div className="absolute -top-8 -left-8 w-80 h-80 bg-gradient-to-br from-violet-400 to-purple-500 rounded-full blur-3xl opacity-40 animate-pulse" />
-              <div className="absolute -bottom-8 -right-8 w-80 h-80 bg-gradient-to-br from-pink-400 to-rose-500 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDelay: '1s' }} />
+              <div className="absolute -bottom-8 -right-8 w-80 h-80 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDelay: '1s' }} />
               
               <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white/50 backdrop-blur-sm transform hover:scale-105 transition-transform duration-500">
                 <img
@@ -258,7 +233,6 @@ const HomePage = () => {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-purple-900/50 to-transparent" />
                 
-                {/* Floating badge */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -266,11 +240,11 @@ const HomePage = () => {
                   className="absolute top-6 right-6 bg-white/95 backdrop-blur-md rounded-2xl px-6 py-4 shadow-2xl"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
                       <Trophy className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-2xl font-black text-slate-900">98%</p>
+                      <p className="text-xl font-black text-slate-900">98%</p>
                       <p className="text-xs text-slate-600 font-semibold">Success Rate</p>
                     </div>
                   </div>
@@ -295,7 +269,7 @@ const HomePage = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-purple-600 mb-6"
+              className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-blue-600 to-purple-600 mb-6"
             >
               JTutors – A Revolutionary Jewish Tutoring Platform
             </motion.h1>
@@ -305,7 +279,7 @@ const HomePage = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="text-3xl md:text-4xl font-bold text-blue-600 mb-6"
+              className="text-2xl md:text-3xl font-bold text-blue-600 mb-6"
             >
               Find your perfect tutor today—<br className="sm:hidden" /> online, in person, or both!
             </motion.h2>
@@ -315,7 +289,7 @@ const HomePage = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.3 }}
-              className="text-lg text-slate-700 max-w-4xl mx-auto leading-relaxed"
+              className="text-base text-slate-700 max-w-4xl mx-auto leading-relaxed"
             >
               JTutors connects students and families with trusted tutors who understand the academic needs of the Jewish community. 
               With flexible options for online, in-person, and hybrid learning, JTutors makes tutoring seamless, affordable, safe, and tailored to every learner.
@@ -333,7 +307,7 @@ const HomePage = () => {
                   initial="hidden"
                   whileInView="visible"
                   viewport={{ once: true, margin: "-50px" }}
-                  variants={cardVariants}
+                  variants={{cardVariants}}
                   whileHover={{ y: -12, scale: 1.02 }}
                   className="group relative"
                 >
@@ -343,12 +317,12 @@ const HomePage = () => {
                       <motion.div
                         whileHover={{ rotate: 360, scale: 1.1 }}
                         transition={{ duration: 0.6 }}
-                        className={`w-16 h-16 ${feature.iconColor} flex items-center justify-center rounded-2xl bg-white shadow-lg group-hover:shadow-xl`}
+                        className={`w-14 h-14 ${feature.iconColor} flex items-center justify-center rounded-2xl bg-white shadow-lg group-hover:shadow-xl`}
                       >
-                        <Icon className="w-8 h-8" />
+                        <Icon className="w-7 h-7" />
                       </motion.div>
                       <div className="flex-1">
-                        <h3 className="text-xl font-black text-gray-900 mb-3 group-hover:text-violet-600 transition-colors duration-200">
+                        <h3 className="text-lg font-black text-gray-900 mb-3 group-hover:text-blue-600 transition-colors duration-200">
                           {feature.title}
                         </h3>
                         <p className="text-sm text-gray-700 leading-relaxed font-medium">
@@ -362,79 +336,7 @@ const HomePage = () => {
             })}
           </div>
 
-          {/* How It Works Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row gap-6 justify-center items-center"
-          >
-            <NavLink to="/how-it-works-for-students" className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold text-lg px-10 py-5 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105">
-              <span className="relative z-10 flex items-center">
-                How It Works for Students
-                <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </NavLink>
-
-            <NavLink to="how-it-works-for-tutors" className="group bg-white text-blue-700 border-4 border-blue-500 font-bold text-lg px-10 py-5 rounded-full hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105">
-              <span className="flex items-center">
-                How It Works for Tutors
-                <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
-              </span>
-            </NavLink>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-24 bg-gradient-to-br from-violet-100 via-purple-50 to-pink-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-pink-600 mb-4">
-              Loved by Students & Teachers
-            </h2>
-            <p className="text-lg text-slate-700">See what our community has to say</p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, i) => (
-              <motion.div
-                key={i}
-                custom={i}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={cardVariants}
-                whileHover={{ y: -10, scale: 1.02 }}
-                className="bg-white rounded-3xl p-8 shadow-2xl hover:shadow-purple-200 transition-all duration-300 border-2 border-purple-100"
-              >
-                <div className="flex items-center space-x-4 mb-6">
-                  <img
-                    src={testimonial.image}
-                    alt={testimonial.author}
-                    className="w-16 h-16 rounded-full object-cover ring-4 ring-purple-200"
-                  />
-                  <div>
-                    <p className="font-black text-gray-900">{testimonial.author}</p>
-                    <p className="text-sm text-purple-600 font-semibold">{testimonial.role}</p>
-                  </div>
-                </div>
-                <p className="text-gray-700 italic leading-relaxed">"{testimonial.quote}"</p>
-                <div className="flex mt-4 text-yellow-400">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 fill-current" />
-                  ))}
-                </div>
-              </motion.div>
-            ))}
-          </div>
+         
         </div>
       </section>
 
@@ -452,22 +354,22 @@ const HomePage = () => {
           viewport={{ once: true }}
           className="relative max-w-4xl mx-auto text-center px-4"
         >
-          <h2 className="text-4xl md:text-5xl font-black text-white mb-6">
+          <h2 className="text-3xl md:text-4xl font-black text-white mb-6">
             Ready to Start Your Learning Journey?
           </h2>
-          <p className="text-xl text-purple-100 mb-10">
+          <p className="text-lg text-purple-100 mb-10">
             Join thousands of students and tutors transforming education together
           </p>
-          <NavLink to="/register" className="flex flex-col sm:flex-row gap-6 justify-center">
-            <button className="group bg-white text-violet-600 font-bold text-lg px-10 py-5 rounded-full shadow-2xl hover:shadow-white/50 transition-all duration-300 hover:scale-105">
-              <span className="flex items-center justify-center">
-                Get Started Now
-                <Sparkles className="ml-3 w-6 h-6 group-hover:rotate-12 transition-transform" />
-              </span>
-            </button>
-          </NavLink>
+          <button className="group bg-white text-violet-600 font-bold text-base px-10 py-4 rounded-full shadow-2xl hover:shadow-white/50 transition-all duration-300 hover:scale-105">
+            <span className="flex items-center justify-center">
+              Get Started Now
+              <Sparkles className="ml-3 w-5 h-5 group-hover:rotate-12 transition-transform" />
+            </span>
+          </button>
         </motion.div>
       </section>
+
+     <Footer/>
     </div>
   )
 }

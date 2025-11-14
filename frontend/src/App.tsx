@@ -11,8 +11,8 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import { User } from './store/authStore'
 
-import HowItWorksForStudents from './pages/how-it-works-for-student/page';
-import HowItWorksForTutors from './pages/how-it-works-for-tutor/page'
+import HowItWorksForStudents from './pages/HowItWorksForStudentsPage';
+import HowItWorksForTutors from './pages/HowItWorksForTutorsPage'
 
 function App() {
   const { user } = useAuthStore()

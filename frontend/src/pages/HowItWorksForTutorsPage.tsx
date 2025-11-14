@@ -9,12 +9,12 @@ import {
   UserCheck,
   Calendar,
   Video,
-  FileText,
   DollarSign,
   GraduationCap
 } from 'lucide-react';
-import Navbar from '../../components/Navbar';
+import Navbar from '../components/Navbar';
 import { NavLink } from 'react-router-dom';
+import Footer from '../components/Footer';
 
 // Animation Variants
 const cardVariants = {
@@ -30,14 +30,7 @@ const cardVariants = {
   })
 };
 
-const floatingAnimation = {
-  y: [0, -18, 0],
-  transition: {
-    duration: 4,
-    repeat: Infinity,
-    ease: "easeInOut"
-  }
-};
+
 
 const iconRotate = {
   hover: { rotate: 360, transition: { duration: 0.6 } }
@@ -140,15 +133,7 @@ const HowItWorksTutors = () => {
           transition={{ duration: 0.8 }}
           className="text-center mb-16"
         >
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex items-center px-5 py-2.5 rounded-full bg-gradient-to-r from-purple-500 to-violet-600 text-white text-sm font-bold uppercase tracking-wide shadow-lg mb-6"
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            For Tutors
-          </motion.div>
+ 
 
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -156,7 +141,7 @@ const HowItWorksTutors = () => {
             transition={{ delay: 0.3 }}
             className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-violet-600 to-pink-600 leading-tight"
           >
-            Teach, Inspire, Earn — Your Way
+            How It Works for Tutors
           </motion.h1>
 
           <motion.p
@@ -165,7 +150,15 @@ const HowItWorksTutors = () => {
             transition={{ delay: 0.4 }}
             className="mt-5 text-lg text-slate-700 max-w-3xl mx-auto font-medium"
           >
-            JTutors empowers expert educators to reach students, set their own schedules, and get paid fairly — all in a trusted Jewish learning community.
+         Tutoring with JTutors is simple, rewarding, and community-focused.
+          </motion.p>
+            <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-lg mt-3 font-semibold text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 leading-tight"
+          >
+         Here’s how it works:
           </motion.p>
         </motion.div>
 
@@ -180,7 +173,7 @@ const HowItWorksTutors = () => {
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: true, margin: "-80px" }}
-                variants={cardVariants}
+                variants={{cardVariants}}
                 whileHover={{ y: -12, scale: 1.03 }}
                 className="group relative"
               >
@@ -265,35 +258,55 @@ const HowItWorksTutors = () => {
         </motion.div>
 
         {/* CTA Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="flex flex-col sm:flex-row gap-5 justify-center items-center"
-        >
-          <NavLink
-            to="/register?role=tutor"
-            className="group relative overflow-hidden bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg px-9 py-4 rounded-full shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105"
-          >
-            <span className="relative z-10 flex items-center">
-              Start Teaching Today
-              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-transform" />
-            </span>
-            <div className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          </NavLink>
+      {/* Heading + Paragraph */}
+<motion.div
+  initial={{ opacity: 0, y: 30 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ once: true }}
+  transition={{ duration: 0.6 }}
+  className="text-center mb-10 px-4"
+>
+  <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+    Join our community today
+  </h2>
+  <p className="text-gray-600 max-w-2xl mx-auto text-lg">
+    Within minutes you can build your profile, find the right tutor, and start reaching your academic goals
+  </p>
+</motion.div>
 
-          <NavLink
-            to="/register?role=student"
-            className="group bg-white text-purple-700 border-4 border-purple-500 font-bold text-lg px-9 py-4 rounded-full hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
-          >
-            <span className="flex items-center">
-              Find a Tutor
-              <Sparkles className="ml-2 w-5 h-5 group-hover:rotate-12 transition-transform" />
-            </span>
-          </NavLink>
-        </motion.div>
+{/* Buttons */}
+<motion.div
+  initial={{ opacity: 0, y: 30 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ once: true }}
+  transition={{ duration: 0.6 }}
+  className="flex flex-col sm:flex-row gap-5 justify-center items-center"
+>
+  <NavLink
+    to="/register?role=tutor"
+    className="group relative overflow-hidden bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg px-9 py-4 rounded-full shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105"
+  >
+    <span className="relative z-10 flex items-center">
+      Join As a Tutor
+      <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-transform" />
+    </span>
+    <div className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+  </NavLink>
+
+  <NavLink
+    to="/register?role=student"
+    className="group bg-white text-purple-700 border-4 border-purple-500 font-bold text-lg px-9 py-4 rounded-full hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
+  >
+    <span className="flex items-center">
+      Start As a Student
+      <Sparkles className="ml-2 w-5 h-5 group-hover:rotate-12 transition-transform" />
+    </span>
+  </NavLink>
+</motion.div>
+
       </section>
+
+      <Footer/>
     </div>
   );
 };
