@@ -360,12 +360,12 @@ const HomePage = () => {
           <p className="text-lg text-purple-100 mb-10">
             Join thousands of students and tutors transforming education together
           </p>
-          <NavLink to="/register" className="group bg-white text-violet-600 font-bold text-base px-10 py-4 rounded-full shadow-2xl hover:shadow-white/50 transition-all duration-300 hover:scale-105">
-            <span className="flex items-center justify-center">
+          <button className="group bg-white text-violet-600 font-bold text-base px-10 py-4 rounded-full shadow-2xl hover:shadow-white/50 transition-all duration-300 hover:scale-105">
+           <NavLink to="/register"> <span className="flex items-center justify-center">
               Get Started Now
               <Sparkles className="ml-3 w-5 h-5 group-hover:rotate-12 transition-transform" />
-            </span>
-          </NavLink>
+            </span></NavLink>
+          </button>
         </motion.div>
       </section>
 
