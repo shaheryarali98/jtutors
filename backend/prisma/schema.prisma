@@ -32,6 +32,18 @@ model Student {
   firstName String?
   lastName  String?
   profileImage String?
+  gender    String?
+  grade     String?
+  tagline   String?
+  bio       String?
+  country   String?
+  state     String?
+  city      String?
+  address   String?
+  zipcode   String?
+  languagesSpoken String?
+  learningPreferences String?
+  introduction String?
   profileCompleted Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -39,6 +51,7 @@ model Student {
   // Add more student-specific fields as needed
   bookings Booking[]
   payments Payment[]
+  savedTutors StudentSavedTutor[]
 }
 
 model Tutor {
@@ -85,6 +98,7 @@ model Tutor {
   backgroundCheck  BackgroundCheck?
   bookings         Booking[]
   payments         Payment[]
+  savedByStudents  StudentSavedTutor[]
 }
 
 model Experience {
@@ -254,6 +268,17 @@ model Payment {
   paidAt      DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model StudentSavedTutor {
+  id        String   @id @default(uuid())
+  studentId String
+  tutorId   String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutor     Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, tutorId])
 }
 
 model Withdrawal {

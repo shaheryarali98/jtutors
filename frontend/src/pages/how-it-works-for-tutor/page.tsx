@@ -1,5 +1,5 @@
 // HowItWorksTutors.jsx
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import {
   CheckCircle2,
   ArrowRight,
@@ -9,7 +9,6 @@ import {
   UserCheck,
   Calendar,
   Video,
-  FileText,
   DollarSign,
   GraduationCap
 } from 'lucide-react';
@@ -17,7 +16,7 @@ import Navbar from '../../components/Navbar';
 import { NavLink } from 'react-router-dom';
 
 // Animation Variants
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 50 },
   visible: (i: number) => ({
     opacity: 1,
@@ -25,18 +24,9 @@ const cardVariants = {
     transition: {
       delay: i * 0.15,
       duration: 0.6,
-      ease: [0.25, 0.4, 0.25, 1]
+      ease: 'easeInOut',
     }
   })
-};
-
-const floatingAnimation = {
-  y: [0, -18, 0],
-  transition: {
-    duration: 4,
-    repeat: Infinity,
-    ease: "easeInOut"
-  }
 };
 
 const iconRotate = {
@@ -79,7 +69,7 @@ const HowItWorksTutors = () => {
         "Live online sessions with Zoom integration, fully embedded in JTutors.",
         "Recorded sessions that students can access anytime for review.",
         "In-person lessons for learners in your local area.",
-        "Google Classroom integration for sharing assignments, resources, and announcements with students, parents, and teachers."
+        "Google Classroom integration for sharing assignments, resources, and announcements with your students in one place."
       ],
       icon: Video,
       gradient: "from-emerald-500 to-teal-500",

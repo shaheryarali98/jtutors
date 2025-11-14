@@ -122,6 +122,10 @@ export const confirmPayment = async (paymentId: string, stripeChargeId?: string)
   if (payment.stripePaymentIntentId) {
     try {
       const intent = await confirmPaymentIntent(payment.stripePaymentIntentId);
+      if (!intent) {
+        throw new Error('Payment intent not found')
+      }
+
       if (intent.status !== 'succeeded') {
         throw new Error(`Payment intent status: ${intent.status}`);
       }
@@ -204,5 +208,36 @@ export const getPaymentsByUser = async (userId: string, role: 'STUDENT' | 'TUTOR
       orderBy: { createdAt: 'desc' },
     });
   }
+};
+
+export const markPaymentRefunded = async (paymentId: string) => {
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: {
+      student: { include: { user: true } },
+      tutor: { include: { user: true } },
+      booking: true,
+    },
+  });
+
+  if (!payment) {
+    throw new Error('Payment not found');
+  }
+
+  if (payment.paymentStatus === 'REFUNDED') {
+    return payment;
+  }
+
+  return await prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      paymentStatus: 'REFUNDED',
+    },
+    include: {
+      student: { include: { user: true } },
+      tutor: { include: { user: true } },
+      booking: true,
+    },
+  });
 };
 

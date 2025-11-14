@@ -51,7 +51,7 @@ const Register = () => {
           ? '/admin/dashboard'
           : response.data.user.role === 'TUTOR'
             ? '/tutor/profile'
-            : '/student/dashboard'
+            : '/student/profile'
 
       setTimeout(() => {
         navigate(destination)
@@ -71,8 +71,8 @@ const Register = () => {
         <div className="grid lg:grid-cols-2 gap-10 items-center bg-white rounded-3xl shadow-2xl overflow-hidden">
           <div className="hidden lg:block h-full">
           <img
-  src="/logo.jpg"
-  alt="Create JTutor account"
+  src="/logo1.jpg"
+  alt="Create JTutors account"
   className="h-full w-full object-cover"
 />
 
@@ -80,7 +80,7 @@ const Register = () => {
 
           <div className="p-8 md:p-12">
             <div>
-              <h2 className="text-3xl font-bold text-slate-900">Create your JTutor account</h2>
+              <h2 className="text-3xl font-bold text-slate-900">Create your JTutors account</h2>
               <p className="text-slate-500 mt-2">
                 Choose your role and get started in under a minute. We’ll guide you through the rest.
               </p>
@@ -100,9 +100,9 @@ const Register = () => {
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 mt-6">
               <div>
-                <label className="label">I am joining JTutor as</label>
+                <label className="label">I am joining JTutors as</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <RoleOption value="STUDENT" label="Learner / Parent" register={register} />
+                  <RoleOption value="STUDENT" label="Student" register={register} />
                   <RoleOption value="TUTOR" label="Tutor / Mentor" register={register} />
                   {includeAdminOption && <RoleOption value="ADMIN" label="Platform Admin" register={register} />}
                 </div>
@@ -113,7 +113,7 @@ const Register = () => {
                 <input
                   type="email"
                   className="input"
-                  placeholder="you@jtutor.com"
+                  placeholder="you@jtutors.com"
                   {...register('email', {
                     required: 'Email is required',
                     pattern: {

@@ -27,12 +27,21 @@ const Login = () => {
       setAuth(response.data.user, response.data.token)
       setSuccess(response.data.message || 'Login successful')
 
-      const destination =
-        response.data.user.role === 'ADMIN'
-          ? '/admin/dashboard'
-          : response.data.user.role === 'TUTOR'
-            ? '/tutor/dashboard'
-            : '/student/dashboard'
+      let destination: string
+      if (response.data.user.role === 'ADMIN') {
+        destination = '/admin/dashboard'
+      } else if (response.data.user.role === 'TUTOR') {
+        destination = '/tutor/dashboard'
+      } else {
+        try {
+          const me = await api.get('/auth/me')
+          const profileCompleted = Boolean(me.data.student?.profileCompleted)
+          destination = profileCompleted ? '/student/dashboard' : '/student/profile'
+        } catch (meError) {
+          console.error('Failed to resolve student profile status:', meError)
+          destination = '/student/profile'
+        }
+      }
 
       setTimeout(() => {
         navigate(destination)
@@ -52,8 +61,8 @@ const Login = () => {
         <div className="grid lg:grid-cols-2 gap-10 items-center bg-white rounded-3xl shadow-2xl overflow-hidden">
           <div className="hidden lg:block h-full">
             <img
-              src="/logo.jpg"
-              alt="JTutor login"
+              src="/logo1.jpg"
+              alt="JTutors login"
               className="h-full w-full object-cover"
             />
           </div>
@@ -61,7 +70,7 @@ const Login = () => {
             <div className="text-left">
               <h2 className="text-3xl font-bold text-slate-900">Welcome back 👋</h2>
               <p className="text-slate-500 mt-2">
-                Sign in with your JTutor account to continue learning or managing your sessions.
+                Sign in with your JTutors account to continue learning or managing your sessions.
               </p>
             </div>
 
@@ -83,7 +92,7 @@ const Login = () => {
                 <input
                   type="email"
                   className="input"
-                  placeholder="you@jtutor.com"
+                  placeholder="you@jtutors.com"
                   {...register('email', {
                     required: 'Email is required',
                     pattern: {
@@ -119,7 +128,7 @@ const Login = () => {
               <p className="text-sm text-slate-600">
                 Don't have an account?{' '}
                 <Link to="/register" className="text-primary-600 hover:text-primary-700 font-semibold">
-                  Join JTutor
+                  Join JTutors
                 </Link>
               </p>
             </div>

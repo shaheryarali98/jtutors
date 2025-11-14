@@ -1,11 +1,11 @@
 // HowItWorksStudents.jsx
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { CheckCircle2, ArrowRight, Star, Check, Sparkles, GraduationCap, Calendar, Video, FileText, Lock } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import { NavLink } from 'react-router-dom';
 
 // Animation Variants
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 50 },
   visible: (i: number) => ({
     opacity: 1,
@@ -13,18 +13,9 @@ const cardVariants = {
     transition: {
       delay: i * 0.15,
       duration: 0.6,
-      ease: [0.25, 0.4, 0.25, 1]
+      ease: 'easeInOut',
     }
   })
-};
-
-const floatingAnimation = {
-  y: [0, -15, 0],
-  transition: {
-    duration: 4,
-    repeat: Infinity,
-    ease: "easeInOut"
-  }
 };
 
 const iconRotate = {
@@ -70,7 +61,7 @@ const HowItWorksStudents = () => {
       list: [
         "After each session, you’ll get notes, feedback, and resources to keep moving forward.",
         "Use Google Classroom integration to access assignments, shared files, and updates from your tutor.",
-        "Parents and teachers can stay informed through Classroom updates, ensuring communication stays seamless."
+        "Stay informed through Classroom updates that centralise resources, notes, and action items from your tutor."
       ],
       icon: FileText,
       gradient: "from-orange-500 to-red-500",

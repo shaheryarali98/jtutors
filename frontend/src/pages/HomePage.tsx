@@ -1,473 +1,383 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { 
-  GraduationCap, 
-  CalendarCheck, 
-  MessageSquare, 
-  Search, 
-  Shield, 
-  Users,
-  ArrowRight,
-  Sparkles,
-  BookOpen,
-  Trophy,
-  Zap,
-  Heart,
-  Star,
-  Menu,
-  X
-} from 'lucide-react'
 import Navbar from '../components/Navbar'
-import { NavLink } from 'react-router-dom'
+import {
+  Search,
+  ChevronRight,
+  Star,
+  Shield,
+  Quote,
+  MapPin,
+} from 'lucide-react'
+
+const categoryOptions = [
+  'Arts, Music & Design',
+  'Humanities & Social Studies',
+  'Jewish Studies',
+  'Languages',
+  'Mathematics & Statistics',
+  'Science, Medicine & Engineering',
+  'Sports, Fitness & Recreation',
+  'Technology & Computer Science',
+  'Test Preparation',
+]
+
+const popularSearches = ['Languages', 'SAT Math', 'Jewish Studies', 'STEM Clubs']
+
+const featureHighlights = [
+  {
+    title: 'Expert Tutors',
+    description:
+      'JTutors connects students with experienced, diverse tutors across every major subject, learning goal, and budget.',
+  },
+  {
+    title: 'Flexible Learning Options',
+    description:
+      'Choose online via Zoom, in-person with local tutors, or a hybrid approach — lessons that fit your schedule.',
+  },
+  {
+    title: 'Seamless Communication & Replay',
+    description:
+      'Google Classroom integration keeps students and tutors aligned, while recorded sessions support ongoing review.',
+  },
+  {
+    title: 'All-in-One Scheduling',
+    description:
+      'Book, reschedule, and manage sessions directly on JTutors. No extra emails or tools required.',
+  },
+  {
+    title: 'Safe & Secure',
+    description:
+      'Built-in messaging, secure payments, and dedicated support for the Jewish community’s learning needs.',
+  },
+  {
+    title: 'Customised Search & Matching',
+    description:
+      'Advanced filters by subject, grade, location, learning style, and tutor background help you find the perfect match instantly.',
+  },
+]
+
+const platformStats = [
+  { label: 'Courses available for verified & top tutors', value: '560,616+' },
+  { label: 'Tutoring jobs posted to date', value: '648,482+' },
+  { label: 'Daily average time spent on the platform', value: '20+ Hours' },
+  { label: 'Active tutors and students', value: '7+ Million' },
+]
+
+const popularCategories = [
+  {
+    name: 'Languages',
+    count: '47 Listings',
+    topics: ['Braille', 'Bulgarian', 'Czech', 'Dutch'],
+  },
+  {
+    name: 'Test Preparation',
+    count: '38 Listings',
+    topics: ['ACT English', 'SAT Math', 'SAT Reading', 'ACT Science'],
+  },
+  {
+    name: 'Science, Medicine & Engineering',
+    count: '52 Listings',
+    topics: ['Anatomy', 'Astronomy', 'Biochemistry', 'Biology'],
+  },
+  {
+    name: 'Technology & Computer Science',
+    count: '41 Listings',
+    topics: ['Web Development', 'Robotics', 'Game Design', 'Coding Bootcamps'],
+  },
+]
+
+const successStories = [
+  {
+    title: 'I highly recommend this platform, amazing experience with fast delivery',
+    quote:
+      '“It is a long established fact that a learner will be inspired by the right mentor. JTutors made it effortless to find that match.”',
+    author: 'Michael Mueller',
+    role: '5th Grade Student, Dubai',
+  },
+  {
+    title: 'Professional, responsive, and truly caring mentors',
+    quote:
+      '“The tutors understand our community’s values and deliver excellent guidance. Support is always a message away.”',
+    author: 'Bobbie Schwartz',
+    role: 'Parent, Manchester UK',
+  },
+  {
+    title: 'Thoughtful coaching turned my studies around',
+    quote:
+      '“I was nervous before my first session. JTutors matched me with the perfect tutor, and now I look forward to learning.”',
+    author: 'Cecil Sims',
+    role: '7th Grade Student, Rome Italy',
+  },
+]
+
+const featuredTutors = [
+  {
+    name: 'Filomena Galicia',
+    location: 'Austin, AZ',
+    rate: '$55.00/hr',
+    qualification: 'MBBS',
+    rating: '5.0',
+  },
+  {
+    name: 'Steven Ford',
+    location: 'Charlotte, OK',
+    rate: '$21.00/hr',
+    qualification: 'Math Specialist',
+    rating: '5.0',
+  },
+  {
+    name: 'Loise Mullens',
+    location: 'Tampa, LA',
+    rate: '$99.00/hr',
+    qualification: 'STEM Mentor',
+    rating: '5.0',
+  },
+  {
+    name: 'Ann Coleman',
+    location: 'Baltimore, NV',
+    rate: '$79.00/hr',
+    qualification: 'SAT Coach',
+    rating: '5.0',
+  },
+]
 
 const HomePage = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  const features = [
-    {
-      icon: GraduationCap,
-      title: "Expert Tutors",
-      desc: "JTutors connects students with experienced and diverse tutors across a wide range of subjects, ages, and budgets.",
-      color: "from-orange-500 to-red-500",
-      bgColor: "bg-orange-50",
-      iconColor: "text-orange-600"
-    },
-    {
-      icon: CalendarCheck,
-      title: "Flexible Learning Options",
-      desc: "Choose online via Zoom integration, in-person with local tutors, or a combination of both.",
-      color: "from-blue-500 to-cyan-500",
-      bgColor: "bg-blue-50",
-      iconColor: "text-blue-600"
-    },
-    {
-      icon: MessageSquare,
-      title: "Seamless Communication & Replay",
-      desc: "Google Classroom integration keeps students, tutors, teachers, and parents connected, while recorded sessions allow students to review lessons anytime.",
-      color: "from-green-500 to-emerald-500",
-      bgColor: "bg-green-50",
-      iconColor: "text-green-600"
-    },
-    {
-      icon: Users,
-      title: "All-in-One Scheduling",
-      desc: "Book, reschedule, and manage sessions directly on the site—no extra apps, emails, or back-and-forth required.",
-      color: "from-red-500 to-pink-500",
-      bgColor: "bg-red-50",
-      iconColor: "text-red-600"
-    },
-    {
-      icon: Shield,
-      title: "Safe & Secure",
-      desc: "Built-in messaging, secure payments, and a platform designed for the Jewish community.",
-      color: "from-teal-500 to-cyan-500",
-      bgColor: "bg-teal-50",
-      iconColor: "text-teal-600"
-    },
-    {
-      icon: Search,
-      title: "Customized Search & Matching",
-      desc: "Advanced filters by subject, grade level, location, learning style, and tutor background help you find your perfect match instantly.",
-      color: "from-indigo-500 to-purple-500",
-      bgColor: "bg-indigo-50",
-      iconColor: "text-indigo-600"
-    }
-  ];
-
-  const stats = [
-    { value: "4.9/5", label: "Average tutor rating", icon: Star, color: "from-yellow-400 to-orange-500" },
-    { value: "120+", label: "Subjects covered", icon: BookOpen, color: "from-blue-400 to-cyan-500" },
-    { value: "3k+", label: "Learners supported", icon: Users, color: "from-green-400 to-emerald-500" },
-    { value: "98%", label: "Parent satisfaction", icon: Heart, color: "from-pink-400 to-rose-500" }
-  ];
-
-  const testimonials = [
-    {
-      quote: "JTutor transformed my daughter's learning experience. Her confidence has soared!",
-      author: "Sarah M.",
-      role: "Parent",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop"
-    },
-    {
-      quote: "The platform made it so easy to connect with students who need my expertise.",
-      author: "Rabbi David L.",
-      role: "Tutor",
-      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop"
-    },
-    {
-      quote: "Finally found a tutor who understands our community's values and academic needs!",
-      author: "Michael R.",
-      role: "Student",
-      image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop"
-    }
-  ];
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: (i) => ({
-      opacity: 1,
-      y: 0,
-      transition: {
-        delay: i * 0.15,
-        duration: 0.6,
-        ease: [0.25, 0.4, 0.25, 1]
-      }
-    })
-  };
-
-  const floatingAnimation = {
-    y: [0, -20, 0],
-    transition: {
-      duration: 3,
-      repeat: Infinity,
-      ease: "easeInOut"
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-sky-50 to-cyan-50 overflow-hidden">
-      {/* Navbar */}
-      <Navbar/>
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
 
-      {/* Animated Background Elements */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <motion.div
-          animate={{ 
-            scale: [1, 1.2, 1],
-            rotate: [0, 90, 0],
-            opacity: [0.3, 0.5, 0.3]
-          }}
-          transition={{ duration: 20, repeat: Infinity }}
-          className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-purple-300 to-pink-300 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{ 
-            scale: [1, 1.3, 1],
-            rotate: [0, -90, 0],
-            opacity: [0.3, 0.5, 0.3]
-          }}
-          transition={{ duration: 25, repeat: Infinity }}
-          className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-blue-300 to-cyan-300 rounded-full blur-3xl"
-        />
-      </div>
-
-      {/* Hero Section */}
-      <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <motion.span
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-bold uppercase tracking-wide shadow-lg"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Welcome to JTutor
-            </motion.span>
-            
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="mt-6 text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 leading-tight"
-            >
-              Personalised Tutoring Designed Around Every Learner's Goals
-            </motion.h1>
-            
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="mt-6 text-xl text-slate-700 leading-relaxed font-medium"
-            >
-              JTutor connects ambitious students with inspiring tutors. Build a rich learning profile, find your perfect match,
-              and track progress all in one beautiful dashboard.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="mt-10 flex flex-wrap gap-4"
-            >
-              <button className="group relative overflow-hidden bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-lg px-8 py-4 rounded-2xl shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105">
-                <span className="relative z-10 flex items-center">
-                  Explore Tutors
-                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-transform" />
+      <main className="relative overflow-hidden">
+        {/* Hero */}
+        <section className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white">
+          <div className="absolute inset-0 bg-grid-white/10" aria-hidden="true" />
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
+            <div className="grid lg:grid-cols-[3fr,2fr] gap-12 items-center">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1 text-sm font-semibold uppercase tracking-wide">
+                  <Shield className="h-4 w-4" />
+                  Trusted, vetted tutors for the Jewish community
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </button>
-              
-              <button className="group bg-white text-violet-600 font-bold text-lg px-8 py-4 rounded-2xl shadow-xl border-2 border-violet-200 hover:border-violet-400 hover:shadow-2xl hover:shadow-violet-200 transition-all duration-300 hover:scale-105">
-                <span className="flex items-center">
-                  Apply as a Tutor
-                  <Zap className="ml-2 w-5 h-5 group-hover:rotate-12 transition-transform" />
-                </span>
-              </button>
-            </motion.div>
+                <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-black leading-tight">
+                  Where Jewish Students and Tutors Connect
+                </h1>
+                <p className="mt-6 text-lg leading-relaxed text-white/90">
+                  JTutors connects students and families with trusted, vetted tutors who understand the academic
+                  needs of the Jewish community. Learn online, in person, or both — with a platform designed around
+                  your goals.
+                </p>
 
-            {/* Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4"
-            >
-              {stats.map((stat, i) => {
-                const Icon = stat.icon;
-                return (
-                  <motion.div
-                    key={i}
-                    whileHover={{ scale: 1.05, y: -5 }}
-                    className="relative group"
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-20 group-hover:opacity-30 rounded-2xl transition-opacity duration-300`} />
-                    <div className="relative bg-white/90 backdrop-blur-xl rounded-2xl p-5 shadow-xl border border-white/50 group-hover:shadow-2xl transition-all duration-300">
-                      <Icon className={`w-6 h-6 mb-2 text-slate-600`} />
-                      <p className={`text-3xl font-black bg-gradient-to-r ${stat.color} text-transparent bg-clip-text`}>{stat.value}</p>
-                      <p className="mt-1 text-xs uppercase tracking-wider text-slate-600 font-semibold">{stat.label}</p>
+                <div className="mt-10 rounded-3xl bg-white/95 p-6 shadow-xl">
+                  <form className="grid gap-4 lg:grid-cols-[2fr,2fr,auto]">
+                    <div className="flex flex-col">
+                      <label className="text-xs font-semibold uppercase text-slate-500">Select category</label>
+                      <select className="mt-2 rounded-xl border border-slate-200 px-4 py-3 focus:border-indigo-500 focus:outline-none">
+                        {categoryOptions.map((category) => (
+                          <option key={category}>{category}</option>
+                        ))}
+                      </select>
                     </div>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative"
-          >
-            <motion.div
-              animate={floatingAnimation}
-              className="relative"
-            >
-              <div className="absolute -top-8 -left-8 w-80 h-80 bg-gradient-to-br from-violet-400 to-purple-500 rounded-full blur-3xl opacity-40 animate-pulse" />
-              <div className="absolute -bottom-8 -right-8 w-80 h-80 bg-gradient-to-br from-pink-400 to-rose-500 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDelay: '1s' }} />
-              
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white/50 backdrop-blur-sm transform hover:scale-105 transition-transform duration-500">
-                <img
-                  src="https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&fit=crop&w=1200&q=80"
-                  alt="Students learning together"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-purple-900/50 to-transparent" />
-                
-                {/* Floating badge */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1, duration: 0.5 }}
-                  className="absolute top-6 right-6 bg-white/95 backdrop-blur-md rounded-2xl px-6 py-4 shadow-2xl"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
-                      <Trophy className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-black text-slate-900">98%</p>
-                      <p className="text-xs text-slate-600 font-semibold">Success Rate</p>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="relative py-24 bg-gradient-to-br from-white via-violet-50 to-purple-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
-          >
-            <motion.h1
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-purple-600 mb-6"
-            >
-              JTutors – A Revolutionary Jewish Tutoring Platform
-            </motion.h1>
-            
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="text-3xl md:text-4xl font-bold text-blue-600 mb-6"
-            >
-              Find your perfect tutor today—<br className="sm:hidden" /> online, in person, or both!
-            </motion.h2>
-            
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="text-lg text-slate-700 max-w-4xl mx-auto leading-relaxed"
-            >
-              JTutors connects students and families with trusted tutors who understand the academic needs of the Jewish community. 
-              With flexible options for online, in-person, and hybrid learning, JTutors makes tutoring seamless, affordable, safe, and tailored to every learner.
-            </motion.p>
-          </motion.div>
-
-          {/* Feature Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <motion.div
-                  key={index}
-                  custom={index}
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true, margin: "-50px" }}
-                  variants={cardVariants}
-                  whileHover={{ y: -12, scale: 1.02 }}
-                  className="group relative"
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.color} rounded-3xl blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-300`} />
-                  <div className={`relative ${feature.bgColor} rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 border-2 border-white/50 backdrop-blur-sm h-full`}>
-                    <div className="flex items-start space-x-4">
-                      <motion.div
-                        whileHover={{ rotate: 360, scale: 1.1 }}
-                        transition={{ duration: 0.6 }}
-                        className={`w-16 h-16 ${feature.iconColor} flex items-center justify-center rounded-2xl bg-white shadow-lg group-hover:shadow-xl`}
-                      >
-                        <Icon className="w-8 h-8" />
-                      </motion.div>
-                      <div className="flex-1">
-                        <h3 className="text-xl font-black text-gray-900 mb-3 group-hover:text-violet-600 transition-colors duration-200">
-                          {feature.title}
-                        </h3>
-                        <p className="text-sm text-gray-700 leading-relaxed font-medium">
-                          {feature.desc}
-                        </p>
+                    <div className="flex flex-col">
+                      <label className="text-xs font-semibold uppercase text-slate-500">Search keywords</label>
+                      <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 focus-within:border-indigo-500">
+                        <Search className="h-5 w-5 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="e.g. Hebrew, calculus, robotics"
+                          className="w-full bg-transparent text-slate-700 focus:outline-none"
+                        />
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-indigo-700"
+                    >
+                      Search now
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </form>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                    <span className="font-semibold text-slate-600">Popular searches:</span>
+                    {popularSearches.map((item) => (
+                      <span key={item} className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                        {item}
+                      </span>
+                    ))}
                   </div>
-                </motion.div>
-              );
-            })}
-          </div>
+                </div>
+                    </div>
 
-          {/* How It Works Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row gap-6 justify-center items-center"
-          >
-            <NavLink to="/how-it-works-for-students" className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold text-lg px-10 py-5 rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105">
-              <span className="relative z-10 flex items-center">
-                How It Works for Students
-                <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </NavLink>
-
-            <NavLink to="how-it-works-for-tutors" className="group bg-white text-blue-700 border-4 border-blue-500 font-bold text-lg px-10 py-5 rounded-full hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105">
-              <span className="flex items-center">
-                How It Works for Tutors
-                <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
-              </span>
-            </NavLink>
-          </motion.div>
+              <div className="hidden lg:block">
+                <div className="relative rounded-3xl bg-white/10 p-8 shadow-2xl backdrop-blur">
+                  <img
+                    src="https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&fit=crop&w=900&q=80"
+                    alt="JTutors community"
+                    className="h-full w-full rounded-2xl object-cover"
+                  />
+                  <div className="absolute -bottom-6 left-1/2 w-56 -translate-x-1/2 rounded-2xl bg-white px-6 py-4 text-center shadow-xl">
+                    <p className="text-sm font-semibold text-slate-600">Trusted by families worldwide</p>
+                    <p className="text-xl font-black text-indigo-600">7+ Million learners</p>
+                  </div>
+                </div>
+              </div>
+            </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-24 bg-gradient-to-br from-violet-100 via-purple-50 to-pink-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-pink-600 mb-4">
-              Loved by Students & Teachers
-            </h2>
-            <p className="text-lg text-slate-700">See what our community has to say</p>
-          </motion.div>
+        {/* Platform Highlights */}
+        <section className="bg-white py-16">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-3xl font-black text-slate-900">JTutors – A Revolutionary Jewish Tutoring Platform</h2>
+            <p className="mt-4 text-lg text-slate-600">
+              Find your perfect tutor today—online, in person, or both. JTutors makes tutoring seamless, affordable,
+              safe, and tailored to every learner.
+            </p>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, i) => (
-              <motion.div
-                key={i}
-                custom={i}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={cardVariants}
-                whileHover={{ y: -10, scale: 1.02 }}
-                className="bg-white rounded-3xl p-8 shadow-2xl hover:shadow-purple-200 transition-all duration-300 border-2 border-purple-100"
-              >
-                <div className="flex items-center space-x-4 mb-6">
-                  <img
-                    src={testimonial.image}
-                    alt={testimonial.author}
-                    className="w-16 h-16 rounded-full object-cover ring-4 ring-purple-200"
-                  />
-                  <div>
-                    <p className="font-black text-gray-900">{testimonial.author}</p>
-                    <p className="text-sm text-purple-600 font-semibold">{testimonial.role}</p>
+            <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {featureHighlights.map((feature) => (
+                <div key={feature.title} className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-left shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900">{feature.title}</h3>
+                  <p className="mt-3 text-sm text-slate-600 leading-relaxed">{feature.description}</p>
+                      </div>
+              ))}
+                  </div>
+          </div>
+        </section>
+
+        {/* Stats */}
+        <section className="py-16 bg-slate-100">
+          <div className="max-w-6xl mx-auto grid gap-6 px-4 sm:grid-cols-2 lg:grid-cols-4">
+            {platformStats.map((stat) => (
+              <div key={stat.label} className="rounded-3xl bg-white p-6 shadow-lg">
+                <p className="text-3xl font-black text-indigo-600">{stat.value}</p>
+                <p className="mt-2 text-sm font-medium text-slate-600">{stat.label}</p>
+              </div>
+            ))}
+        </div>
+      </section>
+
+        {/* Popular categories */}
+        <section className="py-16 bg-white">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-3xl font-black text-slate-900">Choose from one of the popular categories below</h2>
+                <p className="mt-2 text-slate-600">
+                  Explore subjects taught by verified tutors who understand your academic and cultural priorities.
+                </p>
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-indigo-500 hover:text-indigo-600">
+                Explore all tutors
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-10 grid gap-8 sm:grid-cols-2">
+              {popularCategories.map((category) => (
+                <div key={category.name} className="rounded-3xl border border-slate-200 p-6 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-slate-900">{category.name}</h3>
+                    <span className="text-sm font-semibold text-indigo-600">{category.count}</span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {category.topics.map((topic) => (
+                      <span key={topic} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                        {topic}
+                      </span>
+                    ))}
                   </div>
                 </div>
-                <p className="text-gray-700 italic leading-relaxed">"{testimonial.quote}"</p>
-                <div className="flex mt-4 text-yellow-400">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 fill-current" />
-                  ))}
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Success stories */}
+        <section className="py-16 bg-slate-100">
+          <div className="max-w-6xl mx-auto px-4">
+            <h2 className="text-3xl font-black text-slate-900 text-center">See how our members found #Success</h2>
+            <p className="mt-2 text-center text-slate-600">
+              Real stories from students, tutors, and families thriving with JTutors.
+            </p>
+
+            <div className="mt-12 grid gap-6 lg:grid-cols-3">
+              {successStories.map((story) => (
+                <div key={story.title} className="rounded-3xl bg-white p-6 shadow-md">
+                  <Quote className="h-10 w-10 text-indigo-400" />
+                  <h3 className="mt-4 text-lg font-semibold text-slate-900">{story.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600">{story.quote}</p>
+                  <div className="mt-6 text-sm font-medium text-indigo-600">{story.author}</div>
+                  <div className="text-xs uppercase tracking-wide text-slate-500">{story.role}</div>
                 </div>
-              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="relative py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-purple-600 to-pink-600" />
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl" />
+        {/* Featured tutors */}
+        <section className="py-16 bg-white">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-3xl font-black text-slate-900">Every tutor is professional and highly qualified</h2>
+                <p className="mt-2 text-slate-600">Featured tutors ready to start today.</p>
+              </div>
+              <button className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-indigo-500 hover:text-indigo-600">
+                Browse tutors
+                <ChevronRight className="h-4 w-4" />
+              </button>
         </div>
         
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="relative max-w-4xl mx-auto text-center px-4"
-        >
-          <h2 className="text-4xl md:text-5xl font-black text-white mb-6">
-            Ready to Start Your Learning Journey?
-          </h2>
-          <p className="text-xl text-purple-100 mb-10">
-            Join thousands of students and tutors transforming education together
-          </p>
-          <NavLink to="/register" className="flex flex-col sm:flex-row gap-6 justify-center">
-            <button className="group bg-white text-violet-600 font-bold text-lg px-10 py-5 rounded-full shadow-2xl hover:shadow-white/50 transition-all duration-300 hover:scale-105">
-              <span className="flex items-center justify-center">
-                Get Started Now
-                <Sparkles className="ml-3 w-6 h-6 group-hover:rotate-12 transition-transform" />
-              </span>
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {featuredTutors.map((tutor) => (
+                <div key={tutor.name} className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-slate-900">{tutor.name}</h3>
+                    <span className="flex items-center gap-1 text-sm font-semibold text-amber-500">
+                      <Star className="h-4 w-4 fill-current" />
+                      {tutor.rating}
+                    </span>
+                  </div>
+                  <p className="mt-2 flex items-center gap-2 text-sm text-slate-500">
+                    <MapPin className="h-4 w-4" />
+                    {tutor.location}
+                  </p>
+                  <p className="mt-3 text-sm font-semibold text-indigo-600">Starting from {tutor.rate}</p>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">{tutor.qualification}</p>
+                  <button className="mt-5 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700">
+                    View profile
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Question form */}
+        <section className="relative overflow-hidden py-16">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 opacity-95" />
+          <div className="relative max-w-4xl mx-auto rounded-3xl bg-white/10 p-10 text-white shadow-2xl backdrop-blur">
+            <h2 className="text-3xl font-black">Didn’t find your question here?</h2>
+            <p className="mt-2 text-base text-white/80">
+              Send us your question and our team will respond within 24 hours.
+            </p>
+            <form className="mt-8 grid gap-4 md:grid-cols-2">
+              <input className="rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm placeholder:text-white/60 focus:border-white focus:outline-none" placeholder="Full name" />
+              <input className="rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm placeholder:text-white/60 focus:border-white focus:outline-none" placeholder="Email address" />
+              <input className="rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm placeholder:text-white/60 focus:border-white focus:outline-none md:col-span-2" placeholder="Question subject" />
+              <textarea className="rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm placeholder:text-white/60 focus:border-white focus:outline-none md:col-span-2" rows={4} placeholder="Describe how we can help" />
+              <label className="flex items-center gap-2 text-xs text-white/80 md:col-span-2">
+                <input type="checkbox" className="rounded border-white/40 bg-white/10" />
+                I have read and agree to all Terms &amp; Conditions.
+              </label>
+              <button type="button" className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-indigo-600 shadow-lg hover:bg-slate-100 md:col-span-2">
+                Submit your question
+                <ChevronRight className="h-4 w-4" />
             </button>
-          </NavLink>
-        </motion.div>
+            </form>
+          </div>
       </section>
+      </main>
     </div>
   )
 }

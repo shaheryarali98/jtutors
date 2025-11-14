@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Menu,
   X,
-  GraduationCap,
   LogOut,
   User,
   Sparkles,
@@ -39,6 +38,10 @@ const Navbar = () => {
     student: [
       { to: '/student/dashboard', label: 'Dashboard' },
       { to: '/student/profile', label: 'Profile' },
+      { to: '/student/saved-instructors', label: 'Saved Instructors' },
+      { to: '/student/bookings', label: 'My Bookings' },
+      { to: '/student/invoices', label: 'Invoices & Bills' },
+      { to: '/student/hour-log', label: 'Tutoring Hours' },
     ],
     tutor: [
       { to: '/tutor/dashboard', label: 'Dashboard' },
@@ -65,9 +68,9 @@ const Navbar = () => {
         <Link to="/" className="flex items-center">
   <img
     src="/logo.jpg"
-    alt="JTutor Logo"
+    alt="JTutors Logo"
     className="h-10 w-auto object-contain"
-    style={{ height: '5rem' }}
+    style={{ height: '4rem' }}
   />
 </Link>
 
@@ -169,7 +172,7 @@ const Navbar = () => {
                   to="/register"
                   className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-sm rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
                 >
-                  Join JTutor
+                  Join JTutors
                 </Link>
               </div>
             )}

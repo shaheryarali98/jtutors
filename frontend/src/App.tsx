@@ -6,6 +6,11 @@ import TutorDashboard from './pages/tutor/TutorDashboard'
 import TutorProfile from './pages/tutor/TutorProfile'
 import StudentDashboard from './pages/student/StudentDashboard'
 import StudentProfile from './pages/student/StudentProfile'
+import SavedInstructors from './pages/student/SavedInstructors'
+import StudentBookings from './pages/student/Bookings'
+import StudentInvoices from './pages/student/Invoices'
+import StudentHourLog from './pages/student/HourLog'
+import TutorDetailPage from './pages/student/TutorDetail'
 import HomePage from './pages/HomePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -57,6 +62,31 @@ function App() {
         <Route path="/student/profile" element={
           <ProtectedRoute role="STUDENT">
             <StudentProfile />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/saved-instructors" element={
+          <ProtectedRoute role="STUDENT">
+            <SavedInstructors />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/bookings" element={
+          <ProtectedRoute role="STUDENT">
+            <StudentBookings />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/invoices" element={
+          <ProtectedRoute role="STUDENT">
+            <StudentInvoices />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/hour-log" element={
+          <ProtectedRoute role="STUDENT">
+            <StudentHourLog />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/tutor/:tutorId" element={
+          <ProtectedRoute role="STUDENT">
+            <TutorDetailPage />
           </ProtectedRoute>
         } />
 

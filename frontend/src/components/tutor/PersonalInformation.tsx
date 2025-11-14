@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
+import { resolveImageUrl } from '../../lib/media'
 
 interface PersonalInfoForm {
   firstName: string
@@ -24,6 +25,7 @@ const PersonalInformation = () => {
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<PersonalInfoForm>()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [imageMessage, setImageMessage] = useState('')
   const [selectedGrades, setSelectedGrades] = useState<string[]>([])
   const [languages, setLanguages] = useState<string[]>([''])
   const [profileImage, setProfileImage] = useState('')
@@ -72,6 +74,8 @@ const PersonalInformation = () => {
         }
       })
       setProfileImage(response.data.url)
+      setImageMessage('Profile photo uploaded. Remember to save your profile to keep this change.')
+      setTimeout(() => setImageMessage(''), 3000)
       window.dispatchEvent(new Event('tutor-profile-updated'))
     } catch (error) {
       console.error('Error uploading profile image:', error)
@@ -133,19 +137,24 @@ const PersonalInformation = () => {
           Personal information updated successfully!
         </div>
       )}
+      {imageMessage && (
+        <div className="bg-blue-50 text-blue-600 p-3 rounded-lg mb-4">
+          {imageMessage}
+        </div>
+      )}
 
       <div className="mb-6 rounded-xl border border-slate-200 p-5 bg-slate-50 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
         <div className="flex items-center gap-4">
           <div className="h-20 w-20 rounded-full border-4 border-white shadow bg-primary-50 overflow-hidden flex items-center justify-center text-3xl text-primary-500">
             {profileImage ? (
-              <img src={profileImage} alt="Tutor profile" className="h-full w-full object-cover" />
+              <img src={resolveImageUrl(profileImage)} alt="Tutor profile" className="h-full w-full object-cover" />
             ) : (
               '📷'
             )}
           </div>
           <div>
             <h3 className="text-lg font-semibold text-slate-900">Profile Photo</h3>
-            <p className="text-sm text-slate-600">A friendly headshot builds trust with students and parents.</p>
+            <p className="text-sm text-slate-600">A friendly headshot builds trust with students.</p>
           </div>
         </div>
         <label className="btn btn-outline cursor-pointer">

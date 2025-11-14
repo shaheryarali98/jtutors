@@ -43,3 +43,46 @@ export const createSubject = async (req: Request, res: Response) => {
   }
 };
 
+export const updateSubject = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body as { name?: string };
+
+    if (!name) {
+      return res.status(400).json({ error: 'Subject name is required' });
+    }
+
+    const subject = await prisma.subject.update({
+      where: { id },
+      data: { name },
+    });
+
+    res.json({
+      message: 'Subject updated successfully',
+      subject,
+    });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Subject with this name already exists' });
+    }
+    console.error('Update subject error:', error);
+    res.status(500).json({ error: 'Error updating subject' });
+  }
+};
+
+export const deleteSubject = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.subject.delete({ where: { id } });
+
+    res.json({ message: 'Subject deleted successfully' });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Subject not found' });
+    }
+    console.error('Delete subject error:', error);
+    res.status(500).json({ error: 'Error deleting subject' });
+  }
+};
+

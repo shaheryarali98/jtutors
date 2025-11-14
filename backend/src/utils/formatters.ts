@@ -26,6 +26,12 @@ type FormattableTutor = {
   [key: string]: unknown;
 };
 
+type FormattableStudent = {
+  languagesSpoken?: MaybeStoredArray;
+  learningPreferences?: MaybeStoredArray;
+  [key: string]: unknown;
+};
+
 export const formatTutor = (tutor: FormattableTutor | null) => {
   if (!tutor) return tutor;
 
@@ -44,6 +50,16 @@ export const formatTutor = (tutor: FormattableTutor | null) => {
 
 export const formatTutorArray = (tutors: FormattableTutor[]) =>
   tutors.map((tutor) => formatTutor(tutor) as FormattableTutor);
+
+export const formatStudent = (student: FormattableStudent | null) => {
+  if (!student) return student;
+
+  return {
+    ...student,
+    languagesSpoken: parseStringArray(student.languagesSpoken),
+    learningPreferences: parseStringArray(student.learningPreferences),
+  };
+};
 
 export const stringifyArray = (value: unknown): string | undefined => {
   if (value === undefined) return undefined;

@@ -283,3 +283,91 @@ export const getAllClassSessions = async (status?: string) => {
   });
 };
 
+export const ensureGoogleClassroomForBooking = async (bookingId: string, className?: string) => {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      student: { include: { user: true } },
+      tutor: { include: { user: true } },
+      classSession: true,
+    },
+  });
+
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+
+  if (!booking.student?.user?.email || !booking.tutor?.user?.email) {
+    throw new Error('Tutor or student email is missing.');
+  }
+
+  // If no class session exists yet, defer to createClassSession which already provisions Classroom resources.
+  if (!booking.classSession) {
+    return await createClassSession({ bookingId, className });
+  }
+
+  const existingSession = booking.classSession;
+
+  // If Google resources already exist, return the current session as-is.
+  if (existingSession.googleClassroomLink && existingSession.googleClassroomId && existingSession.googleMeetLink) {
+    return await prisma.classSession.findUnique({
+      where: { id: existingSession.id },
+      include: {
+        booking: {
+          include: {
+            student: { include: { user: true } },
+            tutor: { include: { user: true } },
+          },
+        },
+      },
+    });
+  }
+
+  let googleClassroomId = existingSession.googleClassroomId;
+  let googleClassroomLink = existingSession.googleClassroomLink;
+  let googleMeetLink = existingSession.googleMeetLink;
+
+  try {
+    const courseName = className || `Class with ${booking.tutor.user.email}`;
+    const course = await createCourse(
+      courseName,
+      `Session on ${booking.startTime.toLocaleDateString()}`,
+      `Tutoring session between ${booking.student.user.email} and ${booking.tutor.user.email}`
+    );
+
+    if (course) {
+      googleClassroomId = course.id;
+      googleClassroomLink = course.alternateLink;
+
+      await addStudentToCourse(course.id, booking.student.user.email);
+      await addTeacherToCourse(course.id, booking.tutor.user.email);
+
+      if (!googleMeetLink) {
+        googleMeetLink = await createMeetLink(course.id);
+      }
+    }
+  } catch (error) {
+    console.error('Error provisioning Google Classroom resources:', error);
+    throw error;
+  }
+
+  const updatedSession = await prisma.classSession.update({
+    where: { id: existingSession.id },
+    data: {
+      googleClassroomId,
+      googleClassroomLink,
+      googleMeetLink,
+    },
+    include: {
+      booking: {
+        include: {
+          student: { include: { user: true } },
+          tutor: { include: { user: true } },
+        },
+      },
+    },
+  });
+
+  return updatedSession;
+};
+

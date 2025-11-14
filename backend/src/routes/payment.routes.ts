@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, requireRole } from '../middleware/auth.middleware';
 import {
   createPaymentController,
   confirmPaymentController,
@@ -11,10 +11,10 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.post('/', createPaymentController);
-router.post('/:id/confirm', confirmPaymentController);
-router.get('/my', getMyPaymentsController);
-router.get('/:id', getPaymentController);
+router.post('/', requireRole('STUDENT'), createPaymentController);
+router.post('/:id/confirm', requireRole('STUDENT', 'ADMIN'), confirmPaymentController);
+router.get('/my', requireRole('STUDENT', 'TUTOR'), getMyPaymentsController);
+router.get('/:id', requireRole('STUDENT', 'TUTOR'), getPaymentController);
 
 export default router;
 

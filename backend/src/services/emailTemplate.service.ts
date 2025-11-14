@@ -33,8 +33,8 @@ export const sendTemplatedEmail = async (
     // Fallback to basic email
     await sendEmail({
       to,
-      subject: `Notification from JTutor`,
-      html: `<p>Hello,</p><p>This is a notification from JTutor.</p>`,
+      subject: `Notification from JTutors`,
+      html: `<p>Hello,</p><p>This is a notification from JTutors.</p>`,
     });
     return;
   }
@@ -101,107 +101,107 @@ export const initializeDefaultTemplates = async () => {
   const defaultTemplates = [
     {
       name: 'SIGNUP_SUCCESS',
-      subject: 'Welcome to JTutor!',
+      subject: 'Welcome to JTutors!',
       htmlBody: `
-        <h2>Welcome to JTutor</h2>
+        <h2>Welcome to JTutors</h2>
         <p>Hi {{userName}},</p>
-        <p>Thanks for signing up for JTutor. Your account has been successfully created.</p>
+        <p>Thanks for signing up for JTutors. Your account has been successfully created.</p>
         <p>You can log in any time to continue building your learning journey.</p>
-        <p>Best regards,<br/>The JTutor Team</p>
+        <p>Best regards,<br/>The JTutors Team</p>
       `,
-      textBody: `Welcome to JTutor!\n\nHi {{userName}},\n\nThanks for signing up. Your account has been created.\n\nBest,\nJTutor Team`,
+      textBody: `Welcome to JTutors!\n\nHi {{userName}},\n\nThanks for signing up. Your account has been created.\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['userName', 'email']),
     },
     {
       name: 'PROFILE_COMPLETE',
-      subject: 'Profile Complete - JTutor',
+      subject: 'Profile Complete - JTutors',
       htmlBody: `
         <h2>Congratulations!</h2>
         <p>Hi {{userName}},</p>
-        <p>Your profile is now 100% complete! You're all set to start your journey on JTutor.</p>
-        <p>Best regards,<br/>The JTutor Team</p>
+        <p>Your profile is now 100% complete! You're all set to start your journey on JTutors.</p>
+        <p>Best regards,<br/>The JTutors Team</p>
       `,
-      textBody: `Congratulations!\n\nHi {{userName}},\n\nYour profile is now complete!\n\nBest,\nJTutor Team`,
+      textBody: `Congratulations!\n\nHi {{userName}},\n\nYour profile is now complete!\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['userName', 'email']),
     },
     {
       name: 'EMAIL_VERIFICATION',
-      subject: 'Verify Your Email - JTutor',
+      subject: 'Verify Your Email - JTutors',
       htmlBody: `
         <h2>Verify Your Email</h2>
         <p>Hi {{userName}},</p>
         <p>Please verify your email address by clicking the link below:</p>
         <p><a href="{{verificationLink}}">Verify Email</a></p>
-        <p>Best regards,<br/>The JTutor Team</p>
+        <p>Best regards,<br/>The JTutors Team</p>
       `,
-      textBody: `Verify Your Email\n\nHi {{userName}},\n\nPlease verify your email: {{verificationLink}}\n\nBest,\nJTutor Team`,
+      textBody: `Verify Your Email\n\nHi {{userName}},\n\nPlease verify your email: {{verificationLink}}\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['userName', 'email', 'verificationLink']),
     },
     {
       name: 'FORGOT_PASSWORD',
-      subject: 'Reset Your Password - JTutor',
+      subject: 'Reset Your Password - JTutors',
       htmlBody: `
         <h2>Reset Your Password</h2>
         <p>Hi {{userName}},</p>
         <p>You requested to reset your password. Click the link below to reset it:</p>
         <p><a href="{{resetLink}}">Reset Password</a></p>
         <p>If you didn't request this, please ignore this email.</p>
-        <p>Best regards,<br/>The JTutor Team</p>
+        <p>Best regards,<br/>The JTutors Team</p>
       `,
-      textBody: `Reset Your Password\n\nHi {{userName}},\n\nReset your password: {{resetLink}}\n\nBest,\nJTutor Team`,
+      textBody: `Reset Your Password\n\nHi {{userName}},\n\nReset your password: {{resetLink}}\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['userName', 'email', 'resetLink']),
     },
     {
       name: 'CLASS_APPROVED',
-      subject: 'Class Approved - JTutor',
+      subject: 'Class Approved - JTutors',
       htmlBody: `
         <h2>Class Approved</h2>
         <p>Hi {{userName}},</p>
         <p>Your class "{{className}}" has been approved by the admin.</p>
         <p>Payment will be processed shortly.</p>
-        <p>Best regards,<br/>The JTutor Team</p>
+        <p>Best regards,<br/>The JTutors Team</p>
       `,
-      textBody: `Class Approved\n\nHi {{userName}},\n\nYour class has been approved.\n\nBest,\nJTutor Team`,
+      textBody: `Class Approved\n\nHi {{userName}},\n\nYour class has been approved.\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['userName', 'email', 'className', 'classId']),
     },
     {
       name: 'PAYMENT_RECEIVED',
-      subject: 'Payment Received - JTutor',
+      subject: 'Payment Received - JTutors',
       htmlBody: `
         <h2>Payment Received</h2>
         <p>Hi {{userName}},</p>
         <p>Your payment of {{amount}} {{currency}} has been received successfully.</p>
         <p>Thank you for your purchase!</p>
-        <p>Best regards,<br/>The JTutor Team</p>
+        <p>Best regards,<br/>The JTutors Team</p>
       `,
-      textBody: `Payment Received\n\nHi {{userName}},\n\nPayment of {{amount}} {{currency}} received.\n\nBest,\nJTutor Team`,
+      textBody: `Payment Received\n\nHi {{userName}},\n\nPayment of {{amount}} {{currency}} received.\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['userName', 'email', 'amount', 'currency', 'bookingId']),
     },
     {
       name: 'WITHDRAWAL_APPROVED',
-      subject: 'Withdrawal Approved - JTutor',
+      subject: 'Withdrawal Approved - JTutors',
       htmlBody: `
         <h2>Withdrawal Approved</h2>
         <p>Hi {{userName}},</p>
         <p>Your withdrawal request of {{amount}} {{currency}} has been approved.</p>
         <p>The funds will be transferred to your account shortly.</p>
-        <p>Best regards,<br/>The JTutor Team</p>
+        <p>Best regards,<br/>The JTutors Team</p>
       `,
-      textBody: `Withdrawal Approved\n\nHi {{userName}},\n\nYour withdrawal of {{amount}} {{currency}} has been approved.\n\nBest,\nJTutor Team`,
+      textBody: `Withdrawal Approved\n\nHi {{userName}},\n\nYour withdrawal of {{amount}} {{currency}} has been approved.\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['userName', 'email', 'amount', 'currency', 'withdrawalId']),
     },
     {
       name: 'WITHDRAWAL_REJECTED',
-      subject: 'Withdrawal Rejected - JTutor',
+      subject: 'Withdrawal Rejected - JTutors',
       htmlBody: `
         <h2>Withdrawal Rejected</h2>
         <p>Hi {{userName}},</p>
         <p>Your withdrawal request of {{amount}} {{currency}} has been rejected.</p>
         <p>Reason: {{reason}}</p>
         <p>If you have questions, please contact support.</p>
-        <p>Best regards,<br/>The JTutor Team</p>
+        <p>Best regards,<br/>The JTutors Team</p>
       `,
-      textBody: `Withdrawal Rejected\n\nHi {{userName}},\n\nYour withdrawal has been rejected. Reason: {{reason}}\n\nBest,\nJTutor Team`,
+      textBody: `Withdrawal Rejected\n\nHi {{userName}},\n\nYour withdrawal has been rejected. Reason: {{reason}}\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['userName', 'email', 'amount', 'currency', 'withdrawalId', 'reason']),
     },
   ];

@@ -139,3 +139,14 @@ export const addTeacherToCourse = async (
   }
 };
 
+export const getGoogleClassroomStatus = () => {
+  const requiredKeys = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN'];
+  const missingKeys = requiredKeys.filter((key) => !process.env[key]);
+
+  return {
+    configured: missingKeys.length === 0,
+    missingKeys,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback',
+  };
+};
+

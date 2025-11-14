@@ -3,7 +3,7 @@ import { validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
-import { formatTutor } from '../utils/formatters';
+import { formatStudent, formatTutor } from '../utils/formatters';
 import { getAdminSettings } from '../services/settings.service';
 import { sendTemplatedEmail } from '../services/emailTemplate.service';
 
@@ -186,10 +186,12 @@ export const getCurrentUser = async (req: Request, res: Response) => {
 
     const { password, ...userWithoutPassword } = user;
     const formattedTutor = user.tutor ? formatTutor(user.tutor) : null;
+    const formattedStudent = user.student ? formatStudent(user.student) : null;
 
     res.json({
       ...userWithoutPassword,
-      tutor: formattedTutor
+      tutor: formattedTutor,
+      student: formattedStudent
     });
   } catch (error) {
     console.error('Get current user error:', error);

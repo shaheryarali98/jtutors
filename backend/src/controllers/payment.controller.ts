@@ -7,11 +7,19 @@ const prisma = new PrismaClient();
 export const createPaymentController = async (req: Request, res: Response) => {
   try {
     const { bookingId, amount, currency } = req.body;
-    const userId = (req as any).userId;
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (currentUser.role !== 'STUDENT') {
+      return res.status(403).json({ error: 'Only students can create payments' });
+    }
 
     // Get user's student profile
     const student = await prisma.student.findUnique({
-      where: { userId },
+      where: { userId: currentUser.userId },
     });
 
     if (!student) {
@@ -63,8 +71,11 @@ export const confirmPaymentController = async (req: Request, res: Response) => {
 export const getPaymentController = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).userId;
-    const userRole = (req as any).role;
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
     const payment = await getPayment(id);
 
@@ -73,9 +84,9 @@ export const getPaymentController = async (req: Request, res: Response) => {
     }
 
     // Verify access
-    if (userRole !== 'ADMIN') {
-      const student = await prisma.student.findUnique({ where: { userId } });
-      const tutor = await prisma.tutor.findUnique({ where: { userId } });
+    if (currentUser.role !== 'ADMIN') {
+      const student = await prisma.student.findUnique({ where: { userId: currentUser.userId } });
+      const tutor = await prisma.tutor.findUnique({ where: { userId: currentUser.userId } });
 
       if (
         (student && payment.studentId !== student.id) ||
@@ -94,14 +105,19 @@ export const getPaymentController = async (req: Request, res: Response) => {
 
 export const getMyPaymentsController = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
-    const userRole = (req as any).role as 'STUDENT' | 'TUTOR';
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const userRole = currentUser.role as 'STUDENT' | 'TUTOR' | 'ADMIN';
 
     if (userRole !== 'STUDENT' && userRole !== 'TUTOR') {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    const payments = await getPaymentsByUser(userId, userRole);
+    const payments = await getPaymentsByUser(currentUser.userId, userRole);
 
     res.json({ payments });
   } catch (error: any) {

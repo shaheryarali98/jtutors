@@ -91,14 +91,14 @@ const calculateProfileCompletion = async (tutorId: string): Promise<number> => {
     if (settings.sendProfileCompletionEmail && tutor.user?.email) {
       sendEmail({
         to: tutor.user.email,
-        subject: 'JTutor Tutor Profile Complete',
+        subject: 'JTutors Tutor Profile Complete',
         html: `
           <h2>Well done!</h2>
-          <p>Your JTutor tutor profile is now 100% complete.</p>
+          <p>Your JTutors tutor profile is now 100% complete.</p>
           <p>Students can now find you more easily. Log in to your dashboard to manage your sessions.</p>
-          <p>Keep inspiring learners,<br/>The JTutor Team</p>
+          <p>Keep inspiring learners,<br/>The JTutors Team</p>
         `,
-        text: `Your JTutor tutor profile is now complete. Students can now find you more easily.`
+        text: `Your JTutors tutor profile is now complete. Students can now find you more easily.`
       }).catch((error) => console.error('Failed to send tutor profile completion email:', error));
     }
   }
