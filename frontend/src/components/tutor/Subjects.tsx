@@ -4,6 +4,8 @@ import api from '../../lib/api'
 interface Subject {
   id: string
   name: string
+  parentId?: string | null
+  children?: Subject[]
 }
 
 interface TutorSubject {
@@ -14,6 +16,8 @@ interface TutorSubject {
 
 const Subjects = () => {
   const [allSubjects, setAllSubjects] = useState<Subject[]>([])
+  const [categories, setCategories] = useState<Subject[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [tutorSubjects, setTutorSubjects] = useState<TutorSubject[]>([])
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -28,9 +32,18 @@ const Subjects = () => {
   const fetchSubjects = async () => {
     try {
       const response = await api.get('/subjects')
-      setAllSubjects(response.data.subjects)
+      const all = response.data.subjects || []
+      setAllSubjects(all)
+      
+      // Filter to get only categories (subjects with no parent)
+      const cats = all.filter((s: Subject) => !s.parentId)
+      setCategories(cats)
+      
+      console.log('Fetched subjects:', all)
+      console.log('Categories:', cats)
     } catch (error) {
       console.error('Error fetching subjects:', error)
+      setErrorMessage('Failed to load subjects. Please refresh the page.')
     }
   }
 
@@ -49,6 +62,18 @@ const Subjects = () => {
     setSelectedSubjects(prev => 
       prev.includes(subjectId) ? prev.filter(id => id !== subjectId) : [...prev, subjectId]
     )
+  }
+
+  const getSubcategories = (categoryId: string) => {
+    // First check if category has children in the response
+    const category = allSubjects.find(s => s.id === categoryId)
+    if (category?.children && category.children.length > 0) {
+      return category.children
+    }
+    // Otherwise, filter all subjects by parentId
+    const subs = allSubjects.filter(s => s.parentId === categoryId)
+    console.log(`Subcategories for ${category?.name}:`, subs)
+    return subs
   }
 
   const handleSave = async () => {
@@ -98,10 +123,12 @@ const Subjects = () => {
     }
   }
 
+  const subcategories = selectedCategory ? getSubcategories(selectedCategory) : []
+
   return (
     <div>
-      <h2 className="section-title">Subjects You Can Teach</h2>
-      <p className="text-gray-600 mb-6">Select all subjects you are qualified to teach</p>
+      <h2 className="section-title">Subjects I Can Teach</h2>
+      <p className="text-gray-600 mb-6">Please select a category first, then choose the specific subjects you can teach.</p>
 
       {feedback && (
         <div className="bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">
@@ -115,29 +142,67 @@ const Subjects = () => {
         </div>
       )}
 
-      {allSubjects.length === 0 ? (
-        <div className="text-gray-600">
-          <p>No subjects available. Contact administrator to add subjects.</p>
-          <p className="text-sm mt-2">Common subjects include: Mathematics, English, Science, History, etc.</p>
+      {categories.length === 0 ? (
+        <div className="text-gray-600 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="font-medium mb-2">No subject categories available.</p>
+          <p className="text-sm">Please contact the administrator to set up subject categories and subcategories.</p>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-            {allSubjects.map((subject) => (
-              <button
-                key={subject.id}
-                type="button"
-                onClick={() => toggleSubject(subject.id)}
-                className={`px-4 py-3 rounded-lg border-2 text-sm transition-colors ${
-                  selectedSubjects.includes(subject.id)
-                    ? 'border-primary-600 bg-primary-50 text-primary-700 font-medium'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                {subject.name}
-              </button>
-            ))}
-          </div>
+          {!selectedCategory ? (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Select a Category</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(category.id)}
+                    className="px-4 py-3 rounded-lg border-2 border-gray-300 hover:border-primary-400 text-sm transition-colors"
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-4 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory(null)}
+                  className="text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  ← Back to Categories
+                </button>
+                <h3 className="text-lg font-semibold">
+                  {categories.find(c => c.id === selectedCategory)?.name} - Select Subjects
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                {subcategories.map((subject) => (
+                  <button
+                    key={subject.id}
+                    type="button"
+                    onClick={() => toggleSubject(subject.id)}
+                    className={`px-4 py-3 rounded-lg border-2 text-sm transition-colors ${
+                      selectedSubjects.includes(subject.id)
+                        ? 'border-primary-600 bg-primary-50 text-primary-700 font-medium'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    {subject.name}
+                  </button>
+                ))}
+              </div>
+              {subcategories.length === 0 && (
+                <div className="text-gray-600 mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="font-medium mb-2">No subcategories available for this category yet.</p>
+                  <p className="text-sm">Please contact the administrator to add subcategories for "{categories.find(c => c.id === selectedCategory)?.name}".</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={handleSave}
@@ -175,4 +240,3 @@ const Subjects = () => {
 }
 
 export default Subjects
-

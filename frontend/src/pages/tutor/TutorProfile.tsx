@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import api from '../../lib/api'
 import Navbar from '../../components/Navbar'
 import PersonalInformation from '../../components/tutor/PersonalInformation'
 import Experience from '../../components/tutor/Experience'
@@ -7,12 +8,31 @@ import Subjects from '../../components/tutor/Subjects'
 import Availability from '../../components/tutor/Availability'
 import PayoutMethod from '../../components/tutor/PayoutMethod'
 import BackgroundCheck from '../../components/tutor/BackgroundCheck'
+import TermsAndConditions from '../../components/tutor/TermsAndConditions'
 import ProfileProgress from '../../components/tutor/ProfileProgress'
+import Footer from '../../components/Footer'
 
-type Section = 'personal' | 'experience' | 'education' | 'subjects' | 'availability' | 'payout' | 'background'
+type Section = 'personal' | 'experience' | 'education' | 'subjects' | 'availability' | 'payout' | 'background' | 'terms'
 
 const TutorProfile = () => {
   const [activeSection, setActiveSection] = useState<Section>('personal')
+  const [showTerms, setShowTerms] = useState(false)
+
+  useEffect(() => {
+    const checkBackgroundCheck = async () => {
+      try {
+        const response = await api.get('/auth/me')
+        const bgCheck = response.data.tutor?.backgroundCheck
+        if (bgCheck && bgCheck.status === 'PENDING' && !response.data.tutor?.termsAccepted) {
+          setShowTerms(true)
+          setActiveSection('terms')
+        }
+      } catch (error) {
+        console.error('Error checking background check:', error)
+      }
+    }
+    checkBackgroundCheck()
+  }, [])
 
   const sections = [
     { id: 'personal' as Section, name: 'Personal Information', icon: '👤' },
@@ -22,6 +42,7 @@ const TutorProfile = () => {
     { id: 'availability' as Section, name: 'Availability', icon: '📅' },
     { id: 'payout' as Section, name: 'Payout Method', icon: '💳' },
     { id: 'background' as Section, name: 'Background Check', icon: '✓' },
+    ...(showTerms ? [{ id: 'terms' as Section, name: 'Terms & Conditions', icon: '📄' }] : []),
   ]
 
   const renderSection = () => {
@@ -39,19 +60,21 @@ const TutorProfile = () => {
       case 'payout':
         return <PayoutMethod />
       case 'background':
-        return <BackgroundCheck />
+        return <BackgroundCheck onSubmitted={() => { setShowTerms(true); setActiveSection('terms') }} />
+      case 'terms':
+        return <TermsAndConditions />
       default:
         return <PersonalInformation />
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: '#012c4f' }}>
       <Navbar />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Tutor Profile Setup</h1>
+          <h1 className="text-3xl font-bold text-white mb-4">Tutor Profile Setup</h1>
           <ProfileProgress />
         </div>
 
@@ -84,6 +107,7 @@ const TutorProfile = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

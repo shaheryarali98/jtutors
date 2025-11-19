@@ -21,7 +21,11 @@ interface BackgroundCheckForm {
   comments: string
 }
 
-const BackgroundCheck = () => {
+interface BackgroundCheckProps {
+  onSubmitted?: () => void
+}
+
+const BackgroundCheck = ({ onSubmitted }: BackgroundCheckProps) => {
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<BackgroundCheckForm>()
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -70,8 +74,11 @@ const BackgroundCheck = () => {
       await api.post('/tutor/profile/background-check', data)
       setSubmitted(true)
       setBackgroundCheckStatus('PENDING')
-      setFeedback('Background check submitted successfully. We will notify you once it is processed.')
+      setFeedback('Background check submitted successfully. Please review and accept the Terms and Conditions to continue.')
       window.dispatchEvent(new Event('tutor-profile-updated'))
+      if (onSubmitted) {
+        onSubmitted()
+      }
       setTimeout(() => setFeedback(''), 4000)
     } catch (error) {
       console.error('Error submitting background check:', error)
@@ -86,6 +93,9 @@ const BackgroundCheck = () => {
       <h2 className="section-title">Background Check</h2>
       <p className="text-gray-600 mb-6">
         To ensure the safety and trust of our platform, all tutors must complete a background check.
+      </p>
+      <p className="text-gray-700 mb-6 font-medium">
+        JTutors will incur the cost of the background check.
       </p>
 
       {feedback && (

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { getAdminSettings, updateAdminSettings } from '../services/settings.service';
+import { getAdminSettings, getFormattedAdminSettings, updateAdminSettings } from '../services/settings.service';
 import { ensureGoogleClassroomForBooking } from '../services/classSession.service';
 import { confirmPayment, markPaymentRefunded } from '../services/payment.service';
 import { getGoogleClassroomStatus } from '../services/googleClassroom.service';
@@ -178,7 +178,7 @@ export const deleteUser = async (req: Request, res: Response) => {
 
 export const getSettings = async (req: Request, res: Response) => {
   try {
-    const settings = await getAdminSettings();
+    const settings = await getFormattedAdminSettings();
     res.json({ settings });
   } catch (error) {
     console.error('Get settings error:', error);
@@ -191,19 +191,74 @@ export const updateSettingsController = async (req: Request, res: Response) => {
     const {
       sendSignupConfirmation,
       sendProfileCompletionEmail,
+      autoApproveUsers,
       adminCommissionPercentage,
       adminCommissionFixed,
       withdrawalAutoApproveDays,
+      withdrawMethods,
+      withdrawFixedCharge,
+      withdrawPercentageCharge,
+      minimumWithdrawAmount,
+      minimumBalanceForWithdraw,
+      withdrawThreshold,
+      genderFieldEnabled,
+      gradeFieldEnabled,
+      stateFieldEnabled,
+      emailLogo,
+      emailSenderName,
+      emailSenderEmail,
+      emailFooterCopyright,
+      emailSenderSignature,
+      emailFooterColor,
+      defaultStudentImage,
+      defaultTutorImage,
     } = req.body;
 
-    const updated = await updateAdminSettings({
+    const numeric = (value: unknown) => {
+      if (value === null || value === '' || typeof value === 'undefined') return undefined;
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    };
+
+    const updates: Record<string, any> = {
       ...(typeof sendSignupConfirmation === 'boolean' && { sendSignupConfirmation }),
       ...(typeof sendProfileCompletionEmail === 'boolean' && { sendProfileCompletionEmail }),
-      ...(typeof adminCommissionPercentage === 'number' && { adminCommissionPercentage }),
-      ...(typeof adminCommissionFixed === 'number' && { adminCommissionFixed }),
+      ...(typeof autoApproveUsers === 'boolean' && { autoApproveUsers }),
+      ...(numeric(adminCommissionPercentage) !== undefined && {
+        adminCommissionPercentage: numeric(adminCommissionPercentage),
+      }),
+      ...(numeric(adminCommissionFixed) !== undefined && {
+        adminCommissionFixed: numeric(adminCommissionFixed),
+      }),
       ...(typeof withdrawalAutoApproveDays === 'number' && { withdrawalAutoApproveDays }),
       ...(withdrawalAutoApproveDays === null && { withdrawalAutoApproveDays: null }),
-    });
+      ...(Array.isArray(withdrawMethods) && { withdrawMethods }),
+      ...(numeric(withdrawFixedCharge) !== undefined && { withdrawFixedCharge: numeric(withdrawFixedCharge) }),
+      ...(numeric(withdrawPercentageCharge) !== undefined && {
+        withdrawPercentageCharge: numeric(withdrawPercentageCharge),
+      }),
+      ...(numeric(minimumWithdrawAmount) !== undefined && {
+        minimumWithdrawAmount: numeric(minimumWithdrawAmount),
+      }),
+      ...(numeric(minimumBalanceForWithdraw) !== undefined && {
+        minimumBalanceForWithdraw: numeric(minimumBalanceForWithdraw),
+      }),
+      ...(typeof withdrawThreshold === 'number' && { withdrawThreshold }),
+      ...(withdrawThreshold === null && { withdrawThreshold: null }),
+      ...(typeof genderFieldEnabled === 'boolean' && { genderFieldEnabled }),
+      ...(typeof gradeFieldEnabled === 'boolean' && { gradeFieldEnabled }),
+      ...(typeof stateFieldEnabled === 'boolean' && { stateFieldEnabled }),
+      ...(typeof emailLogo === 'string' && { emailLogo }),
+      ...(typeof emailSenderName === 'string' && { emailSenderName }),
+      ...(typeof emailSenderEmail === 'string' && { emailSenderEmail }),
+      ...(typeof emailFooterCopyright === 'string' && { emailFooterCopyright }),
+      ...(typeof emailSenderSignature === 'string' && { emailSenderSignature }),
+      ...(typeof emailFooterColor === 'string' && { emailFooterColor }),
+      ...(typeof defaultStudentImage === 'string' && { defaultStudentImage }),
+      ...(typeof defaultTutorImage === 'string' && { defaultTutorImage }),
+    };
+
+    const updated = await updateAdminSettings(updates);
 
     res.json({
       message: 'Settings updated successfully',

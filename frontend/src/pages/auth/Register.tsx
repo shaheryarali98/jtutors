@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import api from '../../lib/api'
 import { useAuthStore } from '../../store/authStore'
 import Navbar from '../../components/Navbar'
+import Footer from '../../components/Footer'
 
 interface RegisterForm {
   email: string
@@ -176,6 +177,7 @@ const Register = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

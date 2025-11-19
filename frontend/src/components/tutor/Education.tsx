@@ -49,14 +49,32 @@ const Education = () => {
     }
   }
 
+  const formatDateToMMDDYYYY = (dateString: string) => {
+    const date = new Date(dateString)
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${month}/${day}/${year}`
+  }
+
+  const convertDateToISO = (dateString: string) => {
+    // Date input returns YYYY-MM-DD format
+    return new Date(dateString).toISOString()
+  }
+
   const onSubmit = async (data: EducationForm) => {
     try {
       setLoading(true)
+      const submitData = {
+        ...data,
+        startDate: convertDateToISO(data.startDate),
+        endDate: data.endDate ? convertDateToISO(data.endDate) : undefined
+      }
       if (editingId) {
-        const response = await api.put(`/tutor/profile/education/${editingId}`, data)
+        const response = await api.put(`/tutor/profile/education/${editingId}`, submitData)
         setFeedback(response.data.message || 'Education updated successfully')
       } else {
-        const response = await api.post('/tutor/profile/education', data)
+        const response = await api.post('/tutor/profile/education', submitData)
         setFeedback('Education added successfully')
         if (response.data.profileCompletion === 100) {
           setFeedback('Education added successfully • Profile now complete!')
@@ -74,13 +92,23 @@ const Education = () => {
     }
   }
 
+  const formatDateStringToDateInput = (dateString: string) => {
+    // Convert any date string to YYYY-MM-DD for date input
+    const date = new Date(dateString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   const handleEdit = (edu: EducationItem) => {
     setEditingId(edu.id)
     setValue('degreeTitle', edu.degreeTitle)
     setValue('university', edu.university)
     setValue('location', edu.location)
-    setValue('startDate', edu.startDate.split('T')[0])
-    setValue('endDate', edu.endDate ? edu.endDate.split('T')[0] : '')
+    // Convert to date input format (YYYY-MM-DD) for the calendar
+    setValue('startDate', formatDateStringToDateInput(edu.startDate))
+    setValue('endDate', edu.endDate ? formatDateStringToDateInput(edu.endDate) : '')
     setValue('isOngoing', edu.isOngoing)
   }
 
@@ -153,23 +181,36 @@ const Education = () => {
 
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="label">Start Date *</label>
+            <label className="label">Start Date * (MM/DD/YYYY)</label>
             <input
               type="date"
               className="input"
-              {...register('startDate', { required: 'Start date is required' })}
+              {...register('startDate', { 
+                required: 'Start date is required'
+              })}
             />
+            {watch('startDate') && (
+              <p className="text-sm text-gray-600 mt-1">
+                Selected: {formatDateToMMDDYYYY(watch('startDate'))}
+              </p>
+            )}
             {errors.startDate && <p className="error-text">{errors.startDate.message}</p>}
           </div>
 
           <div>
-            <label className="label">End Date</label>
+            <label className="label">End Date (MM/DD/YYYY)</label>
             <input
               type="date"
               className="input"
               disabled={isOngoing}
               {...register('endDate')}
             />
+            {watch('endDate') && (
+              <p className="text-sm text-gray-600 mt-1">
+                Selected: {formatDateToMMDDYYYY(watch('endDate'))}
+              </p>
+            )}
+            {errors.endDate && <p className="error-text">{errors.endDate.message}</p>}
           </div>
         </div>
 
@@ -221,7 +262,7 @@ const Education = () => {
                 </div>
               </div>
               <p className="text-sm text-gray-600">
-                {new Date(edu.startDate).toLocaleDateString()} - {edu.isOngoing ? 'Ongoing' : edu.endDate ? new Date(edu.endDate).toLocaleDateString() : 'N/A'}
+                {formatDateToMMDDYYYY(edu.startDate)} - {edu.isOngoing ? 'Ongoing' : edu.endDate ? formatDateToMMDDYYYY(edu.endDate) : 'N/A'}
               </p>
             </div>
           ))

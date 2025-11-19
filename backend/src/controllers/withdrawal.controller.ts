@@ -9,26 +9,75 @@ import {
   completeWithdrawal,
   checkAutoApproveWithdrawals,
 } from '../services/withdrawal.service';
+import { getFormattedAdminSettings } from '../services/settings.service';
+import { getWalletSummary } from '../services/wallet.service';
 
 export const createWithdrawalController = async (req: Request, res: Response) => {
   try {
-    const { amount, currency, notes } = req.body;
-    const userId = (req as any).userId;
-    const userRole = (req as any).role;
+    const { amount, currency, notes, method } = req.body;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
 
-    if (userRole !== 'ADMIN' && userRole !== 'TUTOR') {
-      return res.status(403).json({ error: 'Only admins and tutors can create withdrawals' });
+    if (!userId || !userRole) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!['ADMIN', 'TUTOR', 'STUDENT'].includes(userRole)) {
+      return res.status(403).json({ error: 'Only admins, tutors, or students can create withdrawals' });
+    }
+
+    const numericAmount = Number(amount);
+    if (!numericAmount || Number.isNaN(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({ error: 'Withdrawal amount must be greater than zero' });
+    }
+
+    const settings = await getFormattedAdminSettings();
+
+    const minAmount = settings.minimumWithdrawAmount ?? 0;
+    if (numericAmount < minAmount) {
+      return res
+        .status(400)
+        .json({ error: `Minimum withdrawal amount is $${minAmount.toFixed(2)}` });
+    }
+
+    let walletSummary = null;
+    if (userRole === 'TUTOR' || userRole === 'STUDENT') {
+      walletSummary = await getWalletSummary(userId, userRole);
+      if (settings.minimumBalanceForWithdraw && walletSummary.availableBalance < settings.minimumBalanceForWithdraw) {
+        return res.status(400).json({
+          error: `You need at least $${settings.minimumBalanceForWithdraw.toFixed(
+            2
+          )} available before requesting a withdrawal`,
+        });
+      }
+      if (numericAmount > walletSummary.availableBalance) {
+        return res.status(400).json({ error: 'Withdrawal amount exceeds available balance' });
+      }
+    }
+
+    const selectedMethod =
+      typeof method === 'string' && method.trim().length > 0
+        ? method
+        : settings.withdrawMethods[0] || 'Manual';
+
+    if (selectedMethod && !settings.withdrawMethods.includes(selectedMethod)) {
+      return res.status(400).json({ error: 'Selected withdrawal method is not available' });
     }
 
     const withdrawal = await createWithdrawal({
       userId,
       userType: userRole,
-      amount,
+      amount: numericAmount,
       currency,
+      method: selectedMethod,
       notes,
     });
 
-    res.json({ withdrawal, message: 'Withdrawal request created successfully' });
+    res.json({
+      withdrawal,
+      walletSummary: walletSummary || null,
+      message: 'Withdrawal request created successfully',
+    });
   } catch (error: any) {
     console.error('Create withdrawal error:', error);
     res.status(500).json({ error: error.message || 'Error creating withdrawal' });
@@ -37,11 +86,21 @@ export const createWithdrawalController = async (req: Request, res: Response) =>
 
 export const getMyWithdrawalsController = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
+    const userId = req.user?.userId;
+    const role = req.user?.role;
+
+    if (!userId || !role) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
     const withdrawals = await getWithdrawalsByUser(userId);
 
-    res.json({ withdrawals });
+    let walletSummary = null;
+    if (role === 'TUTOR' || role === 'STUDENT') {
+      walletSummary = await getWalletSummary(userId, role);
+    }
+
+    res.json({ withdrawals, walletSummary });
   } catch (error: any) {
     console.error('Get my withdrawals error:', error);
     res.status(500).json({ error: error.message || 'Error fetching withdrawals' });
@@ -65,7 +124,11 @@ export const approveWithdrawalController = async (req: Request, res: Response) =
   try {
     const { id } = req.params;
     const { notes } = req.body;
-    const adminId = (req as any).userId;
+    const adminId = req.user?.userId;
+
+    if (!adminId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
     const withdrawal = await approveWithdrawal(id, adminId, notes);
 
@@ -80,7 +143,11 @@ export const rejectWithdrawalController = async (req: Request, res: Response) =>
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    const adminId = (req as any).userId;
+    const adminId = req.user?.userId;
+
+    if (!adminId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
     const withdrawal = await rejectWithdrawal(id, adminId, reason);
 

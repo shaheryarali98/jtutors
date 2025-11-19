@@ -3,15 +3,34 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Old default subjects removed - use seed script instead
+const ensureDefaultSubjects = async () => {
+  // No longer creating default subjects here
+  // Subjects should be seeded using the seedSubjects.js script
+  return;
+};
+
 export const getAllSubjects = async (req: Request, res: Response) => {
   try {
+    await ensureDefaultSubjects();
     const subjects = await prisma.subject.findMany({
+      include: {
+        children: {
+          orderBy: {
+            name: 'asc'
+          }
+        }
+      },
       orderBy: {
         name: 'asc'
       }
     });
 
-    res.json({ subjects });
+    // Separate categories (no parent) from subcategories (have parent)
+    const categories = subjects.filter(s => !s.parentId);
+    const subcategories = subjects.filter(s => s.parentId);
+
+    res.json({ subjects, categories, subcategories });
   } catch (error) {
     console.error('Get subjects error:', error);
     res.status(500).json({ error: 'Error fetching subjects' });
@@ -20,14 +39,20 @@ export const getAllSubjects = async (req: Request, res: Response) => {
 
 export const createSubject = async (req: Request, res: Response) => {
   try {
-    const { name } = req.body;
+    const { name, parentId } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Subject name is required' });
     }
 
     const subject = await prisma.subject.create({
-      data: { name }
+      data: { 
+        name,
+        parentId: parentId || null
+      },
+      include: {
+        children: true
+      }
     });
 
     res.status(201).json({
@@ -46,7 +71,7 @@ export const createSubject = async (req: Request, res: Response) => {
 export const updateSubject = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name } = req.body as { name?: string };
+    const { name, parentId } = req.body as { name?: string; parentId?: string | null };
 
     if (!name) {
       return res.status(400).json({ error: 'Subject name is required' });
@@ -54,7 +79,13 @@ export const updateSubject = async (req: Request, res: Response) => {
 
     const subject = await prisma.subject.update({
       where: { id },
-      data: { name },
+      data: { 
+        name,
+        parentId: parentId !== undefined ? parentId : undefined
+      },
+      include: {
+        children: true
+      }
     });
 
     res.json({

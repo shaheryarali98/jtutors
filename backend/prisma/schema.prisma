@@ -136,9 +136,12 @@ model Education {
 }
 
 model Subject {
-  id      String  @id @default(uuid())
-  name    String  @unique
-  tutors  TutorSubject[]
+  id        String    @id @default(uuid())
+  name      String    @unique
+  parentId  String?
+  parent    Subject?  @relation("SubjectHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Subject[] @relation("SubjectHierarchy")
+  tutors    TutorSubject[]
 }
 
 model TutorSubject {
@@ -286,10 +289,13 @@ model Withdrawal {
   
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userType    String   // "ADMIN" or "TUTOR"
+  userType    String   // "ADMIN", "TUTOR", or "STUDENT"
+  method      String?
   
   amount      Float
   currency    String   @default("USD")
+  charge      Float?   @default(0)
+  netAmount   Float?   @default(0)
   
   // Stripe
   stripeTransferId String?
@@ -315,6 +321,7 @@ model AdminSettings {
   id                          String   @id @default(uuid())
   sendSignupConfirmation      Boolean  @default(true)
   sendProfileCompletionEmail  Boolean  @default(true)
+  autoApproveUsers            Boolean  @default(true)
   
   // Commission Settings
   adminCommissionPercentage   Float    @default(10.0)
@@ -322,6 +329,29 @@ model AdminSettings {
   
   // Withdrawal Settings
   withdrawalAutoApproveDays   Int?     // null = manual, number = auto-approve after N days (default 2 for sandbox)
+  withdrawMethods             String?  @default("[]") // JSON array of supported methods
+  withdrawFixedCharge         Float?   @default(0)
+  withdrawPercentageCharge    Float?   @default(0)
+  minimumWithdrawAmount       Float?
+  minimumBalanceForWithdraw   Float?
+  withdrawThreshold           Int?
+
+  // Profile field visibility
+  genderFieldEnabled          Boolean  @default(true)
+  gradeFieldEnabled           Boolean  @default(true)
+  stateFieldEnabled           Boolean  @default(true)
+
+  // Branding & email
+  emailLogo                   String?
+  emailSenderName             String?
+  emailSenderEmail            String?
+  emailFooterCopyright        String?
+  emailSenderSignature        String?
+  emailFooterColor            String?  @default("#F5F5F5")
+
+  // Default avatars
+  defaultStudentImage         String?
+  defaultTutorImage           String?
   
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt

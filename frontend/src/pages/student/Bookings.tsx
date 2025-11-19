@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
+import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import PaymentModal from '../../components/student/PaymentModal'
@@ -292,6 +293,7 @@ const StudentBookings = () => {
         onSuccess={handlePaymentSuccess}
         onCancel={closePaymentModal}
       />
+      <Footer />
     </div>
   )
 }

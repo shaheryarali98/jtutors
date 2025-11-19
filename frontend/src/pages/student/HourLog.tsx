@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Navbar from '../../components/Navbar'
+import Footer from '../../components/Footer'
 import api from '../../lib/api'
 
 interface HourLog {
@@ -75,6 +76,7 @@ const StudentHourLog = () => {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   )
 }

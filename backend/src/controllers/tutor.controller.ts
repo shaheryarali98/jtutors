@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { formatTutor, parseStoredArray, stringifyArray } from '../utils/formatters';
 import { getAdminSettings } from '../services/settings.service';
 import { sendEmail } from '../services/email.service';
+import { getWalletSummary } from '../services/wallet.service';
 
 const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -126,9 +127,18 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
       profileImage
     } = req.body;
 
-    // Validate hourly fee range
-    if (hourlyFee && (hourlyFee < 20 || hourlyFee > 500)) {
-      return res.status(400).json({ error: 'Hourly fee must be between $20 and $500' });
+    const parsedHourlyFee =
+      hourlyFee === null || typeof hourlyFee === 'undefined' || hourlyFee === ''
+        ? undefined
+        : Number(hourlyFee);
+
+    if (typeof parsedHourlyFee === 'number') {
+      if (Number.isNaN(parsedHourlyFee)) {
+        return res.status(400).json({ error: 'Hourly fee must be a valid number' });
+      }
+      if (parsedHourlyFee < 20 || parsedHourlyFee > 500) {
+        return res.status(400).json({ error: 'Hourly fee must be between $20 and $500' });
+      }
     }
 
     const tutor = await prisma.tutor.findUnique({
@@ -146,7 +156,7 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
         lastName,
         gender,
         gradesCanTeach: stringifyArray(gradesCanTeach),
-        hourlyFee: hourlyFee ? parseFloat(hourlyFee) : undefined,
+        hourlyFee: parsedHourlyFee,
         tagline,
         country,
         state,
@@ -828,6 +838,121 @@ export const getProfileCompletion = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get profile completion error:', error);
     res.status(500).json({ error: 'Error calculating profile completion' });
+  }
+};
+
+export const getTutorSessions = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const tutor = await prisma.tutor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: { tutorId: tutor.id },
+      orderBy: { startTime: 'desc' },
+      include: {
+        student: { include: { user: true } },
+        payment: true,
+        classSession: true,
+      },
+    });
+
+    const sessions = bookings.map((booking) => {
+      const durationHours =
+        (new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / (1000 * 60 * 60);
+      return {
+        id: booking.id,
+        status: booking.status,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        studentName: booking.student ? `${booking.student.firstName || ''} ${booking.student.lastName || ''}`.trim() : '',
+        studentEmail: booking.student?.user.email || '',
+        durationHours: Math.max(1, Math.round(durationHours * 100) / 100),
+        paymentStatus: booking.payment?.paymentStatus || 'PENDING',
+        paymentAmount: booking.payment?.amount || 0,
+        currency: booking.payment?.currency || 'USD',
+        classSession: booking.classSession
+          ? {
+              id: booking.classSession.id,
+              status: booking.classSession.status,
+              googleClassroomLink: booking.classSession.googleClassroomLink,
+              googleMeetLink: booking.classSession.googleMeetLink,
+            }
+          : null,
+      };
+    });
+
+    res.json({ sessions });
+  } catch (error) {
+    console.error('Get tutor sessions error:', error);
+    res.status(500).json({ error: 'Error fetching sessions' });
+  }
+};
+
+export const getTutorEarnings = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const tutor = await prisma.tutor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    const [walletSummary, payments, withdrawals] = await Promise.all([
+      getWalletSummary(userId, 'TUTOR'),
+      prisma.payment.findMany({
+        where: { tutorId: tutor.id },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: {
+          booking: {
+            include: {
+              student: {
+                include: { user: true },
+              },
+            },
+          },
+        },
+      }),
+      prisma.withdrawal.findMany({
+        where: { userId },
+        orderBy: { requestedAt: 'desc' },
+        take: 25,
+      }),
+    ]);
+
+    const formattedPayments = payments.map((payment) => ({
+      id: payment.id,
+      amount: payment.amount,
+      tutorAmount: payment.tutorAmount,
+      currency: payment.currency,
+      paymentStatus: payment.paymentStatus,
+      paidAt: payment.paidAt,
+      createdAt: payment.createdAt,
+      bookingId: payment.bookingId,
+      studentName: payment.booking?.student
+        ? `${payment.booking.student.firstName || ''} ${payment.booking.student.lastName || ''}`.trim()
+        : '',
+      studentEmail: payment.booking?.student?.user.email || '',
+    }));
+
+    res.json({
+      summary: walletSummary,
+      payments: formattedPayments,
+      withdrawals,
+    });
+  } catch (error) {
+    console.error('Get tutor earnings error:', error);
+    res.status(500).json({ error: 'Error fetching earnings' });
   }
 };
 

@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bookmark, BookmarkCheck, CalendarPlus } from 'lucide-react'
 import Navbar from '../../components/Navbar'
+import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
+import { usePlatformSettings } from '../../store/settingsStore'
 import BookTutorModal from '../../components/student/BookTutorModal'
 
 interface Tutor {
@@ -34,10 +36,12 @@ const StudentDashboard = () => {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const { settings, fetchSettings } = usePlatformSettings()
 
   useEffect(() => {
+    fetchSettings()
     fetchTutors()
-  }, [])
+  }, [fetchSettings])
 
   const fetchTutors = async () => {
     try {
@@ -105,14 +109,14 @@ const StudentDashboard = () => {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-100">
+    <div className="min-h-screen" style={{ backgroundColor: '#012c4f' }}>
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="bg-white rounded-3xl shadow p-6 mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Discover Your Perfect Tutor</h1>
-            <p className="text-slate-600 mt-2">
+            <h1 className="text-3xl font-bold text-white">Discover Your Perfect Tutor</h1>
+            <p className="text-white mt-2">
               Search by name, subject, or location to find tutors aligned with your learning goals.
             </p>
           </div>
@@ -158,7 +162,7 @@ const StudentDashboard = () => {
         ) : (
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredTutors.map((tutor) => {
-              const heroImage = resolveImageUrl(tutor.profileImage)
+              const heroImage = resolveImageUrl(tutor.profileImage || settings?.defaultTutorImage || '')
               const initials = `${tutor.firstName?.charAt(0) ?? ''}${tutor.lastName?.charAt(0) ?? ''}` || 'JT'
               const isSaving = savingTutorId === tutor.id
 
@@ -283,6 +287,7 @@ const StudentDashboard = () => {
         onBooked={handleBookingSuccess}
         onError={(message) => setErrorMessage(message)}
       />
+      <Footer />
     </div>
   )
 }

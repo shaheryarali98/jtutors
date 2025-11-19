@@ -42,10 +42,13 @@ const Navbar = () => {
       { to: '/student/bookings', label: 'My Bookings' },
       { to: '/student/invoices', label: 'Invoices & Bills' },
       { to: '/student/hour-log', label: 'Tutoring Hours' },
+      { to: '/student/wallet', label: 'Wallet & Refunds' },
     ],
     tutor: [
       { to: '/tutor/dashboard', label: 'Dashboard' },
       { to: '/tutor/profile', label: 'Profile' },
+      { to: '/tutor/sessions', label: 'My Sessions' },
+      { to: '/tutor/earnings', label: 'Earnings & Payouts' },
     ],
     admin: [
       { to: '/admin/dashboard', label: 'Analytics' },
@@ -77,7 +80,7 @@ const Navbar = () => {
 
           {/* === CENTERED: Only 2 Links === */}
           <div className="hidden lg:flex items-center justify-center flex-1 px-8">
-            <div className="flex items-center gap-3 bg-violet-50/70 backdrop-blur-sm rounded-full px-6 py-2 shadow-inner">
+            <div className="flex items-center gap-3 backdrop-blur-sm rounded-full px-6 py-2 shadow-inner" style={{ backgroundColor: 'rgba(230, 240, 247, 0.7)' }}>
               {centerLinks.map((link) => (
                 <NavLink
                   key={link.to}
@@ -85,10 +88,11 @@ const Navbar = () => {
                   className={({ isActive }) =>
                     `px-5 py-2.5 text-sm font-bold rounded-full transition-all duration-300 ${
                       isActive
-                        ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-md'
-                        : 'text-slate-700 hover:text-violet-600 hover:bg-white/70'
+                        ? 'text-white shadow-md'
+                        : 'text-slate-700 hover:bg-white/70'
                     }`
                   }
+                  style={({ isActive }) => isActive ? { backgroundColor: '#012c54' } : {}}
                 >
                   {link.label}
                 </NavLink>
@@ -107,7 +111,8 @@ const Navbar = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="h-11 w-11 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-lg hover:shadow-xl border-2 border-white"
+                    className="h-11 w-11 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-lg hover:shadow-xl border-2 border-white"
+                    style={{ background: 'linear-gradient(to bottom right, #012c54, #014a7a)' }}
                   >
                     {userInitial}
                   </motion.button>
@@ -123,11 +128,12 @@ const Navbar = () => {
                           initial={{ opacity: 0, y: -10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          className="absolute right-0 mt-3 w-60 bg-white rounded-2xl shadow-2xl border border-violet-100 z-50 overflow-hidden"
+                          className="absolute right-0 mt-3 w-60 bg-white rounded-2xl shadow-2xl border z-50 overflow-hidden"
+                          style={{ borderColor: '#b3d1e8' }}
                         >
-                          <div className="p-4 bg-gradient-to-r from-violet-50 to-purple-50 border-b border-violet-100">
+                          <div className="p-4 border-b" style={{ background: 'linear-gradient(to right, #e6f0f7, #b3d1e8)', borderColor: '#b3d1e8' }}>
                             <p className="text-sm font-bold text-slate-800 truncate">{user.email}</p>
-                            <p className="text-xs text-violet-600 font-semibold uppercase tracking-wide mt-1 flex items-center gap-1">
+                            <p className="text-xs font-semibold uppercase tracking-wide mt-1 flex items-center gap-1" style={{ color: '#012c54' }}>
                               <Sparkles className="w-3 h-3" />
                               {user.role}
                             </p>
@@ -140,7 +146,7 @@ const Navbar = () => {
                                   navigate(link.to)
                                   setProfileMenuOpen(false)
                                 }}
-                                className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-violet-50 rounded-xl transition-colors flex items-center gap-3"
+                                className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-3"
                               >
                                 <BookOpen className="w-4 h-4" />
                                 {link.label}
@@ -164,13 +170,14 @@ const Navbar = () => {
               <div className="hidden lg:flex items-center gap-3">
                 <Link
                   to="/login"
-                  className="px-5 py-2.5 text-sm font-semibold text-slate-700 hover:text-violet-600 hover:bg-violet-50 rounded-xl transition-all"
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-all"
                 >
                   Login
                 </Link>
                 <Link
                   to="/register"
-                  className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-sm rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                  className="px-6 py-2.5 text-white font-bold text-sm rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                  style={{ backgroundColor: '#f5a11a' }}
                 >
                   Join JTutors
                 </Link>
@@ -181,7 +188,7 @@ const Navbar = () => {
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2.5 rounded-xl hover:bg-violet-50 transition-colors text-slate-700"
+              className="lg:hidden p-2.5 rounded-xl hover:bg-slate-50 transition-colors text-slate-700"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </motion.button>
@@ -196,7 +203,8 @@ const Navbar = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden bg-white border-t border-violet-100 shadow-2xl"
+            className="lg:hidden bg-white border-t shadow-2xl"
+                    style={{ borderColor: '#b3d1e8' }}
           >
             <div className="px-4 py-6 space-y-3">
               {/* Centered Links */}
@@ -208,16 +216,17 @@ const Navbar = () => {
                   className={({ isActive }) =>
                     `block text-center py-3 px-6 text-sm font-bold rounded-full transition-all ${
                       isActive
-                        ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white'
-                        : 'text-slate-700 hover:bg-violet-50'
+                        ? 'text-white'
+                        : 'text-slate-700 hover:bg-slate-50'
                     }`
                   }
+                  style={({ isActive }) => isActive ? { backgroundColor: '#012c54' } : {}}
                 >
                   {link.label}
                 </NavLink>
               ))}
 
-              <div className="h-px bg-violet-100 my-3" />
+              <div className="h-px my-3" style={{ backgroundColor: '#b3d1e8' }} />
 
               {/* Role-Specific Links (Only if logged in) */}
               {user && currentRoleLinks.map((link) => (
@@ -225,7 +234,7 @@ const Navbar = () => {
                   key={link.to}
                   to={link.to}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-violet-50 rounded-xl transition-all"
+                  className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl transition-all"
                 >
                   <BookOpen className="w-5 h-5" />
                   {link.label}
@@ -238,7 +247,8 @@ const Navbar = () => {
                   <Link
                     to="/register?role=student"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-center gap-2 w-full py-3 text-sm font-bold text-violet-700 bg-violet-50 rounded-xl hover:bg-violet-100 transition-all"
+                    className="flex items-center justify-center gap-2 w-full py-3 text-sm font-bold rounded-xl transition-all"
+                    style={{ color: '#012c54', backgroundColor: '#e6f0f7' }}
                   >
                     <User className="w-5 h-5" />
                     Find a Tutor
@@ -246,7 +256,8 @@ const Navbar = () => {
                   <Link
                     to="/register?role=tutor"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-sm rounded-xl shadow-lg"
+                    className="flex items-center justify-center gap-2 w-full py-3 text-white font-bold text-sm rounded-xl shadow-lg"
+                    style={{ backgroundColor: '#f5a11a' }}
                   >
                     <Sparkles className="w-5 h-5" />
                     Become a Tutor
@@ -257,9 +268,9 @@ const Navbar = () => {
               {/* Logged-in User Info & Logout */}
               {user && (
                 <>
-                  <div className="px-4 py-3 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl">
+                  <div className="px-4 py-3 rounded-xl" style={{ background: 'linear-gradient(to right, #e6f0f7, #b3d1e8)' }}>
                     <p className="text-sm font-bold text-slate-800 truncate">{user.email}</p>
-                    <p className="text-xs text-violet-600 font-semibold uppercase tracking-wide mt-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide mt-1" style={{ color: '#012c54' }}>
                       {user.role}
                     </p>
                   </div>

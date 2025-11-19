@@ -1,4 +1,5 @@
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 import {
   Search,
   ChevronRight,
@@ -9,15 +10,17 @@ import {
 } from 'lucide-react'
 
 const categoryOptions = [
-  'Arts, Music & Design',
-  'Humanities & Social Studies',
-  'Jewish Studies',
+  'Standardized Tests',
+  'Mathematics',
+  'Science',
+  'Computer Science / Technology',
   'Languages',
-  'Mathematics & Statistics',
-  'Science, Medicine & Engineering',
-  'Sports, Fitness & Recreation',
-  'Technology & Computer Science',
-  'Test Preparation',
+  'History / Social Studies',
+  'Business / Law',
+  'Jewish Studies',
+  'English / Literature / Writing',
+  'Music / Art',
+  'Other / Skills',
 ]
 
 const popularSearches = ['Languages', 'SAT Math', 'Jewish Studies', 'STEM Clubs']
@@ -147,20 +150,16 @@ const HomePage = () => {
 
       <main className="relative overflow-hidden">
         {/* Hero */}
-        <section className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white">
+        <section className="relative text-white" style={{ background: 'linear-gradient(to bottom right, #012c54, #014a7a, #016ba3)' }}>
           <div className="absolute inset-0 bg-grid-white/10" aria-hidden="true" />
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
             <div className="grid lg:grid-cols-[3fr,2fr] gap-12 items-center">
               <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1 text-sm font-semibold uppercase tracking-wide">
-                  <Shield className="h-4 w-4" />
-                  Trusted, vetted tutors for the Jewish community
-                </span>
                 <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-black leading-tight">
                   Where Jewish Students and Tutors Connect
                 </h1>
                 <p className="mt-6 text-lg leading-relaxed text-white/90">
-                  JTutors connects students and families with trusted, vetted tutors who understand the academic
+                  JTutors connects students and families with trusted tutors who understand the academic
                   needs of the Jewish community. Learn online, in person, or both — with a platform designed around
                   your goals.
                 </p>
@@ -169,15 +168,16 @@ const HomePage = () => {
                   <form className="grid gap-4 lg:grid-cols-[2fr,2fr,auto]">
                     <div className="flex flex-col">
                       <label className="text-xs font-semibold uppercase text-slate-500">Select category</label>
-                      <select className="mt-2 rounded-xl border border-slate-200 px-4 py-3 focus:border-indigo-500 focus:outline-none">
+                      <select className="mt-2 rounded-xl border border-slate-200 px-4 py-3 text-slate-700 bg-white focus:outline-none focus:border-[#012c54]">
+                        <option value="">All Categories</option>
                         {categoryOptions.map((category) => (
-                          <option key={category}>{category}</option>
+                          <option key={category} value={category} className="text-slate-700">{category}</option>
                         ))}
                       </select>
                     </div>
                     <div className="flex flex-col">
                       <label className="text-xs font-semibold uppercase text-slate-500">Search keywords</label>
-                      <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 focus-within:border-indigo-500">
+                      <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 focus-within:border-[#012c54]">
                         <Search className="h-5 w-5 text-slate-400" />
                         <input
                           type="text"
@@ -188,7 +188,8 @@ const HomePage = () => {
                     </div>
                     <button
                       type="button"
-                      className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg hover:bg-indigo-700"
+                      className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white shadow-lg hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: '#f5a11a' }}
                     >
                       Search now
                       <ChevronRight className="h-5 w-5" />
@@ -213,10 +214,6 @@ const HomePage = () => {
                     alt="JTutors community"
                     className="h-full w-full rounded-2xl object-cover"
                   />
-                  <div className="absolute -bottom-6 left-1/2 w-56 -translate-x-1/2 rounded-2xl bg-white px-6 py-4 text-center shadow-xl">
-                    <p className="text-sm font-semibold text-slate-600">Trusted by families worldwide</p>
-                    <p className="text-xl font-black text-indigo-600">7+ Million learners</p>
-                  </div>
                 </div>
               </div>
             </div>
@@ -243,17 +240,6 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* Stats */}
-        <section className="py-16 bg-slate-100">
-          <div className="max-w-6xl mx-auto grid gap-6 px-4 sm:grid-cols-2 lg:grid-cols-4">
-            {platformStats.map((stat) => (
-              <div key={stat.label} className="rounded-3xl bg-white p-6 shadow-lg">
-                <p className="text-3xl font-black text-indigo-600">{stat.value}</p>
-                <p className="mt-2 text-sm font-medium text-slate-600">{stat.label}</p>
-              </div>
-            ))}
-        </div>
-      </section>
 
         {/* Popular categories */}
         <section className="py-16 bg-white">
@@ -265,7 +251,7 @@ const HomePage = () => {
                   Explore subjects taught by verified tutors who understand your academic and cultural priorities.
                 </p>
               </div>
-              <button className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-indigo-500 hover:text-indigo-600">
+              <button className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-[#012c54] hover:text-[#012c54] transition-colors">
                 Explore all tutors
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -276,7 +262,7 @@ const HomePage = () => {
                 <div key={category.name} className="rounded-3xl border border-slate-200 p-6 shadow-sm">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-slate-900">{category.name}</h3>
-                    <span className="text-sm font-semibold text-indigo-600">{category.count}</span>
+                    <span className="text-sm font-semibold" style={{ color: '#012c54' }}>{category.count}</span>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {category.topics.map((topic) => (
@@ -302,10 +288,10 @@ const HomePage = () => {
             <div className="mt-12 grid gap-6 lg:grid-cols-3">
               {successStories.map((story) => (
                 <div key={story.title} className="rounded-3xl bg-white p-6 shadow-md">
-                  <Quote className="h-10 w-10 text-indigo-400" />
+                  <Quote className="h-10 w-10" style={{ color: '#012c54' }} />
                   <h3 className="mt-4 text-lg font-semibold text-slate-900">{story.title}</h3>
                   <p className="mt-3 text-sm leading-relaxed text-slate-600">{story.quote}</p>
-                  <div className="mt-6 text-sm font-medium text-indigo-600">{story.author}</div>
+                  <div className="mt-6 text-sm font-medium" style={{ color: '#012c54' }}>{story.author}</div>
                   <div className="text-xs uppercase tracking-wide text-slate-500">{story.role}</div>
                 </div>
             ))}
@@ -321,7 +307,7 @@ const HomePage = () => {
                 <h2 className="text-3xl font-black text-slate-900">Every tutor is professional and highly qualified</h2>
                 <p className="mt-2 text-slate-600">Featured tutors ready to start today.</p>
               </div>
-              <button className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-indigo-500 hover:text-indigo-600">
+              <button className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-[#012c54] hover:text-[#012c54] transition-colors">
                 Browse tutors
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -341,9 +327,9 @@ const HomePage = () => {
                     <MapPin className="h-4 w-4" />
                     {tutor.location}
                   </p>
-                  <p className="mt-3 text-sm font-semibold text-indigo-600">Starting from {tutor.rate}</p>
+                  <p className="mt-3 text-sm font-semibold" style={{ color: '#012c54' }}>Starting from {tutor.rate}</p>
                   <p className="text-xs uppercase tracking-wide text-slate-500">{tutor.qualification}</p>
-                  <button className="mt-5 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700">
+                  <button className="mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90 transition-opacity" style={{ backgroundColor: '#f5a11a' }}>
                     View profile
                     <ChevronRight className="h-4 w-4" />
                   </button>
@@ -354,29 +340,7 @@ const HomePage = () => {
         </section>
 
         {/* Question form */}
-        <section className="relative overflow-hidden py-16">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 opacity-95" />
-          <div className="relative max-w-4xl mx-auto rounded-3xl bg-white/10 p-10 text-white shadow-2xl backdrop-blur">
-            <h2 className="text-3xl font-black">Didn’t find your question here?</h2>
-            <p className="mt-2 text-base text-white/80">
-              Send us your question and our team will respond within 24 hours.
-            </p>
-            <form className="mt-8 grid gap-4 md:grid-cols-2">
-              <input className="rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm placeholder:text-white/60 focus:border-white focus:outline-none" placeholder="Full name" />
-              <input className="rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm placeholder:text-white/60 focus:border-white focus:outline-none" placeholder="Email address" />
-              <input className="rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm placeholder:text-white/60 focus:border-white focus:outline-none md:col-span-2" placeholder="Question subject" />
-              <textarea className="rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm placeholder:text-white/60 focus:border-white focus:outline-none md:col-span-2" rows={4} placeholder="Describe how we can help" />
-              <label className="flex items-center gap-2 text-xs text-white/80 md:col-span-2">
-                <input type="checkbox" className="rounded border-white/40 bg-white/10" />
-                I have read and agree to all Terms &amp; Conditions.
-              </label>
-              <button type="button" className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-indigo-600 shadow-lg hover:bg-slate-100 md:col-span-2">
-                Submit your question
-                <ChevronRight className="h-4 w-4" />
-            </button>
-            </form>
-          </div>
-      </section>
+        <Footer />
       </main>
     </div>
   )

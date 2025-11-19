@@ -1,24 +1,31 @@
 import { PrismaClient } from '@prisma/client';
 import { createPayout } from './stripe.service';
-import { getAdminSettings } from './settings.service';
+import { getAdminSettings, getFormattedAdminSettings } from './settings.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
+import { getWalletSummary } from './wallet.service';
 
 const prisma = new PrismaClient();
 
 export interface CreateWithdrawalData {
   userId: string;
-  userType: 'ADMIN' | 'TUTOR';
+  userType: 'ADMIN' | 'TUTOR' | 'STUDENT';
   amount: number;
   currency?: string;
+  method?: string;
   notes?: string;
 }
 
 // Create withdrawal request
 export const createWithdrawal = async (data: CreateWithdrawalData) => {
-  const { userId, userType, amount, currency = 'USD', notes } = data;
+  const { userId, userType, amount, currency = 'USD', notes, method } = data;
 
   const settings = await getAdminSettings();
+  const formattedSettings = await getFormattedAdminSettings();
   const autoApproveDays = settings.withdrawalAutoApproveDays;
+  const fixedCharge = settings.withdrawFixedCharge ?? 0;
+  const percentCharge = settings.withdrawPercentageCharge ?? 0;
+  const calculatedCharge = Math.max(0, (amount * percentCharge) / 100 + fixedCharge);
+  const netAmount = Math.max(0, amount - calculatedCharge);
 
   const withdrawal = await prisma.withdrawal.create({
     data: {
@@ -26,6 +33,9 @@ export const createWithdrawal = async (data: CreateWithdrawalData) => {
       userType,
       amount,
       currency,
+      method: method || (formattedSettings.withdrawMethods[0] ?? 'Stripe Payout'),
+      charge: Math.round(calculatedCharge * 100) / 100,
+      netAmount: Math.round(netAmount * 100) / 100,
       notes,
       status: 'PENDING',
       autoApproveAfterDays: autoApproveDays || null,
@@ -122,14 +132,27 @@ export const processWithdrawal = async (withdrawalId: string) => {
       where: { userId: withdrawal.userId },
     });
     stripeAccountId = tutor?.stripeAccountId || null;
-  } else {
+  } else if (withdrawal.userType === 'ADMIN') {
     // For admin, you'd need to configure a Stripe account
     // For now, we'll use a placeholder
     stripeAccountId = process.env.ADMIN_STRIPE_ACCOUNT_ID || null;
+  } else {
+    stripeAccountId = null;
   }
 
   if (!stripeAccountId) {
-    throw new Error('Stripe account not configured for user');
+    // Manual payout required
+    return prisma.withdrawal.update({
+      where: { id: withdrawalId },
+      data: {
+        status: 'PROCESSING',
+        processedAt: new Date(),
+        notes: withdrawal.notes
+          ? `${withdrawal.notes}\nManual payout required for ${withdrawal.userType.toLowerCase()}`
+          : `Manual payout required for ${withdrawal.userType.toLowerCase()}`,
+      },
+      include: { user: true },
+    });
   }
 
   // Create Stripe payout

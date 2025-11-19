@@ -10,7 +10,6 @@ interface ExperienceItem {
   startDate: string
   endDate?: string
   isCurrent: boolean
-  teachingMode: string
   description?: string
 }
 
@@ -21,7 +20,6 @@ interface ExperienceForm {
   startDate: string
   endDate?: string
   isCurrent: boolean
-  teachingMode: string
   description?: string
 }
 
@@ -53,15 +51,33 @@ const Experience = () => {
     }
   }
 
+  const formatDateToMMDDYYYY = (dateString: string) => {
+    const date = new Date(dateString)
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${month}/${day}/${year}`
+  }
+
+  const convertDateToISO = (dateString: string) => {
+    // Date input returns YYYY-MM-DD format
+    return new Date(dateString).toISOString()
+  }
+
   const onSubmit = async (data: ExperienceForm) => {
     try {
       setLoading(true)
       let completion = 0
+      const submitData = {
+        ...data,
+        startDate: convertDateToISO(data.startDate),
+        endDate: data.endDate ? convertDateToISO(data.endDate) : undefined
+      }
       if (editingId) {
-        const response = await api.put(`/tutor/profile/experience/${editingId}`, data)
+        const response = await api.put(`/tutor/profile/experience/${editingId}`, submitData)
         setFeedback(response.data.message || 'Experience updated successfully')
       } else {
-        const response = await api.post('/tutor/profile/experience', data)
+        const response = await api.post('/tutor/profile/experience', submitData)
         completion = response.data.profileCompletion ?? 0
         setFeedback('Experience added successfully')
       }
@@ -80,15 +96,24 @@ const Experience = () => {
     }
   }
 
+  const formatDateStringToDateInput = (dateString: string) => {
+    // Convert any date string to YYYY-MM-DD for date input
+    const date = new Date(dateString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   const handleEdit = (exp: ExperienceItem) => {
     setEditingId(exp.id)
     setValue('jobTitle', exp.jobTitle)
     setValue('company', exp.company)
     setValue('location', exp.location)
-    setValue('startDate', exp.startDate.split('T')[0])
-    setValue('endDate', exp.endDate ? exp.endDate.split('T')[0] : '')
+    // Convert to date input format (YYYY-MM-DD) for the calendar
+    setValue('startDate', formatDateStringToDateInput(exp.startDate))
+    setValue('endDate', exp.endDate ? formatDateStringToDateInput(exp.endDate) : '')
     setValue('isCurrent', exp.isCurrent)
-    setValue('teachingMode', exp.teachingMode)
     setValue('description', exp.description || '')
   }
 
@@ -165,36 +190,39 @@ const Experience = () => {
           {errors.location && <p className="error-text">{errors.location.message}</p>}
         </div>
 
-        <div>
-          <label className="label">Teaching Mode *</label>
-          <select className="input" {...register('teachingMode', { required: 'Teaching mode is required' })}>
-            <option value="">Select mode</option>
-            <option value="ONLINE">Online</option>
-            <option value="IN_PERSON">In-Person</option>
-            <option value="BOTH">Both</option>
-          </select>
-          {errors.teachingMode && <p className="error-text">{errors.teachingMode.message}</p>}
-        </div>
 
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <label className="label">Start Date *</label>
+            <label className="label">Start Date * (MM/DD/YYYY)</label>
             <input
               type="date"
               className="input"
-              {...register('startDate', { required: 'Start date is required' })}
+              {...register('startDate', { 
+                required: 'Start date is required'
+              })}
             />
+            {watch('startDate') && (
+              <p className="text-sm text-gray-600 mt-1">
+                Selected: {formatDateToMMDDYYYY(watch('startDate'))}
+              </p>
+            )}
             {errors.startDate && <p className="error-text">{errors.startDate.message}</p>}
           </div>
 
           <div>
-            <label className="label">End Date</label>
+            <label className="label">End Date (MM/DD/YYYY)</label>
             <input
               type="date"
               className="input"
               disabled={isCurrent}
               {...register('endDate')}
             />
+            {watch('endDate') && (
+              <p className="text-sm text-gray-600 mt-1">
+                Selected: {formatDateToMMDDYYYY(watch('endDate'))}
+              </p>
+            )}
+            {errors.endDate && <p className="error-text">{errors.endDate.message}</p>}
           </div>
         </div>
 
@@ -256,11 +284,8 @@ const Experience = () => {
                 </div>
               </div>
               <p className="text-sm text-gray-600 mb-2">
-                {new Date(exp.startDate).toLocaleDateString()} - {exp.isCurrent ? 'Present' : exp.endDate ? new Date(exp.endDate).toLocaleDateString() : 'N/A'}
+                {formatDateToMMDDYYYY(exp.startDate)} - {exp.isCurrent ? 'Present' : exp.endDate ? formatDateToMMDDYYYY(exp.endDate) : 'N/A'}
               </p>
-              <span className="inline-block px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm">
-                {exp.teachingMode.replace('_', ' ')}
-              </span>
               {exp.description && (
                 <p className="mt-2 text-gray-700">{exp.description}</p>
               )}

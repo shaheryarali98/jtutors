@@ -36,9 +36,27 @@ interface AdminSettings {
   id: string
   sendSignupConfirmation: boolean
   sendProfileCompletionEmail: boolean
+  autoApproveUsers: boolean
   adminCommissionPercentage: number
   adminCommissionFixed: number
   withdrawalAutoApproveDays: number | null
+  withdrawMethods: string[]
+  withdrawFixedCharge?: number
+  withdrawPercentageCharge?: number
+  minimumWithdrawAmount?: number
+  minimumBalanceForWithdraw?: number
+  withdrawThreshold?: number | null
+  genderFieldEnabled: boolean
+  gradeFieldEnabled: boolean
+  stateFieldEnabled: boolean
+  emailLogo?: string | null
+  emailSenderName?: string | null
+  emailSenderEmail?: string | null
+  emailFooterCopyright?: string | null
+  emailSenderSignature?: string | null
+  emailFooterColor?: string | null
+  defaultStudentImage?: string | null
+  defaultTutorImage?: string | null
 }
 
 interface AdminUser {
@@ -60,6 +78,9 @@ interface Withdrawal {
   status: string
   requestedAt: string
   approvedAt?: string
+  method?: string | null
+  charge?: number | null
+  netAmount?: number | null
   user?: { id: string; email: string; role: string }
 }
 
@@ -167,6 +188,7 @@ const AdminDashboard = () => {
   const [newSubjectName, setNewSubjectName] = useState('')
   const [subjectEditingId, setSubjectEditingId] = useState<string | null>(null)
   const [subjectEditingName, setSubjectEditingName] = useState('')
+  const [withdrawMethodsDraft, setWithdrawMethodsDraft] = useState('')
 
   useEffect(() => {
     const loadCore = async () => {
@@ -198,6 +220,12 @@ const AdminDashboard = () => {
 
     loadCore()
   }, [])
+
+  useEffect(() => {
+    if (settings) {
+      setWithdrawMethodsDraft(settings.withdrawMethods?.join('\n') || '')
+    }
+  }, [settings])
 
   useEffect(() => {
     if (activeTab === 'withdrawals') {
@@ -288,6 +316,10 @@ const AdminDashboard = () => {
     } finally {
       setSavingSettings(false)
     }
+  }
+
+  const updateSettingLocal = <K extends keyof AdminSettings>(key: K, value: AdminSettings[K]) => {
+    setSettings((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
   const handleToggleSetting = async (key: keyof Omit<AdminSettings, 'id'>, value: boolean) => {
@@ -964,7 +996,88 @@ const AdminDashboard = () => {
                         onChange={(value) => handleToggleSetting('sendProfileCompletionEmail', value)}
                         disabled={savingSettings}
                       />
+                    <SettingToggle
+                      label="Auto approve new accounts"
+                      description="Automatically mark newly registered users as approved instead of requiring manual review."
+                      value={settings.autoApproveUsers}
+                      onChange={(value) => handleToggleSetting('autoApproveUsers', value)}
+                      disabled={savingSettings}
+                    />
                     </div>
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Email logo URL</label>
+                      <input
+                        type="text"
+                        className="input"
+                        value={settings.emailLogo || ''}
+                        onChange={(event) => updateSettingLocal('emailLogo', event.target.value)}
+                        onBlur={(event) => handleUpdateSettings({ emailLogo: event.target.value })}
+                        placeholder="https://example.com/logo.png"
+                        disabled={savingSettings}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Sender name</label>
+                      <input
+                        type="text"
+                        className="input"
+                        value={settings.emailSenderName || ''}
+                        onChange={(event) => updateSettingLocal('emailSenderName', event.target.value)}
+                        onBlur={(event) => handleUpdateSettings({ emailSenderName: event.target.value })}
+                        placeholder="J Tutors"
+                        disabled={savingSettings}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Sender email</label>
+                      <input
+                        type="email"
+                        className="input"
+                        value={settings.emailSenderEmail || ''}
+                        onChange={(event) => updateSettingLocal('emailSenderEmail', event.target.value)}
+                        onBlur={(event) => handleUpdateSettings({ emailSenderEmail: event.target.value })}
+                        placeholder="info@jtutors.com"
+                        disabled={savingSettings}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Footer copyright</label>
+                      <input
+                        type="text"
+                        className="input"
+                        value={settings.emailFooterCopyright || ''}
+                        onChange={(event) => updateSettingLocal('emailFooterCopyright', event.target.value)}
+                        onBlur={(event) => handleUpdateSettings({ emailFooterCopyright: event.target.value })}
+                        placeholder="© J Tutors. All rights reserved."
+                        disabled={savingSettings}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Email signature</label>
+                      <textarea
+                        className="input"
+                        rows={3}
+                        value={settings.emailSenderSignature || ''}
+                        onChange={(event) => updateSettingLocal('emailSenderSignature', event.target.value)}
+                        onBlur={(event) => handleUpdateSettings({ emailSenderSignature: event.target.value })}
+                        placeholder="Warmly, The J Tutors Team"
+                        disabled={savingSettings}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Footer background color</label>
+                      <input
+                        type="text"
+                        className="input"
+                        value={settings.emailFooterColor || ''}
+                        onChange={(event) => updateSettingLocal('emailFooterColor', event.target.value)}
+                        onBlur={(event) => handleUpdateSettings({ emailFooterColor: event.target.value })}
+                        placeholder="#F5F5F5"
+                        disabled={savingSettings}
+                      />
+                    </div>
+                  </div>
                   </div>
 
                   <div className="border-t border-slate-200 pt-6">
@@ -1053,6 +1166,190 @@ const AdminDashboard = () => {
                         approval only.
                       </p>
                     </div>
+                    <div className="grid gap-4 md:grid-cols-2 mt-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Withdrawal methods (one per line)
+                        </label>
+                        <textarea
+                          className="input h-24"
+                          value={withdrawMethodsDraft}
+                          onChange={(event) => setWithdrawMethodsDraft(event.target.value)}
+                          onBlur={() =>
+                            handleUpdateSettings({
+                              withdrawMethods: withdrawMethodsDraft
+                                .split('\n')
+                                .map((method) => method.trim())
+                                .filter((method) => method.length > 0),
+                            })
+                          }
+                          placeholder={'Stripe Connect\nManual bank payout'}
+                          disabled={savingSettings}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Fixed charge (USD)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="input"
+                          value={settings.withdrawFixedCharge ?? 0}
+                          onChange={(event) => updateSettingLocal('withdrawFixedCharge', Number(event.target.value))}
+                          onBlur={(event) =>
+                            handleUpdateSettings({ withdrawFixedCharge: Number(event.target.value) })
+                          }
+                          disabled={savingSettings}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Percentage charge (%)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          className="input"
+                          value={settings.withdrawPercentageCharge ?? 0}
+                          onChange={(event) =>
+                            updateSettingLocal('withdrawPercentageCharge', Number(event.target.value))
+                          }
+                          onBlur={(event) =>
+                            handleUpdateSettings({ withdrawPercentageCharge: Number(event.target.value) })
+                          }
+                          disabled={savingSettings}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Minimum withdraw amount (USD)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="input"
+                          value={settings.minimumWithdrawAmount ?? ''}
+                          onChange={(event) =>
+                            updateSettingLocal(
+                              'minimumWithdrawAmount',
+                              event.target.value === '' ? undefined : Number(event.target.value)
+                            )
+                          }
+                          onBlur={(event) =>
+                            handleUpdateSettings({
+                              minimumWithdrawAmount: event.target.value === '' ? undefined : Number(event.target.value),
+                            })
+                          }
+                          disabled={savingSettings}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Minimum balance required (USD)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="input"
+                          value={settings.minimumBalanceForWithdraw ?? ''}
+                          onChange={(event) =>
+                            updateSettingLocal(
+                              'minimumBalanceForWithdraw',
+                              event.target.value === '' ? undefined : Number(event.target.value)
+                            )
+                          }
+                          onBlur={(event) =>
+                            handleUpdateSettings({
+                              minimumBalanceForWithdraw:
+                                event.target.value === '' ? undefined : Number(event.target.value),
+                            })
+                          }
+                          disabled={savingSettings}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Withdrawal threshold (days)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="input"
+                          value={settings.withdrawThreshold ?? ''}
+                          onChange={(event) =>
+                            updateSettingLocal(
+                              'withdrawThreshold',
+                              event.target.value === '' ? null : Number(event.target.value)
+                            )
+                          }
+                          onBlur={(event) =>
+                            handleUpdateSettings({
+                              withdrawThreshold: event.target.value === '' ? null : Number(event.target.value),
+                            })
+                          }
+                          disabled={savingSettings}
+                          placeholder="Optional"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-200 pt-6">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Profile Fields & Defaults</h3>
+                    <div className="space-y-4">
+                      <SettingToggle
+                        label="Show gender field"
+                        description="If disabled, students and tutors will not see or be required to fill in gender."
+                        value={settings.genderFieldEnabled}
+                        onChange={(value) => handleToggleSetting('genderFieldEnabled', value)}
+                        disabled={savingSettings}
+                      />
+                      <SettingToggle
+                        label="Show grade options"
+                        description="Control whether learners are asked to provide their current grade level."
+                        value={settings.gradeFieldEnabled}
+                        onChange={(value) => handleToggleSetting('gradeFieldEnabled', value)}
+                        disabled={savingSettings}
+                      />
+                      <SettingToggle
+                        label="Show state / province"
+                        description="Hide or display the optional state / province field on profiles."
+                        value={settings.stateFieldEnabled}
+                        onChange={(value) => handleToggleSetting('stateFieldEnabled', value)}
+                        disabled={savingSettings}
+                      />
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Default student image URL
+                        </label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={settings.defaultStudentImage || ''}
+                          onChange={(event) => updateSettingLocal('defaultStudentImage', event.target.value)}
+                          onBlur={(event) => handleUpdateSettings({ defaultStudentImage: event.target.value })}
+                          placeholder="https://example.com/student.png"
+                          disabled={savingSettings}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Default tutor image URL
+                        </label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={settings.defaultTutorImage || ''}
+                          onChange={(event) => updateSettingLocal('defaultTutorImage', event.target.value)}
+                          onBlur={(event) => handleUpdateSettings({ defaultTutorImage: event.target.value })}
+                          placeholder="https://example.com/tutor.png"
+                          disabled={savingSettings}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -1086,6 +1383,10 @@ const AdminDashboard = () => {
                           <td className="px-4 py-3 text-slate-600">{withdrawal.userType}</td>
                           <td className="px-4 py-3 font-medium">
                             ${withdrawal.amount.toFixed(2)} {withdrawal.currency}
+                            <div className="text-xs text-slate-500 mt-1">
+                              Method: {withdrawal.method || 'Manual'} · Net $
+                              {(withdrawal.netAmount ?? withdrawal.amount).toFixed(2)}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
                             <span

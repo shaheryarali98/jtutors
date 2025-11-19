@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
+import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
+import { LANGUAGE_OPTIONS } from '../../constants/options'
+import { usePlatformSettings } from '../../store/settingsStore'
 
 interface StudentProfileForm {
   firstName: string
@@ -15,7 +18,6 @@ interface StudentProfileForm {
   country: string
   state: string
   city: string
-  address: string
   zipcode: string
   introduction: string
 }
@@ -86,9 +88,15 @@ const StudentProfile = () => {
   const [profileImage, setProfileImage] = useState('')
   const [uploading, setUploading] = useState(false)
   const [profileCompleted, setProfileCompleted] = useState(false)
-  const [languages, setLanguages] = useState<string[]>([''])
+  const [languages, setLanguages] = useState<string[]>([])
+  const [customLanguageInput, setCustomLanguageInput] = useState('')
   const [learningPreferences, setLearningPreferences] = useState<string[]>([])
+  const { settings, fetchSettings } = usePlatformSettings()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -105,7 +113,6 @@ const StudentProfile = () => {
           setValue('country', student.country || '')
           setValue('state', student.state || '')
           setValue('city', student.city || '')
-          setValue('address', student.address || '')
           setValue('zipcode', student.zipcode || '')
           setValue('introduction', student.introduction || '')
           setProfileImage(student.profileImage || '')
@@ -113,7 +120,7 @@ const StudentProfile = () => {
           setLanguages(
             Array.isArray(student.languagesSpoken) && student.languagesSpoken.length > 0
               ? student.languagesSpoken
-              : ['']
+              : []
           )
           setLearningPreferences(
             Array.isArray(student.learningPreferences) ? student.learningPreferences : []
@@ -153,16 +160,25 @@ const StudentProfile = () => {
     }
   }
 
-  const addLanguageField = () => {
-    setLanguages((prev) => [...prev, ''])
+  const toggleLanguage = (language: string) => {
+    setLanguages((prev) =>
+      prev.includes(language) ? prev.filter((lang) => lang !== language) : [...prev, language]
+    )
   }
 
-  const updateLanguage = (index: number, value: string) => {
-    setLanguages((prev) => prev.map((lang, idx) => (idx === index ? value : lang)))
+  const customLanguages = languages.filter((lang) => !LANGUAGE_OPTIONS.includes(lang))
+
+  const handleAddCustomLanguage = () => {
+    const trimmed = customLanguageInput.trim()
+    if (!trimmed) return
+    if (!languages.includes(trimmed)) {
+      setLanguages((prev) => [...prev, trimmed])
+    }
+    setCustomLanguageInput('')
   }
 
-  const removeLanguage = (index: number) => {
-    setLanguages((prev) => prev.filter((_, idx) => idx !== index))
+  const removeCustomLanguage = (language: string) => {
+    setLanguages((prev) => prev.filter((item) => item !== language))
   }
 
   const toggleLearningPreference = (preference: string) => {
@@ -194,7 +210,7 @@ const StudentProfile = () => {
         return
       }
 
-      if (!profileImage) {
+      if (!profileImage && !settings?.defaultStudentImage) {
         setValidationError('Please upload a profile picture before saving.')
         setLoading(false)
         return
@@ -226,15 +242,18 @@ const StudentProfile = () => {
     }
   }
 
-  const displayProfileImage = useMemo(() => resolveImageUrl(profileImage), [profileImage])
+  const displayProfileImage = useMemo(
+    () => resolveImageUrl(profileImage || settings?.defaultStudentImage || ''),
+    [profileImage, settings?.defaultStudentImage]
+  )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-100">
+    <div className="min-h-screen" style={{ backgroundColor: '#012c4f' }}>
       <Navbar />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Student Profile</h1>
-          <p className="text-slate-600 mt-2">
+          <h1 className="text-3xl font-bold text-white">Student Profile</h1>
+          <p className="text-white mt-2">
             Share more about yourself so tutors can tailor their sessions to your learning style.
           </p>
         </div>
@@ -316,35 +335,39 @@ const StudentProfile = () => {
                     />
                     {errors.lastName && <p className="error-text">{errors.lastName.message}</p>}
                   </div>
-                  <div>
-                    <label className="label">Gender *</label>
-                    <select
-                      className="input"
-                      {...register('gender', { required: 'Please choose a gender' })}
-                    >
-                      {genderOptions.map((option) => (
-                        <option key={option.value || 'placeholder'} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.gender && <p className="error-text">{errors.gender.message}</p>}
-                  </div>
-                  <div>
-                    <label className="label">Your grade *</label>
-                    <select
-                      className="input"
-                      {...register('grade', { required: 'Select your current grade' })}
-                    >
-                      <option value="">Choose grade</option>
-                      {gradeOptions.map((grade) => (
-                        <option key={grade} value={grade}>
-                          {grade}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.grade && <p className="error-text">{errors.grade.message}</p>}
-                  </div>
+                  {settings?.genderFieldEnabled !== false && (
+                    <div>
+                      <label className="label">Gender *</label>
+                      <select
+                        className="input"
+                        {...register('gender', { required: 'Please choose a gender' })}
+                      >
+                        {genderOptions.map((option) => (
+                          <option key={option.value || 'placeholder'} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.gender && <p className="error-text">{errors.gender.message}</p>}
+                    </div>
+                  )}
+                  {settings?.gradeFieldEnabled !== false && (
+                    <div>
+                      <label className="label">Your grade *</label>
+                      <select
+                        className="input"
+                        {...register('grade', { required: 'Select your current grade' })}
+                      >
+                        <option value="">Choose grade</option>
+                        {gradeOptions.map((grade) => (
+                          <option key={grade} value={grade}>
+                            {grade}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.grade && <p className="error-text">{errors.grade.message}</p>}
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -388,27 +411,19 @@ const StudentProfile = () => {
                     </select>
                     {errors.country && <p className="error-text">{errors.country.message}</p>}
                   </div>
-                  <div>
-                    <label className="label">State / Province</label>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="Choose state"
-                      {...register('state')}
-                    />
-                  </div>
+                  {settings?.stateFieldEnabled !== false && (
+                    <div>
+                      <label className="label">State / Province</label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Choose state"
+                        {...register('state')}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
-                  <div>
-                    <label className="label">Address *</label>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="Enter your address"
-                      {...register('address', { required: 'Address is required' })}
-                    />
-                    {errors.address && <p className="error-text">{errors.address.message}</p>}
-                  </div>
                   <div>
                     <label className="label">Zipcode *</label>
                     <input
@@ -445,32 +460,62 @@ const StudentProfile = () => {
               <section className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 mb-2">Languages</h3>
-                  <p className="text-sm text-slate-500 mb-4">Select languages you know</p>
-                  <div className="space-y-3">
-                    {languages.map((language, index) => (
-                      <div key={index} className="flex gap-3">
-                        <input
-                          type="text"
-                          className="input flex-1"
-                          value={language}
-                          onChange={(event) => updateLanguage(index, event.target.value)}
-                          placeholder="e.g., English"
-                        />
-                        {languages.length > 1 && (
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={() => removeLanguage(index)}
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                  <p className="text-sm text-slate-500 mb-4">
+                    Select every language you are comfortable learning in.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                    {LANGUAGE_OPTIONS.map((language) => {
+                      const isSelected = languages.includes(language)
+                      return (
+                        <button
+                          key={language}
+                          type="button"
+                          className={`px-4 py-2 rounded-lg border-2 text-left text-sm transition ${
+                            isSelected
+                              ? 'border-primary-600 bg-primary-50 text-primary-700 font-medium'
+                              : 'border-slate-200 hover:border-primary-200'
+                          }`}
+                          onClick={() => toggleLanguage(language)}
+                        >
+                          {language}
+                        </button>
+                      )
+                    })}
                   </div>
-                  <button type="button" className="btn btn-outline mt-3" onClick={addLanguageField}>
-                    + Add language
-                  </button>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-slate-700">Need another language?</p>
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <input
+                        type="text"
+                        className="input flex-1"
+                        placeholder="Add another language"
+                        value={customLanguageInput}
+                        onChange={(event) => setCustomLanguageInput(event.target.value)}
+                      />
+                      <button type="button" className="btn btn-outline" onClick={handleAddCustomLanguage}>
+                        Add language
+                      </button>
+                    </div>
+                    {customLanguages.length > 0 && (
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {customLanguages.map((language) => (
+                          <span
+                            key={language}
+                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
+                          >
+                            {language}
+                            <button
+                              type="button"
+                              className="text-xs text-slate-500 hover:text-red-500"
+                              onClick={() => removeCustomLanguage(language)}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -535,6 +580,7 @@ const StudentProfile = () => {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

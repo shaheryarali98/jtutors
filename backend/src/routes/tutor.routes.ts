@@ -40,6 +40,8 @@ router.get('/stripe/status', tutorController.getStripeStatus);
 
 // Profile Completion
 router.get('/profile/completion', tutorController.getProfileCompletion);
+router.get('/sessions', tutorController.getTutorSessions);
+router.get('/earnings', tutorController.getTutorEarnings);
 
 export default router;
 

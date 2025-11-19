@@ -4,12 +4,15 @@ import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import TutorDashboard from './pages/tutor/TutorDashboard'
 import TutorProfile from './pages/tutor/TutorProfile'
+import TutorSessions from './pages/tutor/TutorSessions'
+import TutorEarnings from './pages/tutor/TutorEarnings'
 import StudentDashboard from './pages/student/StudentDashboard'
 import StudentProfile from './pages/student/StudentProfile'
 import SavedInstructors from './pages/student/SavedInstructors'
 import StudentBookings from './pages/student/Bookings'
 import StudentInvoices from './pages/student/Invoices'
 import StudentHourLog from './pages/student/HourLog'
+import StudentWallet from './pages/student/StudentWallet'
 import TutorDetailPage from './pages/student/TutorDetail'
 import HomePage from './pages/HomePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -52,6 +55,16 @@ function App() {
             <TutorProfile />
           </ProtectedRoute>
         } />
+        <Route path="/tutor/sessions" element={
+          <ProtectedRoute role="TUTOR">
+            <TutorSessions />
+          </ProtectedRoute>
+        } />
+        <Route path="/tutor/earnings" element={
+          <ProtectedRoute role="TUTOR">
+            <TutorEarnings />
+          </ProtectedRoute>
+        } />
         
         {/* Student Routes */}
         <Route path="/student/dashboard" element={
@@ -82,6 +95,11 @@ function App() {
         <Route path="/student/hour-log" element={
           <ProtectedRoute role="STUDENT">
             <StudentHourLog />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/wallet" element={
+          <ProtectedRoute role="STUDENT">
+            <StudentWallet />
           </ProtectedRoute>
         } />
         <Route path="/student/tutor/:tutorId" element={

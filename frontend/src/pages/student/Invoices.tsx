@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Navbar from '../../components/Navbar'
+import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 
@@ -185,6 +186,7 @@ const StudentInvoices = () => {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   )
 }

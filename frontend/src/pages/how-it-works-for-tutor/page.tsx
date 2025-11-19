@@ -13,6 +13,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
+import Footer from '../../components/Footer';
 import { NavLink } from 'react-router-dom';
 
 // Animation Variants
@@ -40,27 +41,27 @@ const HowItWorksTutors = () => {
       title: "Apply & Get Approved",
       desc: "Submit your application and tell us about your background, teaching experience, and subjects of expertise. Every tutor is reviewed and vetted to ensure quality and professionalism.",
       icon: UserCheck,
-      gradient: "from-purple-500 to-violet-500",
-      bg: "bg-purple-50",
-      iconColor: "text-purple-600"
+      gradient: "from-[#012c54] to-[#014a7a]",
+      bg: "bg-[#e6f0f7]",
+      iconColor: "text-[#012c54]"
     },
     {
       step: "02",
       title: "Set Up Your Profile",
       desc: "Create a profile that highlights your expertise, teaching style, and educational philosophy. This is your chance to showcase your strengths and make a lasting impression on potential students.",
       icon: GraduationCap,
-      gradient: "from-pink-500 to-rose-500",
-      bg: "bg-pink-50",
-      iconColor: "text-pink-600"
+      gradient: "from-[#f5a11a] to-[#c48115]",
+      bg: "bg-[#fef5e7]",
+      iconColor: "text-[#f5a11a]"
     },
     {
       step: "03",
       title: "Connect With Students",
       desc: "Students can book a tutoring session directly through the schedule on your profile page. Once you confirm the booking and the session is completed, payment is automatically processed through the JTutors system.",
       icon: Calendar,
-      gradient: "from-indigo-500 to-purple-500",
-      bg: "bg-indigo-50",
-      iconColor: "text-indigo-600"
+      gradient: "from-[#012c54] to-[#014a7a]",
+      bg: "bg-[#e6f0f7]",
+      iconColor: "text-[#012c54]"
     },
     {
       step: "04",
@@ -72,18 +73,18 @@ const HowItWorksTutors = () => {
         "Google Classroom integration for sharing assignments, resources, and announcements with your students in one place."
       ],
       icon: Video,
-      gradient: "from-emerald-500 to-teal-500",
-      bg: "bg-emerald-50",
-      iconColor: "text-emerald-600"
+      gradient: "from-[#f5a11a] to-[#c48115]",
+      bg: "bg-[#fef5e7]",
+      iconColor: "text-[#f5a11a]"
     },
     {
       step: "05",
       title: "Get Paid Reliably",
       desc: "Tutors are paid quickly and securely after each session. Our automated payment system protects you and ensures everything runs smoothly.",
       icon: DollarSign,
-      gradient: "from-amber-500 to-orange-500",
-      bg: "bg-amber-50",
-      iconColor: "text-amber-600"
+      gradient: "from-[#012c54] to-[#014a7a]",
+      bg: "bg-[#e6f0f7]",
+      iconColor: "text-[#012c54]"
     }
   ];
 
@@ -97,7 +98,7 @@ const HowItWorksTutors = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-violet-50 overflow-hidden">
+    <div className="min-h-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom right, #e6f0f7, #fef5e7)' }}>
       <Navbar />
 
       {/* Animated Background Orbs */}
@@ -109,7 +110,8 @@ const HowItWorksTutors = () => {
             opacity: [0.2, 0.4, 0.2]
           }}
           transition={{ duration: 24, repeat: Infinity }}
-          className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full blur-3xl"
+          className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl"
+          style={{ background: 'linear-gradient(to bottom right, #012c54, #f5a11a)', opacity: 0.3 }}
         />
         <motion.div
           animate={{
@@ -118,7 +120,8 @@ const HowItWorksTutors = () => {
             opacity: [0.25, 0.45, 0.25]
           }}
           transition={{ duration: 30, repeat: Infinity }}
-          className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-violet-400 to-indigo-400 rounded-full blur-3xl"
+          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl"
+          style={{ background: 'linear-gradient(to bottom right, #f5a11a, #012c54)', opacity: 0.3 }}
         />
       </div>
 
@@ -134,7 +137,8 @@ const HowItWorksTutors = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="inline-flex items-center px-5 py-2.5 rounded-full bg-gradient-to-r from-purple-500 to-violet-600 text-white text-sm font-bold uppercase tracking-wide shadow-lg mb-6"
+            className="inline-flex items-center px-5 py-2.5 rounded-full text-white text-sm font-bold uppercase tracking-wide shadow-lg mb-6"
+            style={{ backgroundColor: '#012c54' }}
           >
             <Sparkles className="w-4 h-4 mr-2" />
             For Tutors
@@ -144,7 +148,8 @@ const HowItWorksTutors = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-violet-600 to-pink-600 leading-tight"
+            className="text-4xl md:text-5xl font-black text-transparent bg-clip-text leading-tight"
+            style={{ background: 'linear-gradient(to right, #012c54, #f5a11a)' }}
           >
             Teach, Inspire, Earn — Your Way
           </motion.h1>
@@ -194,7 +199,9 @@ const HowItWorksTutors = () => {
                     </div>
                   </div>
 
-                  <h3 className="text-xl font-black text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">
+                  <h3 className="text-xl font-black text-gray-900 mb-3 transition-colors"
+                    onMouseEnter={(e) => e.currentTarget.style.color = '#012c54'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = ''}>
                     {item.title}
                   </h3>
 
@@ -208,7 +215,7 @@ const HowItWorksTutors = () => {
                     <ul className="space-y-2">
                       {item.list.map((li, i) => (
                         <li key={i} className="flex items-start text-sm text-gray-700">
-                          <CheckCircle2 className="w-4 h-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                          <CheckCircle2 className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" style={{ color: '#012c54' }} />
                           <span>{li}</span>
                         </li>
                       ))}
@@ -228,7 +235,8 @@ const HowItWorksTutors = () => {
           transition={{ duration: 0.7 }}
           className="bg-white/70 backdrop-blur-xl rounded-3xl p-8 md:p-12 mb-16 shadow-2xl border border-white/50"
         >
-          <h2 className="text-2xl md:text-3xl font-black text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-8 flex items-center justify-center gap-3">
+          <h2 className="text-2xl md:text-3xl font-black text-center text-transparent bg-clip-text mb-8 flex items-center justify-center gap-3"
+            style={{ background: 'linear-gradient(to right, #012c54, #f5a11a)' }}>
             <Star className="w-7 h-7 text-yellow-500" />
             Why Tutors Love JTutors
             <Star className="w-7 h-7 text-yellow-500" />
@@ -243,9 +251,11 @@ const HowItWorksTutors = () => {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08, duration: 0.5 }}
                 whileHover={{ scale: 1.03, x: 5 }}
-                className="flex items-center bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 shadow-md hover:shadow-lg transition-all duration-300 border border-purple-100"
+                className="flex items-center rounded-2xl p-4 shadow-md hover:shadow-lg transition-all duration-300 border"
+                style={{ background: 'linear-gradient(to right, #e6f0f7, #fef5e7)', borderColor: '#b3d1e8' }}
               >
-                <div className="w-6 h-6 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full mr-3 flex-shrink-0 flex items-center justify-center">
+                <div className="w-6 h-6 rounded-full mr-3 flex-shrink-0 flex items-center justify-center"
+                  style={{ background: 'linear-gradient(to bottom right, #012c54, #f5a11a)' }}>
                   <Check className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-sm md:text-base font-semibold text-gray-800">{text}</span>
@@ -264,18 +274,20 @@ const HowItWorksTutors = () => {
         >
           <NavLink
             to="/register?role=tutor"
-            className="group relative overflow-hidden bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-lg px-9 py-4 rounded-full shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105"
+            className="group relative overflow-hidden text-white font-bold text-lg px-9 py-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-105"
+            style={{ backgroundColor: '#f5a11a' }}
           >
             <span className="relative z-10 flex items-center">
               Start Teaching Today
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-2 transition-transform" />
             </span>
-            <div className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ backgroundColor: '#c48115' }} />
           </NavLink>
 
           <NavLink
             to="/register?role=student"
-            className="group bg-white text-purple-700 border-4 border-purple-500 font-bold text-lg px-9 py-4 rounded-full hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
+            className="group bg-white font-bold text-lg px-9 py-4 rounded-full border-4 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
+            style={{ color: '#012c54', borderColor: '#012c54' }}
           >
             <span className="flex items-center">
               Find a Tutor
@@ -284,6 +296,7 @@ const HowItWorksTutors = () => {
           </NavLink>
         </motion.div>
       </section>
+      <Footer />
     </div>
   );
 };

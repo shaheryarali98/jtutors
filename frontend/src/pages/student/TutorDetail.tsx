@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ArrowLeft, Bookmark, BookmarkCheck, CalendarPlus, MapPin, Shield } from 'lucide-react'
 import Navbar from '../../components/Navbar'
+import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import BookTutorModal from '../../components/student/BookTutorModal'
@@ -300,6 +301,7 @@ const TutorDetailPage = () => {
         onBooked={() => setBookingModalOpen(false)}
         onError={(message) => setError(message)}
       />
+      <Footer />
     </div>
   )
 }

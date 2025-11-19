@@ -12,6 +12,7 @@ import paymentRoutes from './routes/payment.routes';
 import withdrawalRoutes from './routes/withdrawal.routes';
 import classSessionRoutes from './routes/classSession.routes';
 import emailTemplateRoutes from './routes/emailTemplate.routes';
+import settingsRoutes from './routes/settings.routes';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/class-sessions', classSessionRoutes);
 app.use('/api/email-templates', emailTemplateRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

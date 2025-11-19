@@ -19,7 +19,16 @@ body {
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed;
+    background-color: #f5a11a;
+    color: white;
+  }
+  .btn-primary:hover {
+    background-color: #c48115;
+    opacity: 0.9;
+  }
+  .btn-primary:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
   }
 
   .btn-secondary {

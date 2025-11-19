@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookmarkX, CalendarPlus } from 'lucide-react'
 import Navbar from '../../components/Navbar'
+import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import BookTutorModal from '../../components/student/BookTutorModal'
@@ -218,6 +219,7 @@ const SavedInstructors = () => {
         }}
         onError={(message) => setError(message)}
       />
+      <Footer />
     </div>
   )
 }

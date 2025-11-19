@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
+import { LANGUAGE_OPTIONS } from '../../constants/options'
+import { usePlatformSettings } from '../../store/settingsStore'
 
 interface PersonalInfoForm {
   firstName: string
@@ -14,12 +16,11 @@ interface PersonalInfoForm {
   country: string
   state: string
   city: string
-  address: string
   zipcode: string
   languagesSpoken: string[]
 }
 
-const grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'College']
+const grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'College', 'Graduate School', 'Adult Education']
 
 const PersonalInformation = () => {
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<PersonalInfoForm>()
@@ -27,11 +28,17 @@ const PersonalInformation = () => {
   const [success, setSuccess] = useState(false)
   const [imageMessage, setImageMessage] = useState('')
   const [selectedGrades, setSelectedGrades] = useState<string[]>([])
-  const [languages, setLanguages] = useState<string[]>([''])
+  const [languages, setLanguages] = useState<string[]>([])
+  const [customLanguageInput, setCustomLanguageInput] = useState('')
   const [profileImage, setProfileImage] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
   const [profileCompletion, setProfileCompletion] = useState(0)
+  const { settings, fetchSettings } = usePlatformSettings()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -47,10 +54,9 @@ const PersonalInformation = () => {
           setValue('country', tutor.country || '')
           setValue('state', tutor.state || '')
           setValue('city', tutor.city || '')
-          setValue('address', tutor.address || '')
           setValue('zipcode', tutor.zipcode || '')
           setSelectedGrades(tutor.gradesCanTeach || [])
-          setLanguages(tutor.languagesSpoken?.length ? tutor.languagesSpoken : [''])
+          setLanguages(tutor.languagesSpoken?.length ? tutor.languagesSpoken : [])
           setProfileImage(tutor.profileImage || '')
           if (tutor.profileCompletionPercentage) {
             setProfileCompletion(tutor.profileCompletionPercentage)
@@ -91,7 +97,7 @@ const PersonalInformation = () => {
       const response = await api.put('/tutor/profile/personal', {
         ...data,
         gradesCanTeach: selectedGrades,
-        languagesSpoken: languages.filter(l => l.trim() !== ''),
+        languagesSpoken: languages,
         profileImage
       })
       setProfileCompletion(response.data.profileCompletion)
@@ -114,19 +120,32 @@ const PersonalInformation = () => {
     )
   }
 
-  const addLanguage = () => {
-    setLanguages([...languages, ''])
+  const toggleLanguage = (language: string) => {
+    setLanguages((prev) =>
+      prev.includes(language) ? prev.filter((lang) => lang !== language) : [...prev, language]
+    )
   }
 
-  const updateLanguage = (index: number, value: string) => {
-    const newLanguages = [...languages]
-    newLanguages[index] = value
-    setLanguages(newLanguages)
+  const customLanguages = languages.filter((lang) => !LANGUAGE_OPTIONS.includes(lang))
+
+  const handleAddCustomLanguage = () => {
+    const trimmed = customLanguageInput.trim()
+    if (!trimmed) return
+    if (!languages.includes(trimmed)) {
+      setLanguages((prev) => [...prev, trimmed])
+    }
+    setCustomLanguageInput('')
   }
 
-  const removeLanguage = (index: number) => {
-    setLanguages(languages.filter((_, i) => i !== index))
+  const removeCustomLanguage = (language: string) => {
+    setLanguages((prev) => prev.filter((item) => item !== language))
   }
+
+  const displayProfileImage = useMemo(() => {
+    const source = profileImage || settings?.defaultTutorImage || ''
+    if (!source) return ''
+    return resolveImageUrl(source)
+  }, [profileImage, settings?.defaultTutorImage])
 
   return (
     <div>
@@ -146,8 +165,8 @@ const PersonalInformation = () => {
       <div className="mb-6 rounded-xl border border-slate-200 p-5 bg-slate-50 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
         <div className="flex items-center gap-4">
           <div className="h-20 w-20 rounded-full border-4 border-white shadow bg-primary-50 overflow-hidden flex items-center justify-center text-3xl text-primary-500">
-            {profileImage ? (
-              <img src={resolveImageUrl(profileImage)} alt="Tutor profile" className="h-full w-full object-cover" />
+            {displayProfileImage ? (
+              <img src={displayProfileImage} alt="Tutor profile" className="h-full w-full object-cover" />
             ) : (
               '📷'
             )}
@@ -197,36 +216,40 @@ const PersonalInformation = () => {
           </div>
         </div>
 
-        <div>
-          <label className="label">Gender</label>
-          <select className="input" {...register('gender')}>
-            <option value="">Select gender</option>
-            <option value="MALE">Male</option>
-            <option value="FEMALE">Female</option>
-            <option value="OTHER">Other</option>
-            <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="label">Grades You Can Teach *</label>
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-2 mt-2">
-            {grades.map(grade => (
-              <button
-                key={grade}
-                type="button"
-                onClick={() => toggleGrade(grade)}
-                className={`px-3 py-2 rounded-lg border-2 text-sm transition-colors ${
-                  selectedGrades.includes(grade)
-                    ? 'border-primary-600 bg-primary-50 text-primary-700'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                {grade}
-              </button>
-            ))}
+        {settings?.genderFieldEnabled !== false && (
+          <div>
+            <label className="label">Gender</label>
+            <select className="input" {...register('gender')}>
+              <option value="">Select gender</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+              <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+            </select>
           </div>
-        </div>
+        )}
+
+        {settings?.gradeFieldEnabled !== false && (
+          <div>
+            <label className="label">Grades You Can Teach *</label>
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-2 mt-2">
+              {grades.map(grade => (
+                <button
+                  key={grade}
+                  type="button"
+                  onClick={() => toggleGrade(grade)}
+                  className={`px-3 py-2 rounded-lg border-2 text-sm transition-colors ${
+                    selectedGrades.includes(grade)
+                      ? 'border-primary-600 bg-primary-50 text-primary-700'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  {grade}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="label">Hourly Fee (USD) * ($20 - $500)</label>
@@ -265,14 +288,16 @@ const PersonalInformation = () => {
             {errors.country && <p className="error-text">{errors.country.message}</p>}
           </div>
 
-          <div>
-            <label className="label">State / Province</label>
-            <input
-              type="text"
-              className="input"
-              {...register('state')}
-            />
-          </div>
+          {settings?.stateFieldEnabled !== false && (
+            <div>
+              <label className="label">State / Province</label>
+              <input
+                type="text"
+                className="input"
+                {...register('state')}
+              />
+            </div>
+          )}
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
@@ -296,45 +321,64 @@ const PersonalInformation = () => {
           </div>
         </div>
 
-        <div>
-          <label className="label">Address</label>
-          <input
-            type="text"
-            className="input"
-            {...register('address')}
-          />
-        </div>
 
         <div>
           <label className="label">Languages Spoken</label>
-          <div className="space-y-2">
-            {languages.map((lang, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="text"
-                  className="input"
-                  value={lang}
-                  onChange={(e) => updateLanguage(index, e.target.value)}
-                  placeholder="e.g., English"
-                />
-                {languages.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeLanguage(index)}
-                    className="btn btn-secondary"
+          <p className="text-sm text-slate-500 mb-3">Select every language you can confidently teach in.</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+            {LANGUAGE_OPTIONS.map((language) => {
+              const isSelected = languages.includes(language)
+              return (
+                <button
+                  key={language}
+                  type="button"
+                  onClick={() => toggleLanguage(language)}
+                  className={`px-3 py-2 rounded-lg border-2 text-left text-sm transition ${
+                    isSelected
+                      ? 'border-primary-600 bg-primary-50 text-primary-700 font-medium'
+                      : 'border-slate-200 hover:border-primary-300'
+                  }`}
+                >
+                  {language}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-3 space-y-2">
+            <p className="text-sm font-medium text-slate-700">Need to add another language?</p>
+            <div className="flex flex-col md:flex-row gap-2">
+              <input
+                type="text"
+                className="input flex-1"
+                placeholder="Add another language"
+                value={customLanguageInput}
+                onChange={(e) => setCustomLanguageInput(e.target.value)}
+              />
+              <button type="button" className="btn btn-outline" onClick={handleAddCustomLanguage}>
+                Add language
+              </button>
+            </div>
+
+            {customLanguages.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-2">
+                {customLanguages.map((language) => (
+                  <span
+                    key={language}
+                    className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
                   >
-                    Remove
-                  </button>
-                )}
+                    {language}
+                    <button
+                      type="button"
+                      className="text-xs text-slate-500 hover:text-red-500"
+                      onClick={() => removeCustomLanguage(language)}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
               </div>
-            ))}
-            <button
-              type="button"
-              onClick={addLanguage}
-              className="btn btn-outline"
-            >
-              + Add Language
-            </button>
+            )}
           </div>
         </div>
 
