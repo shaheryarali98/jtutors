@@ -20,8 +20,31 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// CORS configuration
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'https://jtutors.com',
+  'http://localhost:3000',
+  'http://localhost:5173' // Vite default port
+].filter(Boolean); // Remove undefined values
+
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 
 // Stripe webhook route must be registered BEFORE body parsing middleware
 // Stripe needs the raw body to verify webhook signatures
