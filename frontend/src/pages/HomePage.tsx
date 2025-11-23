@@ -4,7 +4,6 @@ import {
   Search,
   ChevronRight,
   Star,
-  Shield,
   Quote,
   MapPin,
 } from 'lucide-react'
@@ -56,13 +55,6 @@ const featureHighlights = [
     description:
       'Advanced filters by subject, grade, location, learning style, and tutor background help you find the perfect match instantly.',
   },
-]
-
-const platformStats = [
-  { label: 'Courses available for verified & top tutors', value: '560,616+' },
-  { label: 'Tutoring jobs posted to date', value: '648,482+' },
-  { label: 'Daily average time spent on the platform', value: '20+ Hours' },
-  { label: 'Active tutors and students', value: '7+ Million' },
 ]
 
 const popularCategories = [

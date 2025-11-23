@@ -217,11 +217,14 @@ const Experience = () => {
               disabled={isCurrent}
               {...register('endDate')}
             />
-            {watch('endDate') && (
-              <p className="text-sm text-gray-600 mt-1">
-                Selected: {formatDateToMMDDYYYY(watch('endDate'))}
-              </p>
-            )}
+            {(() => {
+              const endDate = watch('endDate')
+              return endDate && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Selected: {formatDateToMMDDYYYY(endDate)}
+                </p>
+              )
+            })()}
             {errors.endDate && <p className="error-text">{errors.endDate.message}</p>}
           </div>
         </div>

@@ -74,7 +74,6 @@ const StudentProfile = () => {
       country: '',
       state: '',
       city: '',
-      address: '',
       zipcode: '',
       introduction: '',
     },
