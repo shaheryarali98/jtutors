@@ -58,7 +58,12 @@ const Register = () => {
         navigate(destination)
       }, 1100)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed')
+      console.error('Registration error:', err)
+      if (err.code === 'ERR_NETWORK' || !err.response) {
+        setError('Cannot connect to server. Please check your internet connection or contact support.')
+      } else {
+        setError(err.response?.data?.error || err.message || 'Registration failed')
+      }
     } finally {
       setLoading(false)
     }
