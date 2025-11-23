@@ -37,9 +37,23 @@ const PayoutMethod = () => {
       const response = await api.post('/tutor/stripe/connect')
       // Redirect to Stripe onboarding
       window.location.href = response.data.url
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error connecting Stripe:', error)
-      setErrorMessage('Error connecting to Stripe. Please try again.')
+      
+      // Check if it's a Connect not enabled error
+      if (error.response?.data?.code === 'CONNECT_NOT_ENABLED' || 
+          error.response?.data?.error?.includes('signed up for Connect')) {
+        setErrorMessage(
+          'Stripe Connect is not enabled in your Stripe account. ' +
+          'Please enable it in your Stripe Dashboard: ' +
+          'https://dashboard.stripe.com/test/settings/connect'
+        )
+      } else {
+        setErrorMessage(
+          error.response?.data?.error || 
+          'Error connecting to Stripe. Please try again.'
+        )
+      }
       setLoading(false)
     }
   }
@@ -62,7 +76,19 @@ const PayoutMethod = () => {
 
       {errorMessage && (
         <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-lg mb-4">
-          {errorMessage}
+          <p className="font-semibold mb-2">⚠️ {errorMessage}</p>
+          {errorMessage.includes('Stripe Connect is not enabled') && (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm">To fix this:</p>
+              <ol className="text-sm list-decimal list-inside space-y-1 ml-2">
+                <li>Go to <a href="https://dashboard.stripe.com/test/settings/connect" target="_blank" rel="noopener noreferrer" className="underline font-semibold">Stripe Dashboard → Connect Settings</a></li>
+                <li>Click "Get started" or "Enable Connect"</li>
+                <li>Choose "Marketplace" or "Platform"</li>
+                <li>Select "Express accounts"</li>
+                <li>Come back and try again</li>
+              </ol>
+            </div>
+          )}
         </div>
       )}
 

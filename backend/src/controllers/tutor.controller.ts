@@ -5,11 +5,9 @@ import { formatTutor, parseStoredArray, stringifyArray } from '../utils/formatte
 import { getAdminSettings } from '../services/settings.service';
 import { sendEmail } from '../services/email.service';
 import { getWalletSummary } from '../services/wallet.service';
+import { stripe } from '../services/stripe.service';
 
 const prisma = new PrismaClient();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16'
-});
 
 // Helper function to calculate profile completion
 const calculateProfileCompletion = async (tutorId: string): Promise<number> => {
@@ -736,6 +734,10 @@ export const submitBackgroundCheck = async (req: Request, res: Response) => {
 
 export const createStripeConnectAccount = async (req: Request, res: Response) => {
   try {
+    if (!stripe) {
+      return res.status(500).json({ error: 'Stripe is not configured. Please contact support.' });
+    }
+
     const userId = req.user!.userId;
 
     const tutor = await prisma.tutor.findUnique({
@@ -766,24 +768,78 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
     }
 
     // Create account link for onboarding
+    // Determine if we're using live mode keys
+    const isLiveMode = process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    
+    // Ensure HTTPS for live mode (Stripe requirement)
+    let refreshUrl = `${frontendUrl}/tutor/profile/payout`;
+    let returnUrl = `${frontendUrl}/tutor/profile/payout/success`;
+    
+    if (isLiveMode) {
+      // Live mode requires HTTPS
+      if (!refreshUrl.startsWith('https://') && !refreshUrl.includes('localhost')) {
+        refreshUrl = refreshUrl.replace('http://', 'https://');
+      }
+      if (!returnUrl.startsWith('https://') && !returnUrl.includes('localhost')) {
+        returnUrl = returnUrl.replace('http://', 'https://');
+      }
+      
+      // Warn if using localhost with live keys
+      if (refreshUrl.includes('localhost')) {
+        console.warn('[Stripe] WARNING: Using live mode keys with localhost. This may cause issues.');
+      }
+    }
+    
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/tutor/profile/payout`,
-      return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/tutor/profile/payout/success`,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
       type: 'account_onboarding'
     });
 
     res.json({
       url: accountLink.url
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Stripe connect error:', error);
-    res.status(500).json({ error: 'Error creating Stripe account' });
+    
+    // Provide helpful error message for Connect not enabled
+    if (error.message && error.message.includes('signed up for Connect')) {
+      return res.status(400).json({ 
+        error: 'Stripe Connect is not enabled in your Stripe account. Please enable it in your Stripe Dashboard: https://dashboard.stripe.com/test/settings/connect',
+        code: 'CONNECT_NOT_ENABLED'
+      });
+    }
+    
+    // Handle HTTPS requirement for live mode
+    if (error.message && error.message.includes('Livemode requests must always be redirected via HTTPS')) {
+      const isLiveMode = process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_');
+      return res.status(400).json({ 
+        error: isLiveMode 
+          ? 'Live mode requires HTTPS URLs. For localhost development, please use test mode keys (sk_test_...) instead of live keys (sk_live_...).'
+          : 'Redirect URLs must use HTTPS. Please update FRONTEND_URL to use https:// in your .env file.',
+        code: 'HTTPS_REQUIRED'
+      });
+    }
+    
+    res.status(500).json({ 
+      error: error.message || 'Error creating Stripe account. Please try again.' 
+    });
   }
 };
 
 export const getStripeStatus = async (req: Request, res: Response) => {
   try {
+    if (!stripe) {
+      return res.json({ 
+        connected: false, 
+        onboarded: false,
+        chargesEnabled: false,
+        payoutsEnabled: false
+      });
+    }
+
     const userId = req.user!.userId;
 
     const tutor = await prisma.tutor.findUnique({
@@ -812,9 +868,9 @@ export const getStripeStatus = async (req: Request, res: Response) => {
       chargesEnabled: account.charges_enabled,
       payoutsEnabled: account.payouts_enabled
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get Stripe status error:', error);
-    res.status(500).json({ error: 'Error checking Stripe status' });
+    res.status(500).json({ error: error.message || 'Error checking Stripe status' });
   }
 };
 

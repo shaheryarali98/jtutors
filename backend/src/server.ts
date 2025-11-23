@@ -13,6 +13,7 @@ import withdrawalRoutes from './routes/withdrawal.routes';
 import classSessionRoutes from './routes/classSession.routes';
 import emailTemplateRoutes from './routes/emailTemplate.routes';
 import settingsRoutes from './routes/settings.routes';
+import { handleStripeWebhook } from './controllers/stripe.webhook.controller';
 
 dotenv.config();
 
@@ -21,6 +22,12 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
+
+// Stripe webhook route must be registered BEFORE body parsing middleware
+// Stripe needs the raw body to verify webhook signatures
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+
+// Body parsing middleware for all other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
