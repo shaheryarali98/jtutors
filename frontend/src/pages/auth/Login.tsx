@@ -49,7 +49,10 @@ const Login = () => {
       }, 900)
     } catch (err: any) {
       console.error('Login error:', err)
-      if (err.code === 'ERR_NETWORK' || !err.response) {
+      // Check for timeout errors specifically
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('The server is taking longer than usual to respond. This may be due to the service starting up. Please try again in a few moments.')
+      } else if (err.code === 'ERR_NETWORK' || !err.response) {
         setError('Cannot connect to server. Please check your internet connection or contact support.')
       } else {
         setError(err.response?.data?.error || err.message || 'Login failed')

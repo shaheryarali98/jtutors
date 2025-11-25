@@ -25,7 +25,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 second timeout
+  timeout: 90000, // 90 second timeout (handles Render.com cold starts)
 })
 
 // Request interceptor for debugging
@@ -73,9 +73,15 @@ api.interceptors.response.use(
 
     // Handle network errors (CORS, connection refused, etc.)
     if (!error.response) {
-      console.error('🚫 Network Error - Check if backend is running and CORS is configured')
-      if (error.message.includes('Network Error') || error.code === 'ERR_NETWORK') {
-        console.error('💡 Tip: Make sure VITE_API_URL is set to https://jtutors.onrender.com/api')
+      // Check for timeout errors
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        console.error('⏱️ Request Timeout - Backend may be starting up (cold start)')
+        console.error('💡 Tip: Render.com free tier services spin down after inactivity and may take 30-60 seconds to wake up')
+      } else {
+        console.error('🚫 Network Error - Check if backend is running and CORS is configured')
+        if (error.message.includes('Network Error') || error.code === 'ERR_NETWORK') {
+          console.error('💡 Tip: Make sure VITE_API_URL is set to https://jtutors.onrender.com/api')
+        }
       }
     }
 
