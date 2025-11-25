@@ -75,20 +75,32 @@ This ensures migrations run every time the service starts, keeping your database
 
 **Manual Migration (If Needed):**
 
-If you need to run migrations manually, you can:
+If you need to run migrations manually, you can run them from your local machine:
 
-1. **Via Render Shell:**
+1. **Get your production DATABASE_URL from Render:**
    - Go to your Render service dashboard
-   - Click on "Shell" tab
-   - Run: `npx prisma migrate deploy`
+   - Navigate to "Environment" tab
+   - Copy the `DATABASE_URL` value
 
-2. **Via Local Connection:**
+2. **Run migrations from your local machine:**
    ```bash
    cd backend
-   DATABASE_URL="your-production-database-url" npx prisma migrate deploy
+   DATABASE_URL="your-production-database-url-from-render" npx prisma migrate deploy
+   ```
+   
+   Or use the migration script:
+   ```bash
+   cd backend
+   DATABASE_URL="your-production-database-url-from-render" node scripts/run-migrations.js
    ```
 
-**Important:** Make sure your `DATABASE_URL` environment variable is correctly set in Render dashboard.
+3. **Alternative: Trigger a new deployment:**
+   - Make a small change (like adding a comment) and push to trigger deployment
+   - The start command will automatically run migrations
+
+**Important:** 
+- Make sure your `DATABASE_URL` environment variable is correctly set in Render dashboard
+- The automatic migration in the start command ensures migrations run on every deployment
 
 ---
 
