@@ -63,14 +63,32 @@ If using `render.yaml`, the configuration is already set. Otherwise, configure i
 
 ### Database Migrations
 
-After deployment, run Prisma migrations:
+**Automatic Migration (Recommended):**
 
-```bash
-cd backend
-npx prisma migrate deploy
+The `render.yaml` is configured to automatically run migrations before starting the server:
+
+```yaml
+startCommand: npx prisma migrate deploy && npm run start
 ```
 
-Or set up a one-time script in Render to run migrations automatically.
+This ensures migrations run every time the service starts, keeping your database schema up to date.
+
+**Manual Migration (If Needed):**
+
+If you need to run migrations manually, you can:
+
+1. **Via Render Shell:**
+   - Go to your Render service dashboard
+   - Click on "Shell" tab
+   - Run: `npx prisma migrate deploy`
+
+2. **Via Local Connection:**
+   ```bash
+   cd backend
+   DATABASE_URL="your-production-database-url" npx prisma migrate deploy
+   ```
+
+**Important:** Make sure your `DATABASE_URL` environment variable is correctly set in Render dashboard.
 
 ---
 
