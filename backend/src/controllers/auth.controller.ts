@@ -36,8 +36,15 @@ export const register = async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const settings = await getAdminSettings();
-    const shouldSendConfirmationEmail = settings.sendSignupConfirmation;
+    // Get admin settings, but don't fail registration if settings query fails
+    let shouldSendConfirmationEmail = true; // Default to true
+    try {
+      const settings = await getAdminSettings();
+      shouldSendConfirmationEmail = settings.sendSignupConfirmation;
+    } catch (settingsError) {
+      console.warn('Failed to fetch admin settings during registration, using defaults:', settingsError);
+      // Continue with default settings
+    }
 
     // Create user with corresponding role profile
     const user = await prisma.user.create({
@@ -73,9 +80,14 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Generate JWT token
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set in environment variables');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+    
     const token = jwt.sign(
       { userId: user.id, role: user.role as UserRole },
-      process.env.JWT_SECRET!,
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -91,9 +103,35 @@ export const register = async (req: Request, res: Response) => {
         emailConfirmed: user.emailConfirmed
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Error during registration' });
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta,
+      stack: error?.stack
+    });
+    
+    // Provide more specific error messages
+    if (error?.code === 'P2002') {
+      // Prisma unique constraint violation
+      return res.status(400).json({ error: 'User already exists with this email' });
+    }
+    
+    if (error?.code === 'P2025') {
+      // Prisma record not found
+      return res.status(404).json({ error: 'Required resource not found' });
+    }
+    
+    // Generic error response with more detail in development
+    const errorMessage = process.env.NODE_ENV === 'production' 
+      ? 'Error during registration. Please try again or contact support.'
+      : error?.message || 'Error during registration';
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      ...(process.env.NODE_ENV !== 'production' && { details: error?.message })
+    });
   }
 };
 
