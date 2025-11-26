@@ -35,7 +35,7 @@ pnpm-debug.log*
 *.sw?
 
 # Prisma
-backend/prisma/migrations/
+# backend/prisma/migrations/
 *.db
 *.db-journal
 
