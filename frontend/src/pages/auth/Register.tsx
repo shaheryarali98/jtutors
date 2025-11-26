@@ -112,7 +112,7 @@ const Register = () => {
                 <label className="label">I am joining JTutors as</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <RoleOption value="STUDENT" label="Student" register={register} />
-                  <RoleOption value="TUTOR" label="Tutor / Mentor" register={register} />
+                  <RoleOption value="TUTOR" label="Tutor" register={register} />
                   {includeAdminOption && <RoleOption value="ADMIN" label="Platform Admin" register={register} />}
                 </div>
               </div>

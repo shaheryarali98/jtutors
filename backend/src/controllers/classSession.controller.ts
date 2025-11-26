@@ -27,7 +27,7 @@ export const createClassSessionController = async (req: Request, res: Response) 
 export const completeClassSessionController = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { notes } = req.body;
+    const { notes, actualHoursTaught } = req.body;
     const userId = (req as any).userId;
 
     // Get tutor profile
@@ -39,9 +39,12 @@ export const completeClassSessionController = async (req: Request, res: Response
       return res.status(403).json({ error: 'Tutor profile not found' });
     }
 
-    const classSession = await completeClassSession(id, tutor.id, notes);
+    const classSession = await completeClassSession(id, tutor.id, notes, actualHoursTaught);
 
-    res.json({ classSession, message: 'Class session completed successfully' });
+    res.json({ 
+      classSession, 
+      message: 'Class session completed successfully. Payment will be released automatically if payment is confirmed.' 
+    });
   } catch (error: any) {
     console.error('Complete class session error:', error);
     res.status(500).json({ error: error.message || 'Error completing class session' });
@@ -108,6 +111,27 @@ export const getAllClassSessionsController = async (req: Request, res: Response)
   } catch (error: any) {
     console.error('Get all class sessions error:', error);
     res.status(500).json({ error: error.message || 'Error fetching class sessions' });
+  }
+};
+
+export const releasePaymentController = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const { releasePaymentToTutor } = await import('../services/paymentRelease.service');
+    const result = await releasePaymentToTutor(id);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error || 'Failed to release payment' });
+    }
+
+    res.json({ 
+      message: 'Payment released successfully', 
+      transferId: result.transferId 
+    });
+  } catch (error: any) {
+    console.error('Release payment error:', error);
+    res.status(500).json({ error: error.message || 'Error releasing payment' });
   }
 };
 

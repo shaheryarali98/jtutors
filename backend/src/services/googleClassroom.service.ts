@@ -55,21 +55,73 @@ export const createCourse = async (
   }
 };
 
-// Create a Google Meet link for the course
-export const createMeetLink = async (courseId: string): Promise<string | null> => {
-  const classroom = getClassroomClient();
-  if (!classroom) {
-    throw new Error('Google Classroom is not configured');
+// Get Calendar client for creating Meet links
+const getCalendarClient = () => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REFRESH_TOKEN) {
+    return null;
+  }
+
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback'
+  );
+
+  oauth2Client.setCredentials({
+    refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+  });
+
+  return google.calendar({ version: 'v3', auth: oauth2Client });
+};
+
+// Create a Google Meet link for the course via Calendar API
+export const createMeetLink = async (
+  courseId: string,
+  startTime?: Date,
+  endTime?: Date,
+  summary?: string
+): Promise<string | null> => {
+  const calendar = getCalendarClient();
+  if (!calendar) {
+    // Fallback to generated Meet code if Calendar API not available
+    return `https://meet.google.com/${generateMeetCode()}`;
   }
 
   try {
-    // Note: Google Meet links are typically created through Google Calendar
-    // For now, we'll return a placeholder. In production, you'd integrate with Google Calendar API
-    // to create a calendar event with a Meet link
-    return `https://meet.google.com/${generateMeetCode()}`;
+    // Create a calendar event with Google Meet
+    const event = {
+      summary: summary || 'Tutoring Session',
+      description: `Google Classroom Course ID: ${courseId}`,
+      start: {
+        dateTime: startTime?.toISOString() || new Date().toISOString(),
+        timeZone: 'UTC',
+      },
+      end: {
+        dateTime: endTime?.toISOString() || new Date(Date.now() + 3600000).toISOString(), // Default 1 hour
+        timeZone: 'UTC',
+      },
+      conferenceData: {
+        createRequest: {
+          requestId: `meet-${courseId}-${Date.now()}`,
+          conferenceSolutionKey: {
+            type: 'hangoutsMeet',
+          },
+        },
+      },
+    };
+
+    const response = await calendar.events.insert({
+      calendarId: 'primary',
+      requestBody: event,
+      conferenceDataVersion: 1,
+    });
+
+    const meetLink = response.data.conferenceData?.entryPoints?.[0]?.uri;
+    return meetLink || null;
   } catch (error) {
-    console.error('Error creating Google Meet link:', error);
-    return null;
+    console.error('Error creating Google Meet link via Calendar:', error);
+    // Fallback to generated Meet code
+    return `https://meet.google.com/${generateMeetCode()}`;
   }
 };
 

@@ -3,10 +3,12 @@ import { PrismaClient, AdminSettings } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const DEFAULT_WITHDRAW_METHODS = ['Stripe Connect', 'Bank Transfer'];
+// Professional cartoon/avatar style default images
+// Using professional illustration-style avatars (PNG format for better compatibility)
 const DEFAULT_STUDENT_IMAGE =
-  'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=600&q=80';
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Student&backgroundColor=4f46e5&size=400&radius=50';
 const DEFAULT_TUTOR_IMAGE =
-  'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80';
+  'https://api.dicebear.com/7.x/avataaars/png?seed=Tutor&backgroundColor=f59e0b&size=400&radius=50';
 
 const defaultSettingsPayload: Omit<AdminSettings, 'id' | 'createdAt' | 'updatedAt'> = {
   sendSignupConfirmation: true,

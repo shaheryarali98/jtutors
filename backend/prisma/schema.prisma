@@ -234,9 +234,12 @@ model ClassSession {
   
   status      String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
   completedAt DateTime?
+  actualHoursTaught Float? // Actual hours taught (for payment calculation)
   tutorApproved Boolean @default(false)
   adminApproved Boolean @default(false)
   adminApprovedAt DateTime?
+  paymentReleased Boolean @default(false) // Whether payment has been released to tutor
+  paymentReleasedAt DateTime?
   
   notes       String?
   

@@ -42,8 +42,13 @@ export const createClassSession = async (data: CreateClassSessionData) => {
       googleClassroomId = course.id;
       googleClassroomLink = course.alternateLink;
 
-      // Create Meet link
-      googleMeetLink = await createMeetLink(course.id);
+      // Create Meet link with booking times
+      googleMeetLink = await createMeetLink(
+        course.id,
+        booking.startTime,
+        booking.endTime,
+        courseName
+      );
 
       // Add student and tutor to course
       await addStudentToCourse(course.id, booking.student.user.email);
@@ -80,7 +85,8 @@ export const createClassSession = async (data: CreateClassSessionData) => {
 export const completeClassSession = async (
   classSessionId: string,
   tutorId: string,
-  notes?: string
+  notes?: string,
+  actualHoursTaught?: number
 ) => {
   const classSession = await prisma.classSession.findUnique({
     where: { id: classSessionId },
@@ -89,6 +95,7 @@ export const completeClassSession = async (
         include: {
           tutor: true,
           student: { include: { user: true } },
+          payment: true,
         },
       },
     },
@@ -112,6 +119,7 @@ export const completeClassSession = async (
       status: 'COMPLETED',
       completedAt: new Date(),
       tutorApproved: true,
+      ...(actualHoursTaught && { actualHoursTaught }),
       ...(notes && { notes }),
     },
     include: {
@@ -119,10 +127,27 @@ export const completeClassSession = async (
         include: {
           student: { include: { user: true } },
           tutor: { include: { user: true } },
+          payment: true,
         },
       },
     },
   });
+
+  // Automatically release payment to tutor if payment is already paid
+  if (updated.booking.payment && updated.booking.payment.paymentStatus === 'PAID') {
+    try {
+      const { releasePaymentToTutor } = await import('./paymentRelease.service');
+      const releaseResult = await releasePaymentToTutor(classSessionId);
+      
+      if (!releaseResult.success) {
+        console.warn('Payment release failed (will retry later):', releaseResult.error);
+        // Don't throw error - payment release can be retried later
+      }
+    } catch (error) {
+      console.error('Error releasing payment automatically:', error);
+      // Don't throw error - payment release can be retried later
+    }
+  }
 
   return updated;
 };
@@ -343,7 +368,12 @@ export const ensureGoogleClassroomForBooking = async (bookingId: string, classNa
       await addTeacherToCourse(course.id, booking.tutor.user.email);
 
       if (!googleMeetLink) {
-        googleMeetLink = await createMeetLink(course.id);
+        googleMeetLink = await createMeetLink(
+          course.id,
+          booking.startTime,
+          booking.endTime,
+          courseName
+        );
       }
     }
   } catch (error) {

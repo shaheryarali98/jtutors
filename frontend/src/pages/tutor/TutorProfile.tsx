@@ -8,7 +8,7 @@ import Subjects from '../../components/tutor/Subjects'
 import Availability from '../../components/tutor/Availability'
 import PayoutMethod from '../../components/tutor/PayoutMethod'
 import BackgroundCheck from '../../components/tutor/BackgroundCheck'
-import TermsAndConditions from '../../components/tutor/TermsAndConditions'
+import TutorTermsModal from '../../components/tutor/TutorTermsModal'
 import ProfileProgress from '../../components/tutor/ProfileProgress'
 import Footer from '../../components/Footer'
 
@@ -16,7 +16,7 @@ type Section = 'personal' | 'experience' | 'education' | 'subjects' | 'availabil
 
 const TutorProfile = () => {
   const [activeSection, setActiveSection] = useState<Section>('personal')
-  const [showTerms, setShowTerms] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
 
   useEffect(() => {
     const checkBackgroundCheck = async () => {
@@ -24,8 +24,7 @@ const TutorProfile = () => {
         const response = await api.get('/auth/me')
         const bgCheck = response.data.tutor?.backgroundCheck
         if (bgCheck && bgCheck.status === 'PENDING' && !response.data.tutor?.termsAccepted) {
-          setShowTerms(true)
-          setActiveSection('terms')
+          setShowTermsModal(true)
         }
       } catch (error) {
         console.error('Error checking background check:', error)
@@ -42,7 +41,6 @@ const TutorProfile = () => {
     { id: 'availability' as Section, name: 'Availability', icon: '📅' },
     { id: 'payout' as Section, name: 'Payout Method', icon: '💳' },
     { id: 'background' as Section, name: 'Background Check', icon: '✓' },
-    ...(showTerms ? [{ id: 'terms' as Section, name: 'Terms & Conditions', icon: '📄' }] : []),
   ]
 
   const renderSection = () => {
@@ -60,9 +58,7 @@ const TutorProfile = () => {
       case 'payout':
         return <PayoutMethod />
       case 'background':
-        return <BackgroundCheck onSubmitted={() => { setShowTerms(true); setActiveSection('terms') }} />
-      case 'terms':
-        return <TermsAndConditions />
+        return <BackgroundCheck onSubmitted={() => setShowTermsModal(true)} />
       default:
         return <PersonalInformation />
     }
@@ -107,6 +103,20 @@ const TutorProfile = () => {
           </div>
         </div>
       </div>
+
+      <TutorTermsModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAccept={async () => {
+          try {
+            // TODO: Save terms acceptance to backend
+            // await api.post('/tutor/accept-terms')
+            setShowTermsModal(false)
+          } catch (error) {
+            console.error('Error accepting terms:', error)
+          }
+        }}
+      />
       <Footer />
     </div>
   )

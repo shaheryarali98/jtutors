@@ -131,7 +131,7 @@ const StudentWallet = () => {
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Wallet & Refunds</h1>
+          <h1 className="text-3xl font-bold text-slate-900">My Wallet</h1>
           <p className="text-slate-600 mt-2">
             View your refundable credits and request payouts when you have available balance.
           </p>
@@ -218,7 +218,6 @@ const StudentWallet = () => {
                   <p className="font-semibold text-slate-800">Need to know</p>
                   <ul className="list-disc list-inside space-y-1">
                     <li>Only refunded credits from completed bookings are withdrawable.</li>
-                    <li>Admin approval is required before funds are released.</li>
                     <li>You can track each request in the history table below.</li>
                   </ul>
                 </div>

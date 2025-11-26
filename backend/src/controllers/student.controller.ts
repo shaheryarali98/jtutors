@@ -354,11 +354,29 @@ export const createBooking = async (req: Request, res: Response) => {
             },
           },
         },
+        student: {
+          include: {
+            user: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
 
+    // Automatically create Google Classroom for the booking
+    try {
+      const { ensureGoogleClassroomForBooking } = await import('../services/classSession.service');
+      await ensureGoogleClassroomForBooking(booking.id, `Class with ${tutor.firstName || 'Tutor'}`);
+    } catch (error) {
+      console.error('Error creating Google Classroom for booking:', error);
+      // Don't fail the booking creation if Google Classroom fails
+    }
+
     res.status(201).json({
-      message: 'Booking created successfully',
+      message: 'Booking created successfully. Google Classroom will be set up automatically.',
       booking,
     });
   } catch (error) {

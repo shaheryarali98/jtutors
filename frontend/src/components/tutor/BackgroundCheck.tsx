@@ -249,7 +249,7 @@ const BackgroundCheck = ({ onSubmitted }: BackgroundCheckProps) => {
           
           <div className="space-y-4">
             <div>
-              <label className="label">Date of Birth *</label>
+              <label className="label">Date of Birth * (MM/DD/YYYY)</label>
               <input
                 type="date"
                 className="input"

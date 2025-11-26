@@ -7,19 +7,18 @@ import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import { LANGUAGE_OPTIONS } from '../../constants/options'
 import { usePlatformSettings } from '../../store/settingsStore'
+import StudentTermsModal from '../../components/student/StudentTermsModal'
 
 interface StudentProfileForm {
   firstName: string
   lastName: string
   gender: string
   grade: string
-  tagline: string
   bio: string
   country: string
   state: string
   city: string
   zipcode: string
-  introduction: string
 }
 
 const genderOptions = [
@@ -42,7 +41,7 @@ const gradeOptions = [
   'Adult Learner',
 ]
 
-const learningLocationOptions = ['My Place', "Teacher's home", 'Online']
+const learningLocationOptions = ['public place', "Teacher's home", 'Online']
 
 const countryOptions = [
   'United States',
@@ -58,6 +57,7 @@ const countryOptions = [
 ]
 
 const StudentProfile = () => {
+  const [showTermsModal, setShowTermsModal] = useState(false)
   const {
     register,
     handleSubmit,
@@ -69,13 +69,11 @@ const StudentProfile = () => {
       lastName: '',
       gender: '',
       grade: '',
-      tagline: '',
       bio: '',
       country: '',
       state: '',
       city: '',
       zipcode: '',
-      introduction: '',
     },
   })
 
@@ -107,13 +105,11 @@ const StudentProfile = () => {
           setValue('lastName', student.lastName || '')
           setValue('gender', student.gender || '')
           setValue('grade', student.grade || '')
-          setValue('tagline', student.tagline || '')
           setValue('bio', student.bio || '')
           setValue('country', student.country || '')
           setValue('state', student.state || '')
           setValue('city', student.city || '')
           setValue('zipcode', student.zipcode || '')
-          setValue('introduction', student.introduction || '')
           setProfileImage(student.profileImage || '')
           setProfileCompleted(Boolean(student.profileCompleted))
           setLanguages(
@@ -374,16 +370,6 @@ const StudentProfile = () => {
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">About you</h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="label">Your tagline *</label>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="e.g., Aspiring scientist passionate about physics and chemistry"
-                      {...register('tagline', { required: 'Tagline is required' })}
-                    />
-                    {errors.tagline && <p className="error-text">{errors.tagline.message}</p>}
-                  </div>
-                  <div>
                     <label className="label">City *</label>
                     <input
                       type="text"
@@ -435,24 +421,14 @@ const StudentProfile = () => {
                   </div>
                 </div>
                 <div className="mt-6">
-                  <label className="label">Your bio *</label>
+                  <label className="label">Your educational goals *</label>
                   <textarea
                     rows={4}
                     className="input"
-                    placeholder="Your bio will appear on your profile page. Use this space to share your learning goals, what excites you, and how you like to learn."
-                    {...register('bio', { required: 'Bio is required' })}
+                    placeholder="This information will appear in your profile page. Please specify your educational goals, learning style and anything important that you want tutors to know about you."
+                    {...register('bio', { required: 'Educational goals are required' })}
                   />
                   {errors.bio && <p className="error-text">{errors.bio.message}</p>}
-                </div>
-                <div className="mt-6">
-                  <label className="label">A brief introduction *</label>
-                  <textarea
-                    rows={3}
-                    className="input"
-                    placeholder="Introduce yourself in a few sentences so tutors can get to know you."
-                    {...register('introduction', { required: 'Introduction is required' })}
-                  />
-                  {errors.introduction && <p className="error-text">{errors.introduction.message}</p>}
                 </div>
               </section>
 
@@ -544,6 +520,24 @@ const StudentProfile = () => {
                 </div>
               </section>
 
+              <section className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Terms and Conditions</h3>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
+                    <p className="text-sm text-slate-600 mb-4">
+                      Please review and accept our terms and conditions to continue using the platform.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowTermsModal(true)}
+                      className="btn btn-outline"
+                    >
+                      View Terms and Conditions
+                    </button>
+                  </div>
+                </div>
+              </section>
+
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-5">
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">Why complete your profile?</h3>
                 <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
@@ -579,6 +573,20 @@ const StudentProfile = () => {
           )}
         </div>
       </div>
+
+      <StudentTermsModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAccept={async () => {
+          try {
+            // TODO: Save terms acceptance to backend
+            // await api.post('/student/accept-terms')
+            setShowTermsModal(false)
+          } catch (error) {
+            console.error('Error accepting terms:', error)
+          }
+        }}
+      />
       <Footer />
     </div>
   )

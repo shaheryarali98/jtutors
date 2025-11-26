@@ -115,8 +115,8 @@ const StudentDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="bg-white rounded-3xl shadow p-6 mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Discover Your Perfect Tutor</h1>
-            <p className="text-white mt-2">
+            <h1 className="text-3xl font-bold text-slate-900">Discover Your Perfect Tutor</h1>
+            <p className="text-slate-700 mt-2">
               Search by name, subject, or location to find tutors aligned with your learning goals.
             </p>
           </div>

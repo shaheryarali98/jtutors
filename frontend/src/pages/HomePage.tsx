@@ -84,12 +84,12 @@ const successStories = [
   {
     title: 'I highly recommend this platform, amazing experience with fast delivery',
     quote:
-      '“It is a long established fact that a learner will be inspired by the right mentor. JTutors made it effortless to find that match.”',
+      '“It is a long established fact that a learner will be inspired by the right tutor. JTutors made it effortless to find that match.”',
     author: 'Michael Mueller',
     role: '5th Grade Student, Dubai',
   },
   {
-    title: 'Professional, responsive, and truly caring mentors',
+    title: 'Professional, responsive, and truly caring tutors',
     quote:
       '“The tutors understand our community’s values and deliver excellent guidance. Support is always a message away.”',
     author: 'Bobbie Schwartz',
@@ -123,7 +123,7 @@ const featuredTutors = [
     name: 'Loise Mullens',
     location: 'Tampa, LA',
     rate: '$99.00/hr',
-    qualification: 'STEM Mentor',
+    qualification: 'STEM Tutor',
     rating: '5.0',
   },
   {
