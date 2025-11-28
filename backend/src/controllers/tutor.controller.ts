@@ -181,52 +181,52 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
 };
 
 export const addExperience = async (req: Request, res: Response) => {
-  try {
-    const userId = req.user!.userId;
-    const {
-      jobTitle,
-      company,
-      location,
-      startDate,
-      endDate,
-      isCurrent,
-      teachingMode,
-      description
-    } = req.body;
+  try {
+    const userId = req.user!.userId;
+    const {
+      jobTitle,
+      company,
+      location,
+      startDate,
+      endDate,
+      isCurrent,
+      teachingMode,
+      description
+    } = req.body;
 
-    const tutor = await prisma.tutor.findUnique({
-      where: { userId }
-    });
+    const tutor = await prisma.tutor.findUnique({
+      where: { userId }
+    });
 
-    if (!tutor) {
-      return res.status(404).json({ error: 'Tutor profile not found' });
-    }
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
 
-    const experience = await prisma.experience.create({
-      data: {
-        tutorId: tutor.id,
-        jobTitle,
-        company,
-        location,
-        startDate: new Date(startDate),
-        endDate: endDate ? new Date(endDate) : null,
-        isCurrent: isCurrent || false,
-        teachingMode,
-        description
-      }
-    });
+    const experience = await prisma.experience.create({
+      data: {
+        tutorId: tutor.id,
+        jobTitle,
+        company,
+        location,
+        startDate: new Date(startDate),
+        endDate: endDate ? new Date(endDate) : null,
+        isCurrent: isCurrent || false,
+        teachingMode,
+        description
+      }
+    });
 
-    const completion = await calculateProfileCompletion(tutor.id);
+    const completion = await calculateProfileCompletion(tutor.id);
 
-    res.status(201).json({
-      message: 'Experience added successfully',
-      experience,
-      profileCompletion: completion
-    });
-  } catch (error) {
-    console.error('Add experience error:', error);
-    res.status(500).json({ error: 'Error adding experience' });
-  }
+    res.status(201).json({
+      message: 'Experience added successfully',
+      experience,
+      profileCompletion: completion
+    });
+  } catch (error) {
+    console.error('Add experience error:', error);
+    res.status(500).json({ error: 'Error adding experience' });
+  }
 };
 
 export const updateExperience = async (req: Request, res: Response) => {
