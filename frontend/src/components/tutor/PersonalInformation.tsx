@@ -27,6 +27,9 @@ interface PersonalInfoForm {
 
 const grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'College', 'Graduate School', 'Adult Education']
 
+// Define the happy avatar SVG as a Data URL for a complete image placeholder
+const HAPPY_AVATAR_PLACEHOLDER_URL = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23FFD700"/><circle cx="35" cy="40" r="5" fill="%23000000"/><circle cx="65" cy="40" r="5" fill="%23000000"/><path d="M 30 65 Q 50 85 70 65" stroke="%23000000" stroke-width="4" fill="none"/></svg>';
+
 // 2. Update the component signature to accept the prop
 const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => { 
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<PersonalInfoForm>()
@@ -37,6 +40,7 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
   const [languages, setLanguages] = useState<string[]>([])
   const [customLanguageInput, setCustomLanguageInput] = useState('')
   const [profileImage, setProfileImage] = useState('')
+  const [imageVersion, setImageVersion] = useState(0) // 👈 Cache-buster state
   const [uploadingImage, setUploadingImage] = useState(false)
   const [profileCompletion, setProfileCompletion] = useState(0)
   const { settings, fetchSettings } = usePlatformSettings()
@@ -64,6 +68,8 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
           setSelectedGrades(tutor.gradesCanTeach || [])
           setLanguages(tutor.languagesSpoken?.length ? tutor.languagesSpoken : [])
           setProfileImage(tutor.profileImage || '')
+          // Initialize image version based on a timestamp/version from the tutor object if available, otherwise use 0
+          setImageVersion(tutor.profileImageVersion || 0) 
           if (tutor.profileCompletionPercentage) {
             setProfileCompletion(tutor.profileCompletionPercentage)
           }
@@ -86,6 +92,9 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
         }
       })
       setProfileImage(response.data.url)
+      // 👈 CRITICAL FIX: Increment the version to bust the browser cache
+      setImageVersion(Date.now()) 
+
       setImageMessage('Profile photo uploaded. Remember to save your profile to keep this change.')
       setTimeout(() => setImageMessage(''), 3000)
       window.dispatchEvent(new Event('tutor-profile-updated'))
@@ -154,12 +163,15 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
     setLanguages((prev) => prev.filter((item) => item !== language))
   }
 
-  const displayProfileImage = useMemo(() => {
-    const source = profileImage || settings?.defaultTutorImage || ''
-    if (!source) return ''
-    return resolveImageUrl(source)
-  }, [profileImage, settings?.defaultTutorImage])
+const displayProfileImage = useMemo(() => {
+  // Only use the tutor's specific profile image, ignoring platform default here.
+  const source = profileImage || '' 
+  if (!source) return '' 
 
+  const resolvedUrl = resolveImageUrl(source)
+  // Append the version for cache busting
+  return `${resolvedUrl}?v=${imageVersion}`
+}, [profileImage, imageVersion])
   return (
     <div>
       <h2 className="section-title">Personal Information</h2>
@@ -178,16 +190,18 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
       <div className="mb-6 rounded-xl border border-slate-200 p-5 bg-slate-50 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
         <div className="flex items-center gap-4">
           <div className="h-20 w-20 rounded-full border-4 border-white shadow bg-primary-50 overflow-hidden flex items-center justify-center text-3xl text-primary-500">
-            {displayProfileImage ? (
-              <img src={displayProfileImage} alt="Tutor profile" className="h-full w-full object-cover" />
-            ) : (
-              // Placeholder for the default avatar when no image is available
-              <div className="text-4xl">🙂</div> 
-            )}
+            {/*               FIX: Always render a complete <img> tag. If displayProfileImage (which includes the new cache-buster) 
+              is empty, it falls back to the defined happy avatar placeholder URL.
+            */}
+            <img 
+              src={displayProfileImage || HAPPY_AVATAR_PLACEHOLDER_URL} 
+              alt="Tutor profile" 
+              className={`h-full w-full object-cover ${!profileImage && !settings?.defaultTutorImage ? 'p-2' : ''}`} // Add padding if using SVG placeholder
+            />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-slate-900">Profile Photo</h3>
-            <p className="text-sm text-slate-600">A friendly headshot builds trust with students.</p>
+            <p className="text-sm text-slate-600">A friendly headshot  builds trust with students.</p>
           </div>
         </div>
         <label className="btn btn-outline cursor-pointer">
