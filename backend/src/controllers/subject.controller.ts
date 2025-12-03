@@ -3,38 +3,71 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Old default subjects removed - use seed script instead
-const ensureDefaultSubjects = async () => {
-  // No longer creating default subjects here
-  // Subjects should be seeded using the seedSubjects.js script
-  return;
-};
+// Simple in-memory cache for subjects (they don't change frequently)
+let subjectsCache: {
+  subjects: any[];
+  categories: any[];
+  subcategories: any[];
+  timestamp: number;
+} | null = null;
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
 export const getAllSubjects = async (req: Request, res: Response) => {
   try {
-    await ensureDefaultSubjects();
-    const subjects = await prisma.subject.findMany({
-      include: {
-        children: {
-          orderBy: {
-            name: 'asc'
-          }
+    // Check cache first
+    const now = Date.now();
+    if (subjectsCache && (now - subjectsCache.timestamp) < CACHE_TTL) {
+      return res.json({
+        subjects: subjectsCache.subjects,
+        categories: subjectsCache.categories,
+        subcategories: subjectsCache.subcategories,
+      });
+    }
+    
+    // Fetch categories and subcategories in parallel for better performance
+    const [categories, subcategories] = await Promise.all([
+      prisma.subject.findMany({
+        where: { parentId: null },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          parentId: true,
         }
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    });
+      }),
+      prisma.subject.findMany({
+        where: { parentId: { not: null } },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          parentId: true,
+        }
+      })
+    ]);
 
-    // Separate categories (no parent) from subcategories (have parent)
-    const categories = subjects.filter(s => !s.parentId);
-    const subcategories = subjects.filter(s => s.parentId);
+    // Combine for backward compatibility
+    const subjects = [...categories, ...subcategories];
+
+    // Update cache
+    subjectsCache = {
+      subjects,
+      categories,
+      subcategories,
+      timestamp: now,
+    };
 
     res.json({ subjects, categories, subcategories });
   } catch (error) {
     console.error('Get subjects error:', error);
     res.status(500).json({ error: 'Error fetching subjects' });
   }
+};
+
+// Function to clear cache when subjects are modified
+export const clearSubjectsCache = () => {
+  subjectsCache = null;
 };
 
 export const createSubject = async (req: Request, res: Response) => {
@@ -54,6 +87,9 @@ export const createSubject = async (req: Request, res: Response) => {
         children: true
       }
     });
+
+    // Clear cache when subject is created
+    clearSubjectsCache();
 
     res.status(201).json({
       message: 'Subject created successfully',
@@ -88,6 +124,9 @@ export const updateSubject = async (req: Request, res: Response) => {
       }
     });
 
+    // Clear cache when subject is updated
+    clearSubjectsCache();
+
     res.json({
       message: 'Subject updated successfully',
       subject,
@@ -106,6 +145,9 @@ export const deleteSubject = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     await prisma.subject.delete({ where: { id } });
+
+    // Clear cache when subject is deleted
+    clearSubjectsCache();
 
     res.json({ message: 'Subject deleted successfully' });
   } catch (error: any) {

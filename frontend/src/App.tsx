@@ -14,6 +14,7 @@ import StudentInvoices from './pages/student/Invoices'
 import StudentHourLog from './pages/student/HourLog'
 import StudentWallet from './pages/student/StudentWallet'
 import TutorDetailPage from './pages/student/TutorDetail'
+import BrowseTutors from './pages/student/BrowseTutors'
 import HomePage from './pages/HomePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -70,6 +71,11 @@ function App() {
         <Route path="/student/dashboard" element={
           <ProtectedRoute role="STUDENT">
             <StudentDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/browse-tutors" element={
+          <ProtectedRoute role="STUDENT">
+            <BrowseTutors />
           </ProtectedRoute>
         } />
         <Route path="/student/profile" element={

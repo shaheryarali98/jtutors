@@ -81,11 +81,6 @@ const StudentWallet = () => {
       setFeedback('Amount exceeds your available balance.')
       return
     }
-    const minAmount = settings?.minimumWithdrawAmount ?? 0
-    if (numericAmount < minAmount) {
-      setFeedback(`Minimum withdrawal amount is $${minAmount.toFixed(2)}.`)
-      return
-    }
     if (!selectedMethod) {
       setFeedback('Choose a withdrawal method.')
       return
@@ -199,9 +194,6 @@ const StudentWallet = () => {
                       <span className="font-semibold text-slate-800">Estimated payout:</span> $
                       {estimatedNet.toFixed(2)}
                     </p>
-                    {settings?.minimumWithdrawAmount && (
-                      <p>Minimum withdrawal: ${settings.minimumWithdrawAmount.toFixed(2)}</p>
-                    )}
                   </div>
                   <button
                     type="button"

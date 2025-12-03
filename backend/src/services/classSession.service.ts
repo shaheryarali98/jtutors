@@ -376,9 +376,16 @@ export const ensureGoogleClassroomForBooking = async (bookingId: string, classNa
         );
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error provisioning Google Classroom resources:', error);
-    throw error;
+    // If Google Classroom is not configured, continue without it (graceful degradation)
+    if (error.message === 'Google Classroom is not configured') {
+      console.warn('Google Classroom is not configured. Continuing without Google Classroom integration.');
+      // Don't throw error - allow the session to be updated without Google Classroom
+    } else {
+      // For other errors, still throw to allow caller to handle
+      throw error;
+    }
   }
 
   const updatedSession = await prisma.classSession.update({

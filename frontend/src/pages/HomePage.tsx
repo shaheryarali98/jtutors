@@ -1,5 +1,7 @@
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import { Link } from 'react-router-dom'
+import { useAuthStore } from '../store/authStore'
 import {
   Search,
   ChevronRight,
@@ -136,6 +138,9 @@ const featuredTutors = [
 ]
 
 const HomePage = () => {
+  const { user } = useAuthStore()
+  const browseTutorsUrl = user?.role === 'STUDENT' ? '/student/browse-tutors' : '/login'
+  
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
@@ -178,14 +183,14 @@ const HomePage = () => {
                         />
                       </div>
                     </div>
-                    <button
-                      type="button"
+                    <Link
+                      to={browseTutorsUrl}
                       className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white shadow-lg hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: '#f5a11a' }}
                     >
                       Search now
                       <ChevronRight className="h-5 w-5" />
-                    </button>
+                    </Link>
                   </form>
 
                   <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-500">
@@ -243,10 +248,13 @@ const HomePage = () => {
                   Explore subjects taught by verified tutors who understand your academic and cultural priorities.
                 </p>
               </div>
-              <button className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-[#012c54] hover:text-[#012c54] transition-colors">
+              <Link
+                to={browseTutorsUrl}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-[#012c54] hover:text-[#012c54] transition-colors"
+              >
                 Explore all tutors
                 <ChevronRight className="h-4 w-4" />
-              </button>
+              </Link>
             </div>
 
             <div className="mt-10 grid gap-8 sm:grid-cols-2">
@@ -299,10 +307,13 @@ const HomePage = () => {
                 <h2 className="text-3xl font-black text-slate-900">Every tutor is professional and highly qualified</h2>
                 <p className="mt-2 text-slate-600">Featured tutors ready to start today.</p>
               </div>
-              <button className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-[#012c54] hover:text-[#012c54] transition-colors">
+              <Link
+                to={browseTutorsUrl}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-[#012c54] hover:text-[#012c54] transition-colors"
+              >
                 Browse tutors
                 <ChevronRight className="h-4 w-4" />
-              </button>
+              </Link>
         </div>
         
             <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -321,10 +332,14 @@ const HomePage = () => {
                   </p>
                   <p className="mt-3 text-sm font-semibold" style={{ color: '#012c54' }}>Starting from {tutor.rate}</p>
                   <p className="text-xs uppercase tracking-wide text-slate-500">{tutor.qualification}</p>
-                  <button className="mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90 transition-opacity" style={{ backgroundColor: '#f5a11a' }}>
-                    View profile
+                  <Link
+                    to={browseTutorsUrl}
+                    className="mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90 transition-opacity"
+                    style={{ backgroundColor: '#f5a11a' }}
+                  >
+                    Browse tutors
                     <ChevronRight className="h-4 w-4" />
-                  </button>
+                  </Link>
                 </div>
               ))}
             </div>

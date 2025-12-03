@@ -37,6 +37,7 @@ const Navbar = () => {
     guest: [], // Empty — no dropdown links for guests
     student: [
       { to: '/student/dashboard', label: 'Dashboard' },
+      { to: '/student/browse-tutors', label: 'Browse Tutors' },
       { to: '/student/profile', label: 'Profile' },
       { to: '/student/saved-instructors', label: 'Saved Instructors' },
       { to: '/student/bookings', label: 'My Bookings' },
@@ -70,10 +71,10 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
         <Link to="/" className="flex items-center">
   <img
-    src="/logo.jpg"
+    src="/logo-trans.png"
     alt="JTutors Logo"
     className="h-10 w-auto object-contain"
-    style={{ height: '4rem' }}
+    style={{ height: '11rem' }}
   />
 </Link>
 

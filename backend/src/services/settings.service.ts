@@ -3,12 +3,12 @@ import { PrismaClient, AdminSettings } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const DEFAULT_WITHDRAW_METHODS = ['Stripe Connect', 'Bank Transfer'];
-// Professional cartoon/avatar style default images
-// Using professional illustration-style avatars (PNG format for better compatibility)
+// Friendly and cheerful avatar style default images
+// Using happy, approachable avatars (PNG format for better compatibility)
 const DEFAULT_STUDENT_IMAGE =
-  'https://api.dicebear.com/7.x/avataaars/png?seed=Student&backgroundColor=4f46e5&size=400&radius=50';
+  'https://api.dicebear.com/7.x/micah/png?seed=Student&backgroundColor=4f46e5&size=400';
 const DEFAULT_TUTOR_IMAGE =
-  'https://api.dicebear.com/7.x/avataaars/png?seed=Tutor&backgroundColor=f59e0b&size=400&radius=50';
+  'https://api.dicebear.com/7.x/micah/png?seed=Tutor&backgroundColor=f59e0b&size=400';
 
 const defaultSettingsPayload: Omit<AdminSettings, 'id' | 'createdAt' | 'updatedAt'> = {
   sendSignupConfirmation: true,
@@ -20,8 +20,8 @@ const defaultSettingsPayload: Omit<AdminSettings, 'id' | 'createdAt' | 'updatedA
   withdrawMethods: JSON.stringify(DEFAULT_WITHDRAW_METHODS),
   withdrawFixedCharge: 0,
   withdrawPercentageCharge: 0,
-  minimumWithdrawAmount: 20,
-  minimumBalanceForWithdraw: 20,
+  minimumWithdrawAmount: 0,
+  minimumBalanceForWithdraw: 0,
   withdrawThreshold: null,
   genderFieldEnabled: true,
   gradeFieldEnabled: true,
@@ -47,6 +47,26 @@ export const getAdminSettings = async (): Promise<AdminSettings> => {
   const existing = await prisma.adminSettings.findFirst();
 
   if (existing) {
+    // Update existing settings with new default avatar URLs if they still have old ones
+    const oldTutorUrl = 'https://api.dicebear.com/7.x/avataaars/png?seed=Tutor&backgroundColor=f59e0b&size=400&radius=50';
+    const oldStudentUrl = 'https://api.dicebear.com/7.x/avataaars/png?seed=Student&backgroundColor=4f46e5&size=400&radius=50';
+    const oldNotionistsTutorUrl = 'https://api.dicebear.com/7.x/notionists/png?seed=Tutor&backgroundColor=f59e0b&size=400';
+    const oldNotionistsStudentUrl = 'https://api.dicebear.com/7.x/notionists/png?seed=Student&backgroundColor=4f46e5&size=400';
+    
+    const needsUpdate = 
+      (existing.defaultTutorImage === oldTutorUrl || existing.defaultTutorImage === oldNotionistsTutorUrl) ||
+      (existing.defaultStudentImage === oldStudentUrl || existing.defaultStudentImage === oldNotionistsStudentUrl);
+    
+    if (needsUpdate) {
+      return prisma.adminSettings.update({
+        where: { id: existing.id },
+        data: {
+          defaultTutorImage: DEFAULT_TUTOR_IMAGE,
+          defaultStudentImage: DEFAULT_STUDENT_IMAGE,
+        },
+      });
+    }
+    
     return existing;
   }
 

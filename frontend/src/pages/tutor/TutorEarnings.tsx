@@ -98,11 +98,6 @@ const TutorEarnings = () => {
       setWithdrawFeedback('Amount exceeds your available balance.')
       return
     }
-    const minAmount = settings?.minimumWithdrawAmount ?? 0
-    if (numericAmount < minAmount) {
-      setWithdrawFeedback(`Minimum withdrawal amount is $${minAmount.toFixed(2)}.`)
-      return
-    }
 
     try {
       setWithdrawing(true)
@@ -209,12 +204,6 @@ const TutorEarnings = () => {
                       <span className="font-semibold text-slate-800">Estimated payout:</span> $
                       {estimatedNet.toFixed(2)}
                     </p>
-                    {settings?.minimumWithdrawAmount && (
-                      <p>Minimum withdrawal: ${settings.minimumWithdrawAmount.toFixed(2)}</p>
-                    )}
-                    {settings?.minimumBalanceForWithdraw && (
-                      <p>Minimum balance required: ${settings.minimumBalanceForWithdraw.toFixed(2)}</p>
-                    )}
                   </div>
                   <button
                     type="button"

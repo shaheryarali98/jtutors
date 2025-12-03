@@ -101,6 +101,52 @@ const HowItWorksTutors = () => {
     <div className="min-h-screen overflow-hidden" style={{ background: 'linear-gradient(to bottom right, #e6f0f7, #fef5e7)' }}>
       <Navbar />
 
+      {/* Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="relative overflow-hidden h-64 md:h-80"
+      >
+        {/* Background Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: "url('https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=2000&q=80')"
+          }}
+        >
+          {/* Dark Overlay */}
+          <div 
+            className="absolute inset-0"
+            style={{ 
+              background: 'linear-gradient(to right, rgba(1, 44, 84, 0.85), rgba(1, 74, 122, 0.75))' 
+            }}
+          />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 h-full flex items-center">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-white">
+                <Sparkles className="w-6 h-6 text-[#f5a11a] flex-shrink-0" />
+                <p className="text-base sm:text-lg md:text-xl font-bold text-center sm:text-left">
+                  Start teaching today and earn on your own schedule
+                </p>
+              </div>
+              <NavLink
+                to="/register?role=tutor"
+                className="inline-flex items-center px-6 py-3 rounded-full text-base font-bold transition-all duration-300 hover:scale-105 shadow-xl text-white"
+                style={{ backgroundColor: '#f5a11a' }}
+              >
+                Apply Now
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </NavLink>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
       {/* Animated Background Orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <motion.div

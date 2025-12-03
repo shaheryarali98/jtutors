@@ -1221,55 +1221,6 @@ const AdminDashboard = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Minimum withdraw amount (USD)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className="input"
-                          value={settings.minimumWithdrawAmount ?? ''}
-                          onChange={(event) =>
-                            updateSettingLocal(
-                              'minimumWithdrawAmount',
-                              event.target.value === '' ? undefined : Number(event.target.value)
-                            )
-                          }
-                          onBlur={(event) =>
-                            handleUpdateSettings({
-                              minimumWithdrawAmount: event.target.value === '' ? undefined : Number(event.target.value),
-                            })
-                          }
-                          disabled={savingSettings}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Minimum balance required (USD)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className="input"
-                          value={settings.minimumBalanceForWithdraw ?? ''}
-                          onChange={(event) =>
-                            updateSettingLocal(
-                              'minimumBalanceForWithdraw',
-                              event.target.value === '' ? undefined : Number(event.target.value)
-                            )
-                          }
-                          onBlur={(event) =>
-                            handleUpdateSettings({
-                              minimumBalanceForWithdraw:
-                                event.target.value === '' ? undefined : Number(event.target.value),
-                            })
-                          }
-                          disabled={savingSettings}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
                           Withdrawal threshold (days)
                         </label>
                         <input

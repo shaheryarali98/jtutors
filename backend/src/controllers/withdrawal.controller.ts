@@ -33,23 +33,10 @@ export const createWithdrawalController = async (req: Request, res: Response) =>
 
     const settings = await getFormattedAdminSettings();
 
-    const minAmount = settings.minimumWithdrawAmount ?? 0;
-    if (numericAmount < minAmount) {
-      return res
-        .status(400)
-        .json({ error: `Minimum withdrawal amount is $${minAmount.toFixed(2)}` });
-    }
-
     let walletSummary = null;
     if (userRole === 'TUTOR' || userRole === 'STUDENT') {
       walletSummary = await getWalletSummary(userId, userRole);
-      if (settings.minimumBalanceForWithdraw && walletSummary.availableBalance < settings.minimumBalanceForWithdraw) {
-        return res.status(400).json({
-          error: `You need at least $${settings.minimumBalanceForWithdraw.toFixed(
-            2
-          )} available before requesting a withdrawal`,
-        });
-      }
+      // Only check that amount doesn't exceed available balance
       if (numericAmount > walletSummary.availableBalance) {
         return res.status(400).json({ error: 'Withdrawal amount exceeds available balance' });
       }
