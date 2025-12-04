@@ -40,7 +40,7 @@ const subjectsHierarchy = {
     ],
     'Languages': [
         'Accent Reduction', 'Braille', 'Bulgarian', 'Czech', 'Dutch', 'ESL/ESOL', 'Farsi',
-        'French', 'German', 'Greek', 'Hebrew', 'Hebrew Language', 'Hindi', 'Hungarian',
+        'French', 'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian',
         'Indonesian', 'Italian', 'Korean', 'Latin', 'Polish', 'Portuguese', 'Romanian',
         'Russian', 'Sign Language', 'Spanish', 'Thai', 'Turkish', 'Urdu'
     ],
