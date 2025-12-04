@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 
 const Footer = () => {
@@ -29,7 +30,7 @@ const Footer = () => {
       <div className="relative max-w-4xl mx-auto rounded-3xl bg-white/10 p-10 text-white shadow-2xl backdrop-blur">
         <h2 className="text-3xl font-black">Didn't find your question here?</h2>
         <p className="mt-2 text-base text-white/80">
-          Send us your question and our team will respond within 24 hours.
+          Check out our <Link to="/faq" className="underline hover:text-white font-semibold">FAQ page</Link> for more answers, or send us your question and our team will respond within 24 hours.
         </p>
         <form onSubmit={handleSubmit} className="mt-8 grid gap-4 md:grid-cols-2">
           <input

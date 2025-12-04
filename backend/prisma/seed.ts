@@ -58,8 +58,9 @@ const subjectsHierarchy = {
         'Sports Medicine', 'Tax Accounting'
     ],
     'Jewish Studies': [
-        'Bar Mitzvah', 'Chumash', 'Halacha', 'Jewish Law', 'Jewish Philosophy', 'Leining',
-        'Navih', 'Talmud', 'Tanach', 'Torah Reading'
+        'Bar Mitzvah', 'Chassidus', 'Chumash', 'Conversational Hebrew', 'Halacha',
+        'Hebrew Language', 'Jewish Law', 'Jewish Philosophy', 'Kriyah', 'Leining',
+        'Mussar', 'Navih', 'Talmud', 'Tanach', 'Tefillah', 'Torah Reading'
     ],
     'English / Literature / Writing': [
         'American Literature', 'British Literature', 'Composition', 'Creative Writing',

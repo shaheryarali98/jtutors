@@ -75,8 +75,8 @@ const TutorProfile = () => {
         return <Availability onSaveSuccess={() => handleSectionSaved('availability')} />
       case 'payout':
         return <PayoutMethod onSaveSuccess={() => handleSectionSaved('payout')} />
-      case 'background':
-        return <BackgroundCheck onSubmitted={() => setShowTermsModal(true)} />
+      case 'background':
+        return <BackgroundCheck onSaveSuccess={() => setShowTermsModal(true)} />
       default:
         return <PersonalInformation onSaveSuccess={() => handleSectionSaved('personal')} />
     }

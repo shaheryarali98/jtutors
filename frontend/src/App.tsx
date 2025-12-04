@@ -22,6 +22,7 @@ import { User } from './store/authStore'
 
 import HowItWorksForStudents from './pages/how-it-works-for-student/page';
 import HowItWorksForTutors from './pages/how-it-works-for-tutor/page'
+import FAQ from './pages/FAQ'
 
 function App() {
   const { user } = useAuthStore()
@@ -32,6 +33,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/how-it-works-for-students" element={<HowItWorksForStudents />} />
         <Route path="/how-it-works-for-tutors" element={<HowItWorksForTutors />} />
+        <Route path="/faq" element={<FAQ />} />
         <Route
           path="/login"
           element={

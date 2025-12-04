@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import { Link } from 'react-router-dom'
@@ -8,7 +9,10 @@ import {
   Star,
   Quote,
   MapPin,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
+import { faqs } from '../constants/faqs'
 
 const categoryOptions = [
   'Standardized Tests',
@@ -140,6 +144,14 @@ const featuredTutors = [
 const HomePage = () => {
   const { user } = useAuthStore()
   const browseTutorsUrl = user?.role === 'STUDENT' ? '/student/browse-tutors' : '/login'
+  const [openFAQIndex, setOpenFAQIndex] = useState<number | null>(null)
+  
+  const toggleFAQ = (index: number) => {
+    setOpenFAQIndex(openFAQIndex === index ? null : index)
+  }
+  
+  // Show first 6 FAQs on homepage, rest can be viewed on FAQ page
+  const featuredFAQs = faqs.slice(0, 6)
   
   return (
     <div className="min-h-screen bg-slate-50">
@@ -340,6 +352,55 @@ const HomePage = () => {
                     Browse tutors
                     <ChevronRight className="h-4 w-4" />
                   </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="py-16 bg-white">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-10">
+              <div>
+                <h2 className="text-3xl font-black text-slate-900">Frequently Asked Questions</h2>
+                <p className="mt-2 text-slate-600">
+                  Find answers to common questions about JTutors
+                </p>
+              </div>
+              <Link
+                to="/faq"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-[#012c54] hover:text-[#012c54] transition-colors"
+              >
+                View all FAQs
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="space-y-4">
+              {featuredFAQs.map((faq, index) => (
+                <div
+                  key={index}
+                  className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden"
+                >
+                  <button
+                    onClick={() => toggleFAQ(index)}
+                    className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-slate-50 transition-colors"
+                  >
+                    <span className="font-semibold text-slate-900 pr-4">
+                      {faq.question}
+                    </span>
+                    {openFAQIndex === index ? (
+                      <ChevronUp className="h-5 w-5 text-slate-600 flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-slate-600 flex-shrink-0" />
+                    )}
+                  </button>
+                  {openFAQIndex === index && (
+                    <div className="px-6 py-4 bg-slate-50 border-t border-slate-200">
+                      <p className="text-slate-700 leading-relaxed">{faq.answer}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
