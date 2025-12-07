@@ -6,7 +6,6 @@ import {
   Menu,
   X,
   LogOut,
-  User,
   Sparkles,
   BookOpen,
 } from 'lucide-react'
@@ -242,10 +241,11 @@ const Navbar = () => {
                 </NavLink>
               ))}
 
-              {/* Guest: Primary CTAs (Find Tutor / Become Tutor) */}
+              {/* Guest: Primary CTAs (Become Tutor only - Student registration temporarily disabled) */}
               {!user && (
                 <>
-                  <Link
+                  {/* Student registration temporarily disabled for 2 weeks */}
+                  {/* <Link
                     to="/register?role=student"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center justify-center gap-2 w-full py-3 text-sm font-bold rounded-xl transition-all"
@@ -253,7 +253,7 @@ const Navbar = () => {
                   >
                     <User className="w-5 h-5" />
                     Find a Tutor
-                  </Link>
+                  </Link> */}
                   <Link
                     to="/register?role=tutor"
                     onClick={() => setMobileMenuOpen(false)}

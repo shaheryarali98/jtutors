@@ -14,13 +14,19 @@ interface RegisterForm {
 }
 
 const Register = () => {
+  // TEMPORARY: Student registration disabled for 2 weeks - only tutors can sign up
+  const STUDENT_REGISTRATION_DISABLED = true
+  
   const [searchParams] = useSearchParams()
   const requestedRole = searchParams.get('role')?.toUpperCase() as RegisterForm['role'] | null
   const includeAdminOption = useMemo(
     () => (requestedRole === 'ADMIN' ? true : false),
     [requestedRole]
   )
-  const defaultRole = requestedRole && ['TUTOR', 'STUDENT', 'ADMIN'].includes(requestedRole) ? requestedRole : 'STUDENT'
+  // Default to TUTOR if student registration is disabled
+  const defaultRole = requestedRole && ['TUTOR', 'STUDENT', 'ADMIN'].includes(requestedRole) 
+    ? (STUDENT_REGISTRATION_DISABLED && requestedRole === 'STUDENT' ? 'TUTOR' : requestedRole)
+    : 'TUTOR'
   
   const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>({
     defaultValues: {
@@ -111,10 +117,15 @@ const Register = () => {
               <div>
                 <label className="label">I am joining JTutors as</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <RoleOption value="STUDENT" label="Student" register={register} />
+                  {!STUDENT_REGISTRATION_DISABLED && <RoleOption value="STUDENT" label="Student" register={register} />}
                   <RoleOption value="TUTOR" label="Tutor" register={register} />
                   {includeAdminOption && <RoleOption value="ADMIN" label="Platform Admin" register={register} />}
                 </div>
+                {STUDENT_REGISTRATION_DISABLED && (
+                  <p className="mt-2 text-sm text-slate-500 italic">
+                    Student registration is temporarily unavailable. Only tutor registration is open at this time.
+                  </p>
+                )}
               </div>
 
               <div>
