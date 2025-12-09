@@ -6,9 +6,6 @@ import { useAuthStore } from '../store/authStore'
 import {
   Search,
   ChevronRight,
-  Star,
-  Quote,
-  MapPin,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
@@ -83,61 +80,6 @@ const popularCategories = [
     name: 'Technology & Computer Science',
     count: '41 Listings',
     topics: ['Web Development', 'Robotics', 'Game Design', 'Coding Bootcamps'],
-  },
-]
-
-const successStories = [
-  {
-    title: 'I highly recommend this platform, amazing experience with fast delivery',
-    quote:
-      '“It is a long established fact that a learner will be inspired by the right tutor. JTutors made it effortless to find that match.”',
-    author: 'Michael Mueller',
-    role: '5th Grade Student, Dubai',
-  },
-  {
-    title: 'Professional, responsive, and truly caring tutors',
-    quote:
-      '“The tutors understand our community’s values and deliver excellent guidance. Support is always a message away.”',
-    author: 'Bobbie Schwartz',
-    role: 'Parent, Manchester UK',
-  },
-  {
-    title: 'Thoughtful coaching turned my studies around',
-    quote:
-      '“I was nervous before my first session. JTutors matched me with the perfect tutor, and now I look forward to learning.”',
-    author: 'Cecil Sims',
-    role: '7th Grade Student, Rome Italy',
-  },
-]
-
-const featuredTutors = [
-  {
-    name: 'Filomena Galicia',
-    location: 'Austin, AZ',
-    rate: '$55.00/hr',
-    qualification: 'MBBS',
-    rating: '5.0',
-  },
-  {
-    name: 'Steven Ford',
-    location: 'Charlotte, OK',
-    rate: '$21.00/hr',
-    qualification: 'Math Specialist',
-    rating: '5.0',
-  },
-  {
-    name: 'Loise Mullens',
-    location: 'Tampa, LA',
-    rate: '$99.00/hr',
-    qualification: 'STEM Tutor',
-    rating: '5.0',
-  },
-  {
-    name: 'Ann Coleman',
-    location: 'Baltimore, NV',
-    rate: '$79.00/hr',
-    qualification: 'SAT Coach',
-    rating: '5.0',
   },
 ]
 
@@ -283,75 +225,6 @@ const HomePage = () => {
                       </span>
                     ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Success stories */}
-        <section className="py-16 bg-slate-100">
-          <div className="max-w-6xl mx-auto px-4">
-            <h2 className="text-3xl font-black text-slate-900 text-center">See how our members found #Success</h2>
-            <p className="mt-2 text-center text-slate-600">
-              Real stories from students, tutors, and families thriving with JTutors.
-            </p>
-
-            <div className="mt-12 grid gap-6 lg:grid-cols-3">
-              {successStories.map((story) => (
-                <div key={story.title} className="rounded-3xl bg-white p-6 shadow-md">
-                  <Quote className="h-10 w-10" style={{ color: '#012c54' }} />
-                  <h3 className="mt-4 text-lg font-semibold text-slate-900">{story.title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-slate-600">{story.quote}</p>
-                  <div className="mt-6 text-sm font-medium" style={{ color: '#012c54' }}>{story.author}</div>
-                  <div className="text-xs uppercase tracking-wide text-slate-500">{story.role}</div>
-                </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-        {/* Featured tutors */}
-        <section className="py-16 bg-white">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-3xl font-black text-slate-900">Every tutor is professional and highly qualified</h2>
-                <p className="mt-2 text-slate-600">Featured tutors ready to start today.</p>
-              </div>
-              <Link
-                to={browseTutorsUrl}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-[#012c54] hover:text-[#012c54] transition-colors"
-              >
-                Browse tutors
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-        </div>
-        
-            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {featuredTutors.map((tutor) => (
-                <div key={tutor.name} className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-slate-900">{tutor.name}</h3>
-                    <span className="flex items-center gap-1 text-sm font-semibold text-amber-500">
-                      <Star className="h-4 w-4 fill-current" />
-                      {tutor.rating}
-                    </span>
-                  </div>
-                  <p className="mt-2 flex items-center gap-2 text-sm text-slate-500">
-                    <MapPin className="h-4 w-4" />
-                    {tutor.location}
-                  </p>
-                  <p className="mt-3 text-sm font-semibold" style={{ color: '#012c54' }}>Starting from {tutor.rate}</p>
-                  <p className="text-xs uppercase tracking-wide text-slate-500">{tutor.qualification}</p>
-                  <Link
-                    to={browseTutorsUrl}
-                    className="mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90 transition-opacity"
-                    style={{ backgroundColor: '#f5a11a' }}
-                  >
-                    Browse tutors
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
                 </div>
               ))}
             </div>
