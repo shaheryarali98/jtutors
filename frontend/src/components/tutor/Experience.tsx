@@ -94,9 +94,9 @@ const Experience = ({ onSaveSuccess }: ExperienceProps) => { // Destructure the 
       }
 
       // Navigate to the next section only after successfully ADDING a new item
-      if (!editingId) {
-        onSaveSuccess(); 
-      }
+//       if (!editingId) {
+//         onSaveSuccess(); 
+//       }
 
       window.dispatchEvent(new Event('tutor-profile-updated'))
       await fetchExperiences()
