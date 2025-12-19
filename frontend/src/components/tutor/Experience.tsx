@@ -32,7 +32,7 @@ interface ExperienceForm {
   teachingMode: string 
 }
 
-const Experience = ({ onSaveSuccess }: ExperienceProps) => { // Destructure the new prop
+const Experience = ({ onSaveSuccess: _onSaveSuccess }: ExperienceProps) => { // Destructure the new prop
   const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<ExperienceForm>()
   const [experiences, setExperiences] = useState<ExperienceItem[]>([])
   const [loading, setLoading] = useState(false)

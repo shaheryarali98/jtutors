@@ -27,7 +27,7 @@ interface EducationForm {
 }
 
 // 2. Update the component signature to accept the prop
-const Education = ({ onSaveSuccess }: EducationProps) => {
+const Education = ({ onSaveSuccess: _onSaveSuccess }: EducationProps) => {
   const {
     register,
     handleSubmit,
@@ -86,7 +86,6 @@ const Education = ({ onSaveSuccess }: EducationProps) => {
             ? convertDateToISO(data.endDate)
             : undefined,
       };
-      let isNewEntry = false; // Flag to check if we are adding a new entry
 
       if (editingId) {
         const response = await api.put(
