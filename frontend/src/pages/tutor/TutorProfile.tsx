@@ -70,9 +70,9 @@ const TutorProfile = () => {
       case 'education':
         return <Education onSaveSuccess={() => handleSectionSaved('education')} />
       case 'subjects':
-        return <Subjects onSaveSuccess={() => handleSectionSaved('subjects')} />
+        return <Subjects />
       case 'availability':
-        return <Availability onSaveSuccess={() => handleSectionSaved('availability')} />
+        return <Availability/>
       case 'payout':
         return <PayoutMethod onSaveSuccess={() => handleSectionSaved('payout')} />
       case 'background':

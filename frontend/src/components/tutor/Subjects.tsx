@@ -16,16 +16,16 @@ interface TutorSubject {
   subject: Subject;
 }
 
-interface SubjectsProps {
-  onSaveSuccess: () => void; // Function to call on successful save/update
-}
+// interface SubjectsProps {
+  //onSaveSuccess: () => void; // Function to call on successful save/update
+// }
 
 // --- REMOVED MOCK DATA ---
 // The MOCK_SUBJECT_DATA array has been removed.
 
 // --- COMPONENT START ---
 
-const Subjects = ({ onSaveSuccess }: SubjectsProps) => {
+const Subjects = () => {
   const [allSubjects, setAllSubjects] = useState<Subject[]>([]);
   const [categories, setCategories] = useState<Subject[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
