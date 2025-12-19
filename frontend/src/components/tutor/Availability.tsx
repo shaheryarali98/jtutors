@@ -3,9 +3,9 @@ import { useForm } from 'react-hook-form'
 import api from '../../lib/api'
 
 // 1. Define the props interface
-interface AvailabilityProps {
-  onSaveSuccess: () => void; // Function to call on successful save/add
-}
+// interface AvailabilityProps {
+//   onSaveSuccess: () => void; // Function to call on successful save/add
+// }
 
 interface AvailabilityItem {
   id: string
@@ -32,7 +32,7 @@ const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Sat
 const sessionDurations = [30, 45, 60, 90, 120]
 
 // 2. Update the component signature to accept the prop
-const Availability = ({ onSaveSuccess }: AvailabilityProps) => {
+const Availability = () => {
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<AvailabilityForm>({
     defaultValues: {
       breakTime: 0,
@@ -77,13 +77,13 @@ const Availability = ({ onSaveSuccess }: AvailabilityProps) => {
         daysAvailable: selectedDays
       }
 
-      let isNewEntry = false;
+//      let isNewEntry = false;
 
       if (editingId) {
         const response = await api.put(`/tutor/profile/availability/${editingId}`, payload)
         setFeedback(response.data.message || 'Availability updated successfully')
       } else {
-        isNewEntry = true;
+//         isNewEntry = true;
         const response = await api.post('/tutor/profile/availability', payload)
         if (response.data.profileCompletion === 100) {
           setFeedback('Availability added • Profile now complete!')
