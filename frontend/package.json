@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:prod": "tsc && vite build --mode production",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "build:local": "tsc && vite build --mode local",
+    "preview": "vite preview",
+    "preview:local": "npm run build:local && vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
     "@lottiefiles/react-lottie-player": "^3.6.0",
