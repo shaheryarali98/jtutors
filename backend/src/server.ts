@@ -25,8 +25,7 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
   'https://jtutors.com',
   'http://localhost:3000',
-  'http://localhost:5173', // Vite dev server default port
-  'http://localhost:4173' // Vite preview server default port
+  'http://localhost:5173' // Vite default port
 ].filter(Boolean); // Remove undefined values
 
 const corsOptions = {

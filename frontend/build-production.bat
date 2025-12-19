@@ -26,12 +26,6 @@ call npm run build
 
 if %ERRORLEVEL% EQU 0 (
     echo.
-    echo [INFO] Copying .htaccess to dist folder...
-    if exist ".htaccess" (
-        copy /Y ".htaccess" "dist\.htaccess" >nul
-        echo [OK] .htaccess copied to dist folder
-    )
-    echo.
     echo ========================================
     echo   Build Successful! 
     echo ========================================
@@ -40,10 +34,7 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     echo Next steps:
     echo 1. Upload the contents of dist\ to your hosting
-    echo 2. For Apache servers: Ensure .htaccess is in dist\ folder
-    echo 3. For Netlify: _redirects file is automatically included
-    echo 4. For Vercel: vercel.json handles routing
-    echo 5. Deploy to your hosting platform
+    echo 2. Deploy to https://jtutors.com
     echo.
 ) else (
     echo.
