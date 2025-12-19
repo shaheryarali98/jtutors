@@ -8,7 +8,14 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const filePath = `/uploads/profile-images/${file.filename}`;
+    // Get the backend base URL from environment or construct from request
+    const backendUrl = process.env.BACKEND_URL || 
+                      process.env.API_URL || 
+                      (req.protocol + '://' + req.get('host'));
+    
+    // Return full URL for the uploaded image
+    // Static files are served at /uploads, not /api/uploads
+    const filePath = `${backendUrl}/uploads/profile-images/${file.filename}`;
 
     res.status(201).json({
       message: 'Profile image uploaded successfully',
