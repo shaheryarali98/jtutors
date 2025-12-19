@@ -93,9 +93,9 @@ const Availability = ({ onSaveSuccess }: AvailabilityProps) => {
       }
       
       // 3. Execute the navigation callback only upon successfully ADDING a new item
-      if (isNewEntry) {
-        onSaveSuccess();
-      }
+//       if (isNewEntry) {
+//         onSaveSuccess();
+//       }
 
       await fetchAvailabilities()
       reset()
