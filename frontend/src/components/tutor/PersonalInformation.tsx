@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../lib/api";
 import { LANGUAGE_OPTIONS } from "../../constants/options";
 import { usePlatformSettings } from "../../store/settingsStore";
+import { resolveImageUrl } from "../../lib/media";
 
 interface PersonalInformationProps {
   onSaveSuccess: () => void;
@@ -121,10 +122,6 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
       const newImageUrl = response.data.url;
       console.log("Upload successful. Image URL:", newImageUrl);
 
-      // DIRECT TEST: Try to access the image immediately
-      const testUrl = `http://localhost:5000${newImageUrl}`;
-      console.log("Testing image URL:", testUrl);
-
       // Set the image URL with cache busting to force reload
       const timestamp = Date.now();
       const imageUrlWithCache = `${newImageUrl}?v=${timestamp}`;
@@ -163,15 +160,8 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
       return profileImage;
     }
 
-    // For relative URLs, prepend the backend URL
-    // Since your frontend is on port 3000 and backend on 5000
-    const backendUrl = "http://localhost:5000";
-
-    // Make sure the URL is absolute
-    const absoluteUrl = profileImage.startsWith("/")
-      ? `${backendUrl}${profileImage}`
-      : `${backendUrl}/${profileImage}`;
-
+    // Use resolveImageUrl to get the proper API URL (works in both dev and production)
+    const absoluteUrl = resolveImageUrl(profileImage);
     console.log("Generated image URL:", absoluteUrl);
     return absoluteUrl;
   };
