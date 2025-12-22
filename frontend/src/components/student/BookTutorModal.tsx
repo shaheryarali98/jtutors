@@ -115,7 +115,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
         <div className="px-6 py-5 space-y-6">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center text-lg font-semibold text-primary-600">
-              {displayImage ? <img src={displayImage} alt={`${tutor.firstName}`} className="h-full w-full object-cover" /> : `${tutor.firstName.charAt(0)}${tutor.lastName.charAt(0)}`}
+              {displayImage ? <img src={displayImage} alt={`${tutor.firstName}`} className="h-full w-full object-cover" /> : `${tutor.firstName?.charAt(0)}${tutor.lastName.charAt(0)}`}
             </div>
             <div>
               <h3 className="text-lg font-semibold text-slate-900">
