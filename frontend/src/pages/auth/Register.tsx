@@ -14,7 +14,7 @@ interface RegisterForm {
 }
 
 const Register = () => {
-  const STUDENT_REGISTRATION_DISABLED = false
+  const STUDENT_REGISTRATION_DISABLED = true
   
   const [searchParams] = useSearchParams()
   const requestedRole = searchParams.get('role')?.toUpperCase() as RegisterForm['role'] | null
@@ -24,11 +24,11 @@ const Register = () => {
   )
   const defaultRole = requestedRole && ['TUTOR', 'STUDENT', 'ADMIN'].includes(requestedRole) 
     ? requestedRole
-    : 'STUDENT'
+    : 'TUTOR'
   
   const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>({
     defaultValues: {
-      role: defaultRole || 'STUDENT'
+      role: defaultRole || 'TUTOR'
     }
   })
   const [error, setError] = useState('')
