@@ -6,21 +6,21 @@ import TutorDashboard from './pages/tutor/TutorDashboard'
 import TutorProfile from './pages/tutor/TutorProfile'
 import TutorSessions from './pages/tutor/TutorSessions'
 import TutorEarnings from './pages/tutor/TutorEarnings'
-import StudentDashboard from './pages/student/StudentDashboard'
-import StudentProfile from './pages/student/StudentProfile'
-import SavedInstructors from './pages/student/SavedInstructors'
-import StudentBookings from './pages/student/Bookings'
-import StudentInvoices from './pages/student/Invoices'
-import StudentHourLog from './pages/student/HourLog'
-import StudentWallet from './pages/student/StudentWallet'
-import TutorDetailPage from './pages/student/TutorDetail'
-import BrowseTutors from './pages/student/BrowseTutors'
+// import StudentDashboard from './pages/student/StudentDashboard'
+// import StudentProfile from './pages/student/StudentProfile'
+// import SavedInstructors from './pages/student/SavedInstructors'
+// import StudentBookings from './pages/student/Bookings'
+// import StudentInvoices from './pages/student/Invoices'
+// import StudentHourLog from './pages/student/HourLog'
+// import StudentWallet from './pages/student/StudentWallet'
+// import TutorDetailPage from './pages/student/TutorDetail'
+// import BrowseTutors from './pages/student/BrowseTutors'
 import HomePage from './pages/HomePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import { User } from './store/authStore'
 
-import HowItWorksForStudents from './pages/how-it-works-for-student/page';
+// import HowItWorksForStudents from './pages/how-it-works-for-student/page';
 import HowItWorksForTutors from './pages/how-it-works-for-tutor/page'
 import FAQ from './pages/FAQ'
 
@@ -31,7 +31,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/how-it-works-for-students" element={<HowItWorksForStudents />} />
+        {/* <Route path="/how-it-works-for-students" element={<HowItWorksForStudents />} /> */}
         <Route path="/how-it-works-for-tutors" element={<HowItWorksForTutors />} />
         <Route path="/faq" element={<FAQ />} />
         <Route
@@ -46,7 +46,7 @@ function App() {
             user ? <Navigate to={resolveDefaultRoute(user)} /> : <Register />
           }
         />
-        
+
         {/* Tutor Routes */}
         <Route path="/tutor/dashboard" element={
           <ProtectedRoute role="TUTOR">
@@ -68,9 +68,9 @@ function App() {
             <TutorEarnings />
           </ProtectedRoute>
         } />
-        
+
         {/* Student Routes */}
-        <Route path="/student/dashboard" element={
+        {/* <Route path="/student/dashboard" element={
           <ProtectedRoute role="STUDENT">
             <StudentDashboard />
           </ProtectedRoute>
@@ -114,7 +114,7 @@ function App() {
           <ProtectedRoute role="STUDENT">
             <TutorDetailPage />
           </ProtectedRoute>
-        } />
+        } /> */}
 
         {/* Admin Routes */}
         <Route path="/admin/dashboard" element={
@@ -122,7 +122,7 @@ function App() {
             <AdminDashboard />
           </ProtectedRoute>
         } />
-        
+
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
@@ -132,7 +132,7 @@ function App() {
 const resolveDefaultRoute = (user: User) => {
   if (user.role === 'ADMIN') return '/admin/dashboard'
   if (user.role === 'TUTOR') return '/tutor/dashboard'
-  return '/student/dashboard'
+  return '/'
 }
 
 export default App

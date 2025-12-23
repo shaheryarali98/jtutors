@@ -2,15 +2,15 @@ import { useState } from 'react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import { Link } from 'react-router-dom'
-import { useAuthStore } from '../store/authStore'
+// import { useAuthStore } from '../store/authStore'
 import {
-  Search,
   ChevronRight,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
 import { faqs } from '../constants/faqs'
 
+/*
 const categoryOptions = [
   'Standardized Tests',
   'Mathematics',
@@ -24,8 +24,9 @@ const categoryOptions = [
   'Music / Art',
   'Other / Skills',
 ]
+*/
 
-const popularSearches = ['Languages', 'SAT Math', 'Jewish Studies', 'STEM Clubs']
+// const popularSearches = ['Languages', 'SAT Math', 'Jewish Studies', 'STEM Clubs']
 
 const featureHighlights = [
   {
@@ -60,6 +61,7 @@ const featureHighlights = [
   },
 ]
 
+/*
 const popularCategories = [
   {
     name: 'Languages',
@@ -82,19 +84,20 @@ const popularCategories = [
     topics: ['Web Development', 'Robotics', 'Game Design', 'Coding Bootcamps'],
   },
 ]
+*/
 
 const HomePage = () => {
-  const { user } = useAuthStore()
-  const browseTutorsUrl = user?.role === 'STUDENT' ? '/student/browse-tutors' : '/login'
+  // const { user } = useAuthStore()
+  // const browseTutorsUrl = user?.role === 'STUDENT' ? '/student/browse-tutors' : '/login'
   const [openFAQIndex, setOpenFAQIndex] = useState<number | null>(null)
-  
+
   const toggleFAQ = (index: number) => {
     setOpenFAQIndex(openFAQIndex === index ? null : index)
   }
-  
+
   // Show first 6 FAQs on homepage, rest can be viewed on FAQ page
   const featuredFAQs = faqs.slice(0, 6)
-  
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
@@ -103,81 +106,42 @@ const HomePage = () => {
         {/* Hero */}
         <section className="relative text-white" style={{ background: 'linear-gradient(to bottom right, #012c54, #014a7a, #016ba3)' }}>
           <div className="absolute inset-0 bg-grid-white/10" aria-hidden="true" />
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
-            <div className="grid lg:grid-cols-[3fr,2fr] gap-12 items-center">
-              <div>
-                <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-black leading-tight">
-                  Where Jewish Students and Tutors Connect
-                </h1>
-                <p className="mt-6 text-lg leading-relaxed text-white/90">
-                  JTutors connects students and families with trusted tutors who understand the academic
-                  needs of the Jewish community. Learn online, in person, or both — with a platform designed around
-                  your goals.
-                </p>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 text-center">
+            <div>
+              <h1 className="mt-6 text-4xl sm:text-5xl lg:text-7xl font-black leading-tight">
+                Empowering Expert Tutors in the Jewish Community
+              </h1>
+              <p className="mt-6 text-xl leading-relaxed text-white/90 max-w-3xl mx-auto">
+                Join our elite network of educators and professionals. JTutors provides the tools,
+                visibility, and support you need to build your tutoring practice effectively.
+              </p>
 
-                <div className="mt-10 rounded-3xl bg-white/95 p-6 shadow-xl">
-                  <form className="grid gap-4 lg:grid-cols-[2fr,2fr,auto]">
-                    <div className="flex flex-col">
-                      <label className="text-xs font-semibold uppercase text-slate-500">Select category</label>
-                      <select className="mt-2 rounded-xl border border-slate-200 px-4 py-3 text-slate-700 bg-white focus:outline-none focus:border-[#012c54]">
-                        <option value="">All Categories</option>
-                        {categoryOptions.map((category) => (
-                          <option key={category} value={category} className="text-slate-700">{category}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="text-xs font-semibold uppercase text-slate-500">Search keywords</label>
-                      <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 focus-within:border-[#012c54]">
-                        <Search className="h-5 w-5 text-slate-400" />
-                        <input
-                          type="text"
-                          placeholder="e.g. Hebrew, calculus, robotics"
-                          className="w-full bg-transparent text-slate-700 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                    <Link
-                      to={browseTutorsUrl}
-                      className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white shadow-lg hover:opacity-90 transition-opacity"
-                      style={{ backgroundColor: '#f5a11a' }}
-                    >
-                      Search now
-                      <ChevronRight className="h-5 w-5" />
-                    </Link>
-                  </form>
-
-                  <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                    <span className="font-semibold text-slate-600">Popular searches:</span>
-                    {popularSearches.map((item) => (
-                      <span key={item} className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                    </div>
-
-              <div className="hidden lg:block">
-                <div className="relative rounded-3xl bg-white/10 p-8 shadow-2xl backdrop-blur">
-                  <img
-                    src="https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&fit=crop&w=900&q=80"
-                    alt="JTutors community"
-                    className="h-full w-full rounded-2xl object-cover"
-                  />
-                </div>
+              <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Link
+                  to="/register?role=tutor"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-5 font-bold text-white shadow-2xl hover:scale-105 transition-all text-lg"
+                  style={{ backgroundColor: '#f5a11a' }}
+                >
+                  Become a Tutor
+                  <ChevronRight className="h-6 w-6" />
+                </Link>
+                <Link
+                  to="/how-it-works-for-tutors"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-5 font-bold text-white bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all text-lg"
+                >
+                  Learn More
+                </Link>
               </div>
             </div>
-        </div>
-      </section>
+          </div>
+        </section>
 
         {/* Platform Highlights */}
         <section className="bg-white py-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-black text-slate-900">JTutors – A Revolutionary Jewish Tutoring Platform</h2>
+            <h2 className="text-3xl font-black text-slate-900">Build Your Tutoring Career with JTutors</h2>
             <p className="mt-4 text-lg text-slate-600">
-              Find your perfect tutor today—online, in person, or both. JTutors makes tutoring seamless, affordable,
-              safe, and tailored to every learner.
+              The professional platform designed for high-impact educational growth.
             </p>
 
             <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -185,46 +149,6 @@ const HomePage = () => {
                 <div key={feature.title} className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-left shadow-sm">
                   <h3 className="text-lg font-bold text-slate-900">{feature.title}</h3>
                   <p className="mt-3 text-sm text-slate-600 leading-relaxed">{feature.description}</p>
-                      </div>
-              ))}
-                  </div>
-          </div>
-        </section>
-
-
-        {/* Popular categories */}
-        <section className="py-16 bg-white">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-3xl font-black text-slate-900">Choose from one of the popular categories below</h2>
-                <p className="mt-2 text-slate-600">
-                  Explore subjects taught by verified tutors who understand your academic and cultural priorities.
-                </p>
-              </div>
-              <Link
-                to={browseTutorsUrl}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-600 hover:border-[#012c54] hover:text-[#012c54] transition-colors"
-              >
-                Explore all tutors
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="mt-10 grid gap-8 sm:grid-cols-2">
-              {popularCategories.map((category) => (
-                <div key={category.name} className="rounded-3xl border border-slate-200 p-6 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-slate-900">{category.name}</h3>
-                    <span className="text-sm font-semibold" style={{ color: '#012c54' }}>{category.count}</span>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {category.topics.map((topic) => (
-                      <span key={topic} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                        {topic}
-                      </span>
-                    ))}
-                  </div>
                 </div>
               ))}
             </div>

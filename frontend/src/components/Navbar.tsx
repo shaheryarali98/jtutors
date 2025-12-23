@@ -27,7 +27,6 @@ const Navbar = () => {
 
   // Only two centered links
   const centerLinks = [
-    { to: '/how-it-works-for-students', label: 'How it Works For Students' },
     { to: '/how-it-works-for-tutors', label: 'How it Works For Tutors' },
   ]
 
@@ -59,23 +58,23 @@ const Navbar = () => {
   const currentRoleLinks = !user
     ? roleLinks.guest
     : user.role === 'ADMIN'
-    ? roleLinks.admin
-    : user.role === 'TUTOR'
-    ? roleLinks.tutor
-    : roleLinks.student
+      ? roleLinks.admin
+      : user.role === 'TUTOR'
+        ? roleLinks.tutor
+        : roleLinks.student
 
   return (
     <nav className="bg-white/95 backdrop-blur-xl sticky top-0 z-50 border-b border-violet-100 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-        <Link to="/" className="flex items-center">
-  <img
-    src="/logo-trans.png"
-    alt="JTutors Logo"
-    className="h-10 w-auto object-contain"
-    style={{ height: '11rem' }}
-  />
-</Link>
+          <Link to="/" className="flex items-center">
+            <img
+              src="/logo-trans.png"
+              alt="JTutors Logo"
+              className="h-10 w-auto object-contain"
+              style={{ height: '11rem' }}
+            />
+          </Link>
 
 
           {/* === CENTERED: Only 2 Links === */}
@@ -86,10 +85,9 @@ const Navbar = () => {
                   key={link.to}
                   to={link.to}
                   className={({ isActive }) =>
-                    `px-5 py-2.5 text-sm font-bold rounded-full transition-all duration-300 ${
-                      isActive
-                        ? 'text-white shadow-md'
-                        : 'text-slate-700 hover:bg-white/70'
+                    `px-5 py-2.5 text-sm font-bold rounded-full transition-all duration-300 ${isActive
+                      ? 'text-white shadow-md'
+                      : 'text-slate-700 hover:bg-white/70'
                     }`
                   }
                   style={({ isActive }) => isActive ? { backgroundColor: '#012c54' } : {}}
@@ -204,7 +202,7 @@ const Navbar = () => {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="lg:hidden bg-white border-t shadow-2xl"
-                    style={{ borderColor: '#b3d1e8' }}
+            style={{ borderColor: '#b3d1e8' }}
           >
             <div className="px-4 py-6 space-y-3">
               {/* Centered Links */}
@@ -214,10 +212,9 @@ const Navbar = () => {
                   to={link.to}
                   onClick={() => setMobileMenuOpen(false)}
                   className={({ isActive }) =>
-                    `block text-center py-3 px-6 text-sm font-bold rounded-full transition-all ${
-                      isActive
-                        ? 'text-white'
-                        : 'text-slate-700 hover:bg-slate-50'
+                    `block text-center py-3 px-6 text-sm font-bold rounded-full transition-all ${isActive
+                      ? 'text-white'
+                      : 'text-slate-700 hover:bg-slate-50'
                     }`
                   }
                   style={({ isActive }) => isActive ? { backgroundColor: '#012c54' } : {}}
