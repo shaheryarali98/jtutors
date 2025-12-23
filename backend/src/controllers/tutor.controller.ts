@@ -112,6 +112,7 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
     const {
       firstName,
       lastName,
+      email,
       gender,
       gradesCanTeach,
       hourlyFee,
@@ -124,6 +125,24 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
       languagesSpoken,
       profileImage
     } = req.body;
+
+    // ******* this validation block is added *******
+    if (email) {
+      // Check if email is already taken by another user
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email: email,
+          NOT: {
+            id: userId
+          }
+        }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ error: 'Email is already in use by another account' });
+      }
+    }
+    // ******* end of added validation block *******
 
     const parsedHourlyFee =
       hourlyFee === null || typeof hourlyFee === 'undefined' || hourlyFee === ''
@@ -146,6 +165,15 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
     if (!tutor) {
       return res.status(404).json({ error: 'Tutor profile not found' });
     }
+
+    // ******* this block is added - update user email if changed *******
+    if (email) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { email: email }
+      });
+    }
+    // ******* end of added block *******
 
     const updatedTutorRecord = await prisma.tutor.update({
       where: { id: tutor.id },
@@ -179,7 +207,6 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error updating personal information' });
   }
 };
-
 export const addExperience = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;

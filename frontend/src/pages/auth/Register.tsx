@@ -14,8 +14,7 @@ interface RegisterForm {
 }
 
 const Register = () => {
-  // TEMPORARY: Student registration disabled for 2 weeks - only tutors can sign up
-  const STUDENT_REGISTRATION_DISABLED = true
+  const STUDENT_REGISTRATION_DISABLED = false
   
   const [searchParams] = useSearchParams()
   const requestedRole = searchParams.get('role')?.toUpperCase() as RegisterForm['role'] | null
@@ -23,10 +22,9 @@ const Register = () => {
     () => (requestedRole === 'ADMIN' ? true : false),
     [requestedRole]
   )
-  // Default to TUTOR if student registration is disabled
   const defaultRole = requestedRole && ['TUTOR', 'STUDENT', 'ADMIN'].includes(requestedRole) 
-    ? (STUDENT_REGISTRATION_DISABLED && requestedRole === 'STUDENT' ? 'TUTOR' : requestedRole)
-    : 'TUTOR'
+    ? requestedRole
+    : 'STUDENT'
   
   const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>({
     defaultValues: {

@@ -90,6 +90,9 @@ const StudentProfile = () => {
   const [learningPreferences, setLearningPreferences] = useState<string[]>([])
   const { settings, fetchSettings } = usePlatformSettings()
   const navigate = useNavigate()
+  const [toastMessage, setToastMessage] = useState('')
+  const [toastVariant, setToastVariant] = useState<'success' | 'error'>('success')
+ 
 
   useEffect(() => {
     fetchSettings()
@@ -222,6 +225,9 @@ const StudentProfile = () => {
       setProfileCompleted(Boolean(response.data.profileCompleted))
       setProfileImage(response.data.student?.profileImage || profileImage)
       window.dispatchEvent(new Event('student-profile-updated'))
+      setToastVariant('success')
+      setToastMessage('Your profile has been saved')
+      setTimeout(() => setToastMessage(''), 3000)
 
       if (response.data.profileCompleted) {
         setTimeout(() => {
@@ -232,6 +238,9 @@ const StudentProfile = () => {
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update profile')
+      setToastVariant('error')
+      setToastMessage('Failed to save your profile')
+      setTimeout(() => setToastMessage(''), 3000)
     } finally {
       setLoading(false)
     }
@@ -587,6 +596,15 @@ const StudentProfile = () => {
           }
         }}
       />
+      {toastMessage && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 rounded-lg px-4 py-3 shadow-lg ${
+            toastVariant === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+          }`}
+        >
+          {toastMessage}
+        </div>
+      )}
       <Footer />
     </div>
   )

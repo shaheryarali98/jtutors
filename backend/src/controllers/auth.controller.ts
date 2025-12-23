@@ -18,19 +18,23 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const { email, password, role } = req.body;
-    const normalizedRole = typeof role === 'string' ? role.toUpperCase() : '';
+    const normalizedRole = typeof role === "string" ? role.toUpperCase() : "";
 
-    if (!['STUDENT', 'TUTOR', 'ADMIN'].includes(normalizedRole)) {
-      return res.status(400).json({ error: 'Role must be STUDENT, TUTOR or ADMIN' });
+    if (!["STUDENT", "TUTOR", "ADMIN"].includes(normalizedRole)) {
+      return res
+        .status(400)
+        .json({ error: "Role must be STUDENT, TUTOR or ADMIN" });
     }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists with this email' });
+      return res
+        .status(400)
+        .json({ error: "User already exists with this email" });
     }
 
     // Hash password
@@ -42,9 +46,15 @@ export const register = async (req: Request, res: Response) => {
       const settings = await getAdminSettings();
       shouldSendConfirmationEmail = settings.sendSignupConfirmation;
     } catch (settingsError) {
-      console.warn('Failed to fetch admin settings during registration, using defaults:', settingsError);
+      console.warn(
+        "Failed to fetch admin settings during registration, using defaults:",
+        settingsError
+      );
       // Continue with default settings
     }
+
+    // *************** MODIFIED: Auto-confirm ADMIN users only ***************
+    const isAdmin = normalizedRole === "ADMIN";
 
     // Create user with corresponding role profile
     const user = await prisma.user.create({
@@ -52,85 +62,91 @@ export const register = async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
         role: normalizedRole,
-        emailConfirmed: true,
-        ...(normalizedRole === 'TUTOR' && {
+        emailConfirmed: isAdmin, // ADMIN = true, others = false
+        ...(normalizedRole === "TUTOR" && {
           tutor: {
-            create: {}
-          }
+            create: {},
+          },
         }),
-        ...(normalizedRole === 'STUDENT' && {
+        ...(normalizedRole === "STUDENT" && {
           student: {
-            create: {}
-          }
-        })
+            create: {},
+          },
+        }),
       },
       include: {
         tutor: true,
-        student: true
-      }
+        student: true,
+      },
     });
 
-    if (shouldSendConfirmationEmail) {
-      sendTemplatedEmail('SIGNUP_SUCCESS', email, {
+    if (shouldSendConfirmationEmail && !isAdmin) {
+      // Only send confirmation email to non-admin users
+      sendTemplatedEmail("SIGNUP_SUCCESS", email, {
         userName: email,
         email: email,
       }).catch((emailErr) => {
-        console.error('Failed to send signup confirmation email:', emailErr);
+        console.error("Failed to send signup confirmation email:", emailErr);
       });
     }
 
     // Generate JWT token
     if (!process.env.JWT_SECRET) {
-      console.error('JWT_SECRET is not set in environment variables');
-      return res.status(500).json({ error: 'Server configuration error' });
+      console.error("JWT_SECRET is not set in environment variables");
+      return res.status(500).json({ error: "Server configuration error" });
     }
-    
+
     const token = jwt.sign(
       { userId: user.id, role: user.role as UserRole },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: "7d" }
     );
 
     res.status(201).json({
-      message: shouldSendConfirmationEmail
-        ? 'User registered successfully. A confirmation email has been sent.'
-        : 'User registered successfully',
+      message: isAdmin
+        ? "Admin account created successfully."
+        : shouldSendConfirmationEmail
+        ? "User registered successfully. Please check your email to confirm your account."
+        : "User registered successfully. Please wait for admin approval.",
       token,
       user: {
         id: user.id,
         email: user.email,
         role: user.role,
-        emailConfirmed: user.emailConfirmed
-      }
+        emailConfirmed: user.emailConfirmed,
+      },
     });
   } catch (error: any) {
-    console.error('Registration error:', error);
-    console.error('Error details:', {
+    console.error("Registration error:", error);
+    console.error("Error details:", {
       message: error?.message,
       code: error?.code,
       meta: error?.meta,
-      stack: error?.stack
+      stack: error?.stack,
     });
-    
+
     // Provide more specific error messages
-    if (error?.code === 'P2002') {
+    if (error?.code === "P2002") {
       // Prisma unique constraint violation
-      return res.status(400).json({ error: 'User already exists with this email' });
+      return res
+        .status(400)
+        .json({ error: "User already exists with this email" });
     }
-    
-    if (error?.code === 'P2025') {
+
+    if (error?.code === "P2025") {
       // Prisma record not found
-      return res.status(404).json({ error: 'Required resource not found' });
+      return res.status(404).json({ error: "Required resource not found" });
     }
-    
+
     // Generic error response with more detail in development
-    const errorMessage = process.env.NODE_ENV === 'production' 
-      ? 'Error during registration. Please try again or contact support.'
-      : error?.message || 'Error during registration';
-    
-    res.status(500).json({ 
+    const errorMessage =
+      process.env.NODE_ENV === "production"
+        ? "Error during registration. Please try again or contact support."
+        : error?.message || "Error during registration";
+
+    res.status(500).json({
       error: errorMessage,
-      ...(process.env.NODE_ENV !== 'production' && { details: error?.message })
+      ...(process.env.NODE_ENV !== "production" && { details: error?.message }),
     });
   }
 };

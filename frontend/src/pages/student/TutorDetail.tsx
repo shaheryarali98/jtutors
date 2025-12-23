@@ -55,7 +55,7 @@ const TutorDetailPage = () => {
   const [error, setError] = useState('')
   const [bookingModalOpen, setBookingModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-
+console.log("tutor details ,",tutor)
   const fetchTutor = async () => {
     if (!tutorId) return
     try {
@@ -140,16 +140,16 @@ const TutorDetailPage = () => {
           <div className="px-6 md:px-10 pb-10 -mt-16">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
               <div className="flex items-start gap-5">
-                <div className="h-28 w-28 rounded-3xl border-4 border-white shadow-lg bg-white overflow-hidden flex items-center justify-center text-2xl font-semibold text-primary-600">
+                <div className="h-28 w-28 rounded-3xl z-50 border-4 border-white shadow-lg bg-white overflow-hidden flex items-center justify-center text-2xl font-semibold text-primary-600">
                   {profileImage ? (
                     <img src={profileImage} alt={`${tutor.firstName}`} className="h-full w-full object-cover" />
                   ) : (
-                    `${tutor.firstName.charAt(0)}${tutor.lastName.charAt(0)}`
+                    `${tutor.firstName?.charAt(0)}${tutor.lastName?.charAt(0)}`
                   )}
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-slate-900">
-                    {tutor.firstName} {tutor.lastName}
+                    {tutor.firstName  } {tutor.lastName}
                   </h1>
                   <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-slate-500">
                     <span className="inline-flex items-center gap-1">
