@@ -243,11 +243,10 @@ const BrowseTutors = () => {
             {/* Filter Toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
-                showFilters
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${showFilters
                   ? 'text-white shadow-lg'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
+                }`}
               style={showFilters ? { backgroundColor: '#012c54' } : {}}
             >
               <Filter className="w-5 h-5" />
@@ -444,9 +443,8 @@ const BrowseTutors = () => {
                     <button
                       onClick={() => handleSaveTutor(tutor)}
                       disabled={isSaving}
-                      className={`absolute top-4 right-4 rounded-full p-2.5 shadow-lg bg-white/90 backdrop-blur-sm transition-all hover:scale-110 ${
-                        tutor.saved ? 'text-[#f5a11a]' : 'text-slate-400 hover:text-[#f5a11a]'
-                      }`}
+                      className={`absolute top-4 right-4 rounded-full p-2.5 shadow-lg bg-white/90 backdrop-blur-sm transition-all hover:scale-110 ${tutor.saved ? 'text-[#f5a11a]' : 'text-slate-400 hover:text-[#f5a11a]'
+                        }`}
                       aria-label={tutor.saved ? 'Remove from saved' : 'Save tutor'}
                     >
                       {tutor.saved ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
