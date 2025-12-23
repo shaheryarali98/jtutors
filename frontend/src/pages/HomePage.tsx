@@ -4,13 +4,13 @@ import Footer from '../components/Footer'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import {
-  Search,
   ChevronRight,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
 import { faqs } from '../constants/faqs'
 
+/*
 const categoryOptions = [
   'Standardized Tests',
   'Mathematics',
@@ -24,8 +24,9 @@ const categoryOptions = [
   'Music / Art',
   'Other / Skills',
 ]
+*/
 
-const popularSearches = ['Languages', 'SAT Math', 'Jewish Studies', 'STEM Clubs']
+// const popularSearches = ['Languages', 'SAT Math', 'Jewish Studies', 'STEM Clubs']
 
 const featureHighlights = [
   {
@@ -60,6 +61,7 @@ const featureHighlights = [
   },
 ]
 
+/*
 const popularCategories = [
   {
     name: 'Languages',
@@ -82,10 +84,11 @@ const popularCategories = [
     topics: ['Web Development', 'Robotics', 'Game Design', 'Coding Bootcamps'],
   },
 ]
+*/
 
 const HomePage = () => {
-  const { user } = useAuthStore()
-  const browseTutorsUrl = user?.role === 'STUDENT' ? '/student/browse-tutors' : '/login'
+  // const { user } = useAuthStore()
+  // const browseTutorsUrl = user?.role === 'STUDENT' ? '/student/browse-tutors' : '/login'
   const [openFAQIndex, setOpenFAQIndex] = useState<number | null>(null)
 
   const toggleFAQ = (index: number) => {
