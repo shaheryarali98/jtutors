@@ -42,19 +42,19 @@ const calculateProfileCompletion = (payload: {
 }) => {
   return Boolean(
     payload.firstName &&
-      payload.lastName &&
-      payload.profileImage &&
-      payload.gender &&
-      payload.grade &&
-      payload.bio &&
-      payload.country &&
-      payload.city &&
-      payload.address &&
-      payload.zipcode &&
-      payload.languages.length > 0 &&
-      payload.learningPreferences.length > 0 &&
-      payload.introduction &&
-      payload.tagline
+    payload.lastName &&
+    payload.profileImage &&
+    payload.gender &&
+    payload.grade &&
+    payload.bio &&
+    payload.country &&
+    payload.city &&
+    payload.address &&
+    payload.zipcode &&
+    payload.languages.length > 0 &&
+    payload.learningPreferences.length > 0 &&
+    payload.introduction &&
+    payload.tagline
   );
 };
 
@@ -324,9 +324,9 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Student profile not found' });
     }
 
-    if (!student.profileCompleted) {
-      return res.status(400).json({ error: 'Complete your profile before booking a tutor' });
-    }
+    // if (!student.profileCompleted) {
+    //   return res.status(400).json({ error: 'Complete your profile before booking a tutor' });
+    // }
 
     const tutor = await prisma.tutor.findUnique({
       where: { id: tutorId },
@@ -572,7 +572,7 @@ export const removeSavedInstructor = async (req: Request, res: Response) => {
           tutorId,
         },
       },
-    }).catch(() => {});
+    }).catch(() => { });
 
     res.json({ message: 'Instructor removed from saved list' });
   } catch (error) {
