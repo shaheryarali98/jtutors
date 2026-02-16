@@ -13,6 +13,7 @@ import withdrawalRoutes from './routes/withdrawal.routes';
 import classSessionRoutes from './routes/classSession.routes';
 import emailTemplateRoutes from './routes/emailTemplate.routes';
 import settingsRoutes from './routes/settings.routes';
+import checkrRoutes from './routes/checkr.routes';
 import { handleStripeWebhook } from './controllers/stripe.webhook.controller';
 
 dotenv.config();
@@ -67,6 +68,11 @@ app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/class-sessions', classSessionRoutes);
 app.use('/api/email-templates', emailTemplateRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/checkr', checkrRoutes);
+
+// Public API: approved tutors (no auth required)
+import { getPublicTutors } from './controllers/admin.controller';
+app.get('/api/public/tutors', getPublicTutors);
 
 // Health check
 app.get('/health', (req, res) => {

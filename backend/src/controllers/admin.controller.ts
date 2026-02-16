@@ -83,8 +83,25 @@ export const listUsers = async (req: Request, res: Response) => {
   try {
     const users = await prisma.user.findMany({
       include: {
-        tutor: true,
-        student: true
+        tutor: {
+          include: {
+            backgroundCheck: {
+              select: {
+                status: true,
+                checkrStatus: true,
+                checkrCompletedAt: true,
+              }
+            }
+          }
+        },
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profileCompleted: true,
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
@@ -459,6 +476,128 @@ export const getGoogleClassroomStatusAdmin = async (_req: Request, res: Response
   } catch (error) {
     console.error('Get Google Classroom status error:', error);
     res.status(500).json({ error: 'Error fetching Google Classroom status' });
+  }
+};
+
+export const getUserDetail = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        tutor: {
+          include: {
+            experiences: true,
+            educations: true,
+            subjects: { include: { subject: true } },
+            availabilities: true,
+            backgroundCheck: true,
+          },
+        },
+        student: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { password, ...safeUser } = user;
+
+    // Parse JSON-string arrays for the frontend
+    if (safeUser.tutor) {
+      const t = safeUser.tutor as any;
+      const tryParse = (v: any) => {
+        if (Array.isArray(v)) return v;
+        if (!v) return [];
+        try { return JSON.parse(v); } catch { return []; }
+      };
+      t.gradesCanTeach = tryParse(t.gradesCanTeach);
+      t.languagesSpoken = tryParse(t.languagesSpoken);
+      if (t.availabilities) {
+        t.availabilities = t.availabilities.map((a: any) => ({
+          ...a,
+          daysAvailable: tryParse(a.daysAvailable),
+        }));
+      }
+    }
+
+    if (safeUser.student) {
+      const s = safeUser.student as any;
+      const tryParse = (v: any) => {
+        if (Array.isArray(v)) return v;
+        if (!v) return [];
+        try { return JSON.parse(v); } catch { return []; }
+      };
+      s.languagesSpoken = tryParse(s.languagesSpoken);
+      s.learningPreferences = tryParse(s.learningPreferences);
+    }
+
+    res.json({ user: safeUser });
+  } catch (error) {
+    console.error('Get user detail error:', error);
+    res.status(500).json({ error: 'Error fetching user details' });
+  }
+};
+
+export const getPublicTutors = async (req: Request, res: Response) => {
+  try {
+    const { subject, city, state, country, limit } = req.query;
+
+    const tutors = await prisma.tutor.findMany({
+      where: {
+        profileCompleted: true,
+        user: { emailConfirmed: true },
+        ...(city && { city: city as string }),
+        ...(state && { state: state as string }),
+        ...(country && { country: country as string }),
+        ...(subject && {
+          subjects: {
+            some: {
+              subject: { name: subject as string },
+            },
+          },
+        }),
+      },
+      include: {
+        subjects: { include: { subject: true } },
+        experiences: true,
+        educations: true,
+        user: { select: { email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit ? parseInt(limit as string) : 12,
+    });
+
+    const formatted = tutors.map((tutor) => {
+      const tryParse = (v: any) => {
+        if (Array.isArray(v)) return v;
+        if (!v) return [];
+        try { return JSON.parse(v); } catch { return []; }
+      };
+      return {
+        id: tutor.id,
+        firstName: tutor.firstName,
+        lastName: tutor.lastName,
+        profileImage: tutor.profileImage,
+        tagline: tutor.tagline,
+        hourlyFee: tutor.hourlyFee,
+        city: tutor.city,
+        state: tutor.state,
+        country: tutor.country,
+        languagesSpoken: tryParse(tutor.languagesSpoken),
+        gradesCanTeach: tryParse(tutor.gradesCanTeach),
+        subjects: tutor.subjects.map((ts) => ts.subject.name),
+        experienceCount: tutor.experiences.length,
+        educationCount: tutor.educations.length,
+      };
+    });
+
+    res.json({ tutors: formatted });
+  } catch (error) {
+    console.error('Get public tutors error:', error);
+    res.status(500).json({ error: 'Error fetching tutors' });
   }
 };
 

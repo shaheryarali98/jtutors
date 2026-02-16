@@ -6,15 +6,15 @@ import TutorDashboard from './pages/tutor/TutorDashboard'
 import TutorProfile from './pages/tutor/TutorProfile'
 import TutorSessions from './pages/tutor/TutorSessions'
 import TutorEarnings from './pages/tutor/TutorEarnings'
-// import StudentDashboard from './pages/student/StudentDashboard'
-// import StudentProfile from './pages/student/StudentProfile'
-// import SavedInstructors from './pages/student/SavedInstructors'
-// import StudentBookings from './pages/student/Bookings'
-// import StudentInvoices from './pages/student/Invoices'
-// import StudentHourLog from './pages/student/HourLog'
-// import StudentWallet from './pages/student/StudentWallet'
-// import TutorDetailPage from './pages/student/TutorDetail'
-// import BrowseTutors from './pages/student/BrowseTutors'
+import StudentDashboard from './pages/student/StudentDashboard'
+import StudentProfile from './pages/student/StudentProfile'
+import SavedInstructors from './pages/student/SavedInstructors'
+import StudentBookings from './pages/student/Bookings'
+import StudentInvoices from './pages/student/Invoices'
+import StudentHourLog from './pages/student/HourLog'
+import StudentWallet from './pages/student/StudentWallet'
+import TutorDetailPage from './pages/student/TutorDetail'
+import BrowseTutors from './pages/student/BrowseTutors'
 import HomePage from './pages/HomePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -70,7 +70,7 @@ function App() {
         } />
 
         {/* Student Routes */}
-        {/* <Route path="/student/dashboard" element={
+        <Route path="/student/dashboard" element={
           <ProtectedRoute role="STUDENT">
             <StudentDashboard />
           </ProtectedRoute>
@@ -114,7 +114,7 @@ function App() {
           <ProtectedRoute role="STUDENT">
             <TutorDetailPage />
           </ProtectedRoute>
-        } /> */}
+        } />
 
         {/* Admin Routes */}
         <Route path="/admin/dashboard" element={
@@ -132,6 +132,7 @@ function App() {
 const resolveDefaultRoute = (user: User) => {
   if (user.role === 'ADMIN') return '/admin/dashboard'
   if (user.role === 'TUTOR') return '/tutor/dashboard'
+  if (user.role === 'STUDENT') return '/student/dashboard'
   return '/'
 }
 
