@@ -199,7 +199,15 @@ model BackgroundCheck {
   consentGiven      Boolean
   comments          String?
   
-  status            String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  // Checkr integration fields
+  checkrCandidateId  String?   // Checkr candidate ID
+  checkrInvitationId String?   // Checkr invitation ID
+  checkrInvitationUrl String?  // URL for candidate to complete Checkr flow
+  checkrReportId     String?   // Checkr report ID (populated after report is created)
+  checkrStatus       String?   // Raw Checkr status: pending, clear, consider, suspended, etc.
+  checkrCompletedAt  DateTime? // When Checkr finished processing
+
+  status            String   @default("PENDING") // PENDING, APPROVED, REJECTED, REVIEW, EXPIRED
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

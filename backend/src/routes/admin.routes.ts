@@ -14,6 +14,7 @@ import {
   confirmPaymentAdmin,
   refundPaymentAdmin,
   getGoogleClassroomStatusAdmin,
+  getUserDetail,
 } from '../controllers/admin.controller';
 
 const router = express.Router();
@@ -37,6 +38,7 @@ router.post('/payments/:id/confirm', confirmPaymentAdmin);
 router.post('/payments/:id/refund', refundPaymentAdmin);
 
 router.get('/integrations/google-classroom/status', getGoogleClassroomStatusAdmin);
+router.get('/users/:id/detail', getUserDetail);
 
 export default router;
 

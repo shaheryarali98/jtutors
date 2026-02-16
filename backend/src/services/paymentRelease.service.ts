@@ -66,19 +66,19 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
 
     // Calculate actual amount based on hours taught
     let amountToTransfer = payment.tutorAmount;
-    
+
     if (classSession.actualHoursTaught && classSession.actualHoursTaught > 0) {
       // Calculate hourly rate from booking
       const booking = classSession.booking;
       const scheduledHours = (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60);
       const hourlyRate = scheduledHours > 0 ? payment.amount / scheduledHours : payment.amount;
-      
+
       // Use actual hours taught if provided, otherwise use scheduled hours
       const hoursToPay = classSession.actualHoursTaught;
       const totalForHours = hourlyRate * hoursToPay;
-      
+
       // Calculate tutor's portion based on commission
-      const commission = await import('./payment.service').then(m => 
+      const commission = await import('./payment.service').then(m =>
         m.calculateCommission(totalForHours)
       );
       amountToTransfer = commission.tutorAmount;

@@ -33,6 +33,7 @@ router.delete('/profile/availability/:id', tutorController.deleteAvailability);
 
 // Background Check
 router.post('/profile/background-check', tutorController.submitBackgroundCheck);
+router.get('/profile/background-check/refresh', tutorController.refreshBackgroundCheckStatus);
 
 // Stripe
 router.post('/stripe/connect', tutorController.createStripeConnectAccount);

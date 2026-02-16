@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import api from '../../lib/api'
 import { UserRole } from '../../store/authStore'
@@ -8,6 +9,20 @@ import {
   ExternalLink,
   Plus,
   Trash2,
+  Eye,
+  X,
+  User as UserIcon,
+  GraduationCap,
+  Briefcase,
+  BookOpen,
+  Clock,
+  Shield,
+  MapPin,
+  DollarSign,
+  Mail,
+  Calendar,
+  Search,
+  Filter,
 } from 'lucide-react'
 
 interface AnalyticsPayload {
@@ -65,8 +80,93 @@ interface AdminUser {
   role: UserRole
   createdAt: string
   emailConfirmed?: boolean
-  tutor?: { id: string | null }
-  student?: { id: string | null }
+  tutor?: {
+    id: string | null
+    firstName?: string | null
+    lastName?: string | null
+    profileCompletionPercentage?: number
+    profileCompleted?: boolean
+    backgroundCheck?: {
+      status: string
+      checkrStatus?: string | null
+      checkrCompletedAt?: string | null
+    } | null
+  }
+  student?: {
+    id: string | null
+    firstName?: string | null
+    lastName?: string | null
+    profileCompleted?: boolean
+  }
+}
+
+interface DetailedUser {
+  id: string
+  email: string
+  role: UserRole
+  createdAt: string
+  emailConfirmed?: boolean
+  tutor?: {
+    id: string
+    firstName?: string | null
+    lastName?: string | null
+    gender?: string | null
+    gradesCanTeach?: string[]
+    hourlyFee?: number | null
+    tagline?: string | null
+    country?: string | null
+    state?: string | null
+    city?: string | null
+    address?: string | null
+    zipcode?: string | null
+    languagesSpoken?: string[]
+    profileImage?: string | null
+    stripeOnboarded?: boolean
+    profileCompletionPercentage?: number
+    profileCompleted?: boolean
+    experiences?: Array<{
+      id: string; jobTitle: string; company: string; location: string;
+      startDate: string; endDate?: string | null; isCurrent: boolean;
+      teachingMode: string; description?: string | null;
+    }>
+    educations?: Array<{
+      id: string; degreeTitle: string; university: string; location: string;
+      startDate: string; endDate?: string | null; isOngoing: boolean;
+    }>
+    subjects?: Array<{ id: string; subject: { id: string; name: string } }>
+    availabilities?: Array<{
+      id: string; blockTitle: string; daysAvailable: string[];
+      startTime: string; endTime: string; breakTime: number;
+      sessionDuration: number; numberOfSlots: number;
+    }>
+    backgroundCheck?: {
+      id: string; status: string; fullLegalFirstName: string; fullLegalLastName: string;
+      otherNamesUsed?: string | null; addressLine1: string; addressLine2?: string | null;
+      city: string; stateProvinceRegion: string; postalCode: string; country: string;
+      livedMoreThan3Years: boolean; dateOfBirth: string; hasUSDriverLicense: boolean;
+      email: string; consentGiven: boolean; comments?: string | null;
+      checkrStatus?: string | null; checkrCompletedAt?: string | null;
+    } | null
+  }
+  student?: {
+    id: string
+    firstName?: string | null
+    lastName?: string | null
+    profileImage?: string | null
+    gender?: string | null
+    grade?: string | null
+    tagline?: string | null
+    bio?: string | null
+    country?: string | null
+    state?: string | null
+    city?: string | null
+    address?: string | null
+    zipcode?: string | null
+    languagesSpoken?: string[]
+    learningPreferences?: string[]
+    introduction?: string | null
+    profileCompleted?: boolean
+  }
 }
 
 interface Withdrawal {
@@ -167,8 +267,18 @@ type AdminTab =
   | 'integrations'
 
 const AdminDashboard = () => {
+  const location = useLocation()
   const [activeTab, setActiveTab] = useState<AdminTab>('overview')
   const [analytics, setAnalytics] = useState<AnalyticsPayload['analytics'] | null>(null)
+
+  // Handle hash-based navigation for tabs
+  useEffect(() => {
+    const hash = location.hash.replace('#', '')
+    const validTabs: AdminTab[] = ['overview', 'hires', 'users', 'subjects', 'settings', 'withdrawals', 'classes', 'emails', 'integrations']
+    if (hash && validTabs.includes(hash as AdminTab)) {
+      setActiveTab(hash as AdminTab)
+    }
+  }, [location.hash])
   const [settings, setSettings] = useState<AdminSettings | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
@@ -189,6 +299,10 @@ const AdminDashboard = () => {
   const [subjectEditingId, setSubjectEditingId] = useState<string | null>(null)
   const [subjectEditingName, setSubjectEditingName] = useState('')
   const [withdrawMethodsDraft, setWithdrawMethodsDraft] = useState('')
+  const [selectedUserDetail, setSelectedUserDetail] = useState<DetailedUser | null>(null)
+  const [loadingUserDetail, setLoadingUserDetail] = useState(false)
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL')
 
   useEffect(() => {
     const loadCore = async () => {
@@ -365,6 +479,32 @@ const AdminDashboard = () => {
       setUpdatingUserId(null)
     }
   }
+
+  const handleViewUser = async (userId: string) => {
+    try {
+      setLoadingUserDetail(true)
+      const res = await api.get<{ user: DetailedUser }>(`/admin/users/${userId}/detail`)
+      setSelectedUserDetail(res.data.user)
+    } catch (err) {
+      console.error('Error fetching user detail:', err)
+      setError('Unable to load user details.')
+    } finally {
+      setLoadingUserDetail(false)
+    }
+  }
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      const matchesSearch = !userSearchQuery ||
+        u.email.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+        u.tutor?.firstName?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+        u.tutor?.lastName?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+        u.student?.firstName?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+        u.student?.lastName?.toLowerCase().includes(userSearchQuery.toLowerCase())
+      const matchesRole = userRoleFilter === 'ALL' || u.role === userRoleFilter
+      return matchesSearch && matchesRole
+    })
+  }, [users, userSearchQuery, userRoleFilter])
 
   const handleApproveWithdrawal = async (id: string) => {
     try {
@@ -805,26 +945,64 @@ const AdminDashboard = () => {
               <section className="bg-white rounded-3xl shadow p-6">
                 <div className="mb-6">
                   <h2 className="text-xl font-semibold text-slate-900">User Directory</h2>
-                  <p className="text-sm text-slate-500">Manage roles, confirmation status, and remove accounts.</p>
+                  <p className="text-sm text-slate-500">Manage roles, view profiles, and review accounts before approval.</p>
+                </div>
+
+                {/* Search and Filter Bar */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      placeholder="Search by email or name..."
+                      className="input pl-10 w-full"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-slate-400" />
+                    <select
+                      value={userRoleFilter}
+                      onChange={(e) => setUserRoleFilter(e.target.value)}
+                      className="input text-sm"
+                    >
+                      <option value="ALL">All Roles</option>
+                      <option value="ADMIN">Admin</option>
+                      <option value="TUTOR">Tutor</option>
+                      <option value="STUDENT">Student</option>
+                    </select>
+                  </div>
+                  <div className="text-sm text-slate-500 self-center">
+                    {filteredUsers.length} of {users.length} users
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-200 text-sm">
                     <thead className="bg-slate-50">
                       <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        <th className="px-4 py-3">Email</th>
+                        <th className="px-4 py-3">User</th>
                         <th className="px-4 py-3">Role</th>
+                        <th className="px-4 py-3">Profile</th>
+                        <th className="px-4 py-3">BG Check</th>
                         <th className="px-4 py-3">Email Confirmed</th>
                         <th className="px-4 py-3">Created</th>
                         <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {users.map((user) => (
+                      {filteredUsers.map((user) => {
+                        const name = user.tutor?.firstName || user.student?.firstName
+                          ? `${user.tutor?.firstName || user.student?.firstName || ''} ${user.tutor?.lastName || user.student?.lastName || ''}`.trim()
+                          : null
+                        const completion = user.tutor?.profileCompletionPercentage
+                        return (
                         <tr key={user.id} className="hover:bg-slate-50/60">
                           <td className="px-4 py-3">
                             <div className="font-medium text-slate-900">{user.email}</div>
-                            <div className="text-xs text-slate-500 uppercase tracking-wide">
+                            {name && <div className="text-xs text-slate-600">{name}</div>}
+                            <div className="text-xs text-slate-400 uppercase tracking-wide">
                               {user.tutor ? 'Tutor profile' : user.student ? 'Student profile' : 'No profile yet'}
                             </div>
                           </td>
@@ -839,6 +1017,51 @@ const AdminDashboard = () => {
                               <option value="TUTOR">Tutor</option>
                               <option value="STUDENT">Student</option>
                             </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            {completion !== undefined && completion !== null ? (
+                              <div className="w-24">
+                                <div className="flex items-center justify-between text-xs mb-1">
+                                  <span className={completion === 100 ? 'text-green-600 font-semibold' : 'text-slate-500'}>{completion}%</span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-1.5">
+                                  <div
+                                    className={`h-1.5 rounded-full ${completion === 100 ? 'bg-green-500' : completion >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                                    style={{ width: `${completion}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ) : user.student?.profileCompleted ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Complete</span>
+                            ) : user.student ? (
+                              <span className="text-xs text-amber-600">Incomplete</span>
+                            ) : (
+                              <span className="text-xs text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {user.tutor?.backgroundCheck ? (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                user.tutor.backgroundCheck.status === 'APPROVED'
+                                  ? 'bg-green-100 text-green-700'
+                                  : user.tutor.backgroundCheck.status === 'REJECTED'
+                                  ? 'bg-red-100 text-red-700'
+                                  : user.tutor.backgroundCheck.status === 'REVIEW'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : user.tutor.backgroundCheck.status === 'EXPIRED'
+                                  ? 'bg-gray-100 text-gray-600'
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {user.tutor.backgroundCheck.status}
+                                {user.tutor.backgroundCheck.checkrStatus && (
+                                  <span className="ml-1 opacity-60">({user.tutor.backgroundCheck.checkrStatus})</span>
+                                )}
+                              </span>
+                            ) : user.tutor ? (
+                              <span className="text-xs text-slate-400">Not submitted</span>
+                            ) : (
+                              <span className="text-xs text-slate-300">—</span>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <label className="inline-flex items-center gap-2 text-sm text-slate-600">
@@ -857,20 +1080,30 @@ const AdminDashboard = () => {
                             {new Date(user.createdAt).toLocaleDateString()}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="text-sm font-semibold text-red-500 hover:text-red-600"
-                              disabled={updatingUserId === user.id}
-                            >
-                              Delete
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleViewUser(user.id)}
+                                className="inline-flex items-center gap-1 text-sm font-semibold text-primary-600 hover:text-primary-700"
+                                title="View full profile"
+                              >
+                                <Eye className="h-4 w-4" /> View
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="text-sm font-semibold text-red-500 hover:text-red-600"
+                                disabled={updatingUserId === user.id}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
-                      ))}
-                      {users.length === 0 && (
+                        )
+                      })}
+                      {filteredUsers.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-6 text-center text-slate-500 text-sm">
-                            No users found.
+                          <td colSpan={7} className="px-4 py-6 text-center text-slate-500 text-sm">
+                            {userSearchQuery || userRoleFilter !== 'ALL' ? 'No users match your filters.' : 'No users found.'}
                           </td>
                         </tr>
                       )}
@@ -1594,9 +1827,309 @@ const AdminDashboard = () => {
           </div>
         )}
       </main>
+
+      {/* User Detail Modal */}
+      {(selectedUserDetail || loadingUserDetail) && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 pb-10 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedUserDetail(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl mx-4 z-10">
+            {loadingUserDetail ? (
+              <div className="p-12 text-center text-slate-500">Loading user details…</div>
+            ) : selectedUserDetail ? (
+              <UserDetailPanel user={selectedUserDetail} onClose={() => setSelectedUserDetail(null)} />
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+/* ── User Detail Panel ── */
+const UserDetailPanel = ({ user, onClose }: { user: DetailedUser; onClose: () => void }) => {
+  const tutor = user.tutor
+  const student = user.student
+  const bg = tutor?.backgroundCheck
+
+  return (
+    <div className="max-h-[85vh] overflow-y-auto">
+      {/* Header */}
+      <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 rounded-t-3xl flex items-center justify-between z-10">
+        <div className="flex items-center gap-4">
+          {(tutor?.profileImage || student?.profileImage) ? (
+            <img src={tutor?.profileImage || student?.profileImage || ''} alt="" className="h-14 w-14 rounded-full object-cover border-2 border-slate-200" />
+          ) : (
+            <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xl">
+              {(tutor?.firstName || student?.firstName || user.email)?.[0]?.toUpperCase() || '?'}
+            </div>
+          )}
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">
+              {tutor?.firstName || student?.firstName || ''} {tutor?.lastName || student?.lastName || ''}
+              {!tutor?.firstName && !student?.firstName && <span className="text-slate-400">No name set</span>}
+            </h2>
+            <div className="flex items-center gap-3 text-sm text-slate-500">
+              <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{user.email}</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
+                user.role === 'TUTOR' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+              }`}>{user.role}</span>
+              <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl">
+          <X className="h-5 w-5 text-slate-500" />
+        </button>
+      </div>
+
+      <div className="p-6 space-y-6">
+        {/* Status Badges Row */}
+        <div className="flex flex-wrap gap-3">
+          <StatusBadge
+            label="Email"
+            status={user.emailConfirmed ? 'Confirmed' : 'Unconfirmed'}
+            color={user.emailConfirmed ? 'green' : 'amber'}
+          />
+          {tutor && (
+            <>
+              <StatusBadge
+                label="Profile"
+                status={`${tutor.profileCompletionPercentage || 0}% complete`}
+                color={tutor.profileCompleted ? 'green' : 'amber'}
+              />
+              <StatusBadge
+                label="Stripe"
+                status={tutor.stripeOnboarded ? 'Connected' : 'Not connected'}
+                color={tutor.stripeOnboarded ? 'green' : 'slate'}
+              />
+              <StatusBadge
+                label="BG Check"
+                status={bg?.status || 'Not submitted'}
+                color={bg?.status === 'APPROVED' ? 'green' : bg?.status === 'REJECTED' ? 'red' : bg?.status === 'PENDING' ? 'blue' : 'slate'}
+              />
+            </>
+          )}
+          {student && (
+            <StatusBadge
+              label="Profile"
+              status={student.profileCompleted ? 'Complete' : 'Incomplete'}
+              color={student.profileCompleted ? 'green' : 'amber'}
+            />
+          )}
+        </div>
+
+        {/* Tutor Profile Details */}
+        {tutor && (
+          <>
+            {/* Personal Info */}
+            <DetailSection icon={<UserIcon className="h-5 w-5" />} title="Personal Information">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <DetailField label="First Name" value={tutor.firstName} />
+                <DetailField label="Last Name" value={tutor.lastName} />
+                <DetailField label="Gender" value={tutor.gender} />
+                <DetailField label="Hourly Fee" value={tutor.hourlyFee ? `$${tutor.hourlyFee}/hr` : null} />
+                <DetailField label="Tagline" value={tutor.tagline} />
+                <DetailField label="Languages" value={tutor.languagesSpoken?.join(', ')} />
+                <DetailField label="Grades" value={tutor.gradesCanTeach?.join(', ')} />
+              </div>
+            </DetailSection>
+
+            {/* Location */}
+            <DetailSection icon={<MapPin className="h-5 w-5" />} title="Location">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <DetailField label="Address" value={tutor.address} />
+                <DetailField label="City" value={tutor.city} />
+                <DetailField label="State" value={tutor.state} />
+                <DetailField label="Zipcode" value={tutor.zipcode} />
+                <DetailField label="Country" value={tutor.country} />
+              </div>
+            </DetailSection>
+
+            {/* Subjects */}
+            {tutor.subjects && tutor.subjects.length > 0 && (
+              <DetailSection icon={<BookOpen className="h-5 w-5" />} title={`Subjects (${tutor.subjects.length})`}>
+                <div className="flex flex-wrap gap-2">
+                  {tutor.subjects.map((ts) => (
+                    <span key={ts.id} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                      {ts.subject.name}
+                    </span>
+                  ))}
+                </div>
+              </DetailSection>
+            )}
+
+            {/* Experience */}
+            {tutor.experiences && tutor.experiences.length > 0 && (
+              <DetailSection icon={<Briefcase className="h-5 w-5" />} title={`Experience (${tutor.experiences.length})`}>
+                <div className="space-y-3">
+                  {tutor.experiences.map((exp) => (
+                    <div key={exp.id} className="border border-slate-200 rounded-xl p-4">
+                      <div className="font-semibold text-slate-900">{exp.jobTitle}</div>
+                      <div className="text-sm text-slate-600">{exp.company} · {exp.location}</div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        {new Date(exp.startDate).toLocaleDateString()} – {exp.isCurrent ? 'Present' : exp.endDate ? new Date(exp.endDate).toLocaleDateString() : ''}
+                        {' · '}{exp.teachingMode}
+                      </div>
+                      {exp.description && <p className="text-sm text-slate-600 mt-2">{exp.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </DetailSection>
+            )}
+
+            {/* Education */}
+            {tutor.educations && tutor.educations.length > 0 && (
+              <DetailSection icon={<GraduationCap className="h-5 w-5" />} title={`Education (${tutor.educations.length})`}>
+                <div className="space-y-3">
+                  {tutor.educations.map((edu) => (
+                    <div key={edu.id} className="border border-slate-200 rounded-xl p-4">
+                      <div className="font-semibold text-slate-900">{edu.degreeTitle}</div>
+                      <div className="text-sm text-slate-600">{edu.university} · {edu.location}</div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        {new Date(edu.startDate).toLocaleDateString()} – {edu.isOngoing ? 'Ongoing' : edu.endDate ? new Date(edu.endDate).toLocaleDateString() : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </DetailSection>
+            )}
+
+            {/* Availability */}
+            {tutor.availabilities && tutor.availabilities.length > 0 && (
+              <DetailSection icon={<Clock className="h-5 w-5" />} title={`Availability (${tutor.availabilities.length} blocks)`}>
+                <div className="space-y-3">
+                  {tutor.availabilities.map((avail) => (
+                    <div key={avail.id} className="border border-slate-200 rounded-xl p-4">
+                      <div className="font-semibold text-slate-900">{avail.blockTitle}</div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {avail.daysAvailable.map((day) => (
+                          <span key={day} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-medium">{day}</span>
+                        ))}
+                      </div>
+                      <div className="text-sm text-slate-600 mt-2">
+                        {avail.startTime} – {avail.endTime} · {avail.sessionDuration}min sessions · {avail.breakTime}min break · {avail.numberOfSlots} slots
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </DetailSection>
+            )}
+
+            {/* Background Check */}
+            {bg && (
+              <DetailSection icon={<Shield className="h-5 w-5" />} title="Background Check">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <DetailField label="Legal Name" value={`${bg.fullLegalFirstName} ${bg.fullLegalLastName}`} />
+                  <DetailField label="Other Names" value={bg.otherNamesUsed} />
+                  <DetailField label="DOB" value={new Date(bg.dateOfBirth).toLocaleDateString()} />
+                  <DetailField label="Email" value={bg.email} />
+                  <DetailField label="Address" value={`${bg.addressLine1}${bg.addressLine2 ? ', ' + bg.addressLine2 : ''}`} />
+                  <DetailField label="City" value={bg.city} />
+                  <DetailField label="State/Region" value={bg.stateProvinceRegion} />
+                  <DetailField label="Postal Code" value={bg.postalCode} />
+                  <DetailField label="Country" value={bg.country} />
+                  <DetailField label="Lived 3+ yrs" value={bg.livedMoreThan3Years ? 'Yes' : 'No'} />
+                  <DetailField label="US Driver License" value={bg.hasUSDriverLicense ? 'Yes' : 'No'} />
+                  <DetailField label="Consent" value={bg.consentGiven ? 'Yes' : 'No'} />
+                  <DetailField label="Status" value={bg.status} highlight />
+                  <DetailField label="Checkr Status" value={bg.checkrStatus} />
+                  {bg.checkrCompletedAt && <DetailField label="Checkr Completed" value={new Date(bg.checkrCompletedAt).toLocaleDateString()} />}
+                  {bg.comments && <div className="col-span-full"><DetailField label="Comments" value={bg.comments} /></div>}
+                </div>
+              </DetailSection>
+            )}
+
+            {/* Payment */}
+            <DetailSection icon={<DollarSign className="h-5 w-5" />} title="Payment Setup">
+              <div className="grid grid-cols-2 gap-4">
+                <DetailField label="Stripe Connected" value={tutor.stripeOnboarded ? 'Yes' : 'No'} />
+                <DetailField label="Hourly Fee" value={tutor.hourlyFee ? `$${tutor.hourlyFee}` : 'Not set'} />
+              </div>
+            </DetailSection>
+          </>
+        )}
+
+        {/* Student Profile Details */}
+        {student && (
+          <>
+            <DetailSection icon={<UserIcon className="h-5 w-5" />} title="Student Profile">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <DetailField label="First Name" value={student.firstName} />
+                <DetailField label="Last Name" value={student.lastName} />
+                <DetailField label="Gender" value={student.gender} />
+                <DetailField label="Grade" value={student.grade} />
+                <DetailField label="Tagline" value={student.tagline} />
+                <DetailField label="Languages" value={student.languagesSpoken?.join(', ')} />
+                <DetailField label="Learning Preferences" value={student.learningPreferences?.join(', ')} />
+              </div>
+              {student.bio && (
+                <div className="mt-4">
+                  <DetailField label="Bio" value={student.bio} />
+                </div>
+              )}
+              {student.introduction && (
+                <div className="mt-2">
+                  <DetailField label="Introduction" value={student.introduction} />
+                </div>
+              )}
+            </DetailSection>
+
+            <DetailSection icon={<MapPin className="h-5 w-5" />} title="Location">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <DetailField label="Address" value={student.address} />
+                <DetailField label="City" value={student.city} />
+                <DetailField label="State" value={student.state} />
+                <DetailField label="Zipcode" value={student.zipcode} />
+                <DetailField label="Country" value={student.country} />
+              </div>
+            </DetailSection>
+          </>
+        )}
+
+        {!tutor && !student && (
+          <div className="text-center text-slate-500 py-8">
+            This user has not created a profile yet.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const StatusBadge = ({ label, status, color }: { label: string; status: string; color: string }) => {
+  const colorClasses: Record<string, string> = {
+    green: 'bg-green-50 text-green-700 border-green-200',
+    amber: 'bg-amber-50 text-amber-700 border-amber-200',
+    red: 'bg-red-50 text-red-700 border-red-200',
+    blue: 'bg-blue-50 text-blue-700 border-blue-200',
+    slate: 'bg-slate-50 text-slate-600 border-slate-200',
+    purple: 'bg-purple-50 text-purple-700 border-purple-200',
+  }
+  return (
+    <div className={`px-3 py-1.5 rounded-xl border text-sm ${colorClasses[color] || colorClasses.slate}`}>
+      <span className="font-medium">{label}:</span> {status}
+    </div>
+  )
+}
+
+const DetailSection = ({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) => (
+  <div className="bg-slate-50 rounded-2xl p-5">
+    <h3 className="flex items-center gap-2 text-base font-semibold text-slate-900 mb-4">
+      {icon} {title}
+    </h3>
+    {children}
+  </div>
+)
+
+const DetailField = ({ label, value, highlight }: { label: string; value?: string | null; highlight?: boolean }) => (
+  <div>
+    <dt className="text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</dt>
+    <dd className={`mt-0.5 text-sm ${highlight ? 'font-semibold text-primary-600' : value ? 'text-slate-900' : 'text-slate-400 italic'}`}>
+      {value || 'Not provided'}
+    </dd>
+  </div>
+)
 
 interface SettingToggleProps {
   label: string

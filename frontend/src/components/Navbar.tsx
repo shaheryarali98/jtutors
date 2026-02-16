@@ -28,6 +28,7 @@ const Navbar = () => {
   // Only two centered links
   const centerLinks = [
     { to: '/how-it-works-for-tutors', label: 'How it Works For Tutors' },
+    ...(user?.role === 'STUDENT' ? [{ to: '/student/browse-tutors', label: 'Browse Tutors' }] : []),
   ]
 
   // Role-specific links for dropdowns ONLY (guest has NO links here)
@@ -50,7 +51,8 @@ const Navbar = () => {
       { to: '/tutor/earnings', label: 'Earnings & Payouts' },
     ],
     admin: [
-      { to: '/admin/dashboard', label: 'Analytics' },
+      { to: '/admin/dashboard#overview', label: 'Analytics' },
+      { to: '/admin/dashboard#users', label: 'Users' },
       { to: '/admin/dashboard#settings', label: 'Settings' },
     ],
   }
