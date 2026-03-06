@@ -21,3 +21,14 @@ services:
       - key: PORT
         value: 5000
 
+  - type: web
+    name: tutor-portal-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
