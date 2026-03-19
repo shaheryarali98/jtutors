@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import api from '../../lib/api'
 
 const StudentTermsAndConditions = () => {
   const [agreed, setAgreed] = useState(false)
@@ -8,11 +9,10 @@ const StudentTermsAndConditions = () => {
 
   const handleAccept = async () => {
     if (!agreed) return
-    
+
     try {
       setLoading(true)
-      // TODO: Save agreement status to backend when endpoint is ready
-      // await api.post('/student/accept-terms')
+      await api.post('/student/accept-terms')
       navigate('/student/dashboard')
     } catch (error) {
       console.error('Error accepting terms:', error)
@@ -24,7 +24,7 @@ const StudentTermsAndConditions = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="section-title mb-6">Terms and Conditions</h2>
-      
+
       <div className="space-y-6 mb-8">
         <div>
           <h3 className="text-xl font-bold mb-4">Terms and Conditions for Students and Parents</h3>
@@ -99,4 +99,3 @@ const StudentTermsAndConditions = () => {
 }
 
 export default StudentTermsAndConditions
-

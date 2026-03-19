@@ -39,6 +39,9 @@ router.get('/profile/background-check/refresh', tutorController.refreshBackgroun
 router.post('/stripe/connect', tutorController.createStripeConnectAccount);
 router.get('/stripe/status', tutorController.getStripeStatus);
 
+// Terms and Conditions
+router.post('/accept-terms', tutorController.acceptTerms);
+
 // Profile Completion
 router.get('/profile/completion', tutorController.getProfileCompletion);
 router.get('/sessions', tutorController.getTutorSessions);

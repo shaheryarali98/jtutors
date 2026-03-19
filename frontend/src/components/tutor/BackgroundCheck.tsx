@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import api from '../../lib/api'
-import { useNavigate } from 'react-router-dom' 
 
 interface BackgroundCheckForm {
   fullLegalFirstName: string
@@ -28,7 +27,6 @@ interface BackgroundCheckProps {
 
 const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<BackgroundCheckForm>()
-  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [feedback, setFeedback] = useState('')
@@ -121,13 +119,10 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
       if (hasCheckrUrl) {
         setFeedback('Background check submitted! Please complete the Checkr verification below to continue.')
       } else {
-        setFeedback('Background check saved successfully. Redirecting to your dashboard...')
-        setTimeout(() => {
-          navigate('/tutor/dashboard')
-          if (onSaveSuccess) {
-            onSaveSuccess()
-          }
-        }, 3000)
+        setFeedback('Background check saved successfully.')
+        if (onSaveSuccess) {
+          onSaveSuccess()
+        }
       }
       
     } catch (error) {

@@ -10,6 +10,7 @@ export interface User {
   emailConfirmed?: boolean
   tutorId?: string
   studentId?: string
+  profileImage?: string | null
 }
 
 interface AuthState {

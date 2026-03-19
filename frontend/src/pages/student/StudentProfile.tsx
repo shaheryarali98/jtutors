@@ -588,8 +588,7 @@ const StudentProfile = () => {
         onClose={() => setShowTermsModal(false)}
         onAccept={async () => {
           try {
-            // TODO: Save terms acceptance to backend
-            // await api.post('/student/accept-terms')
+            await api.post('/student/accept-terms')
             setShowTermsModal(false)
           } catch (error) {
             console.error('Error accepting terms:', error)

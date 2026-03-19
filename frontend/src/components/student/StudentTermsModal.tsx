@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
 
 interface StudentTermsModalProps {
   isOpen: boolean
@@ -20,16 +19,10 @@ const StudentTermsModal = ({ isOpen, onClose, onAccept }: StudentTermsModalProps
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black bg-opacity-50">
       <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-bold text-slate-900">Terms and Conditions for Students and Parents</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <X size={24} />
-          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -69,7 +62,7 @@ const StudentTermsModal = ({ isOpen, onClose, onAccept }: StudentTermsModalProps
                 You must immediately report any behavior by a tutor that you find to be inappropriate, harassing, dangerous, or illegal. This includes, but is not limited to, verbal or physical harassment, solicitations for contact outside of the platform, or any other conduct that violates our community standards.
               </p>
               <p className="text-gray-700">
-                Reports can be made through our designated reporting feature or by contacting our support team at [Insert Support Email Here]. Promptly reporting such incidents allows us to take appropriate action, which may include removing the tutor from the platform and cooperating with law enforcement when necessary.
+                Reports can be made through our designated reporting feature or by contacting our support team. Promptly reporting such incidents allows us to take appropriate action, which may include removing the tutor from the platform and cooperating with law enforcement when necessary.
               </p>
             </div>
           </div>
@@ -88,21 +81,13 @@ const StudentTermsModal = ({ isOpen, onClose, onAccept }: StudentTermsModalProps
               I have read and agree to all the terms and conditions stated above. *
             </label>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="btn btn-outline flex-1"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAccept}
-              disabled={!agreed}
-              className="btn btn-primary flex-1"
-            >
-              Accept and Continue
-            </button>
-          </div>
+          <button
+            onClick={handleAccept}
+            disabled={!agreed}
+            className="btn btn-primary w-full"
+          >
+            Accept and Continue
+          </button>
         </div>
       </div>
     </div>
@@ -110,4 +95,3 @@ const StudentTermsModal = ({ isOpen, onClose, onAccept }: StudentTermsModalProps
 }
 
 export default StudentTermsModal
-

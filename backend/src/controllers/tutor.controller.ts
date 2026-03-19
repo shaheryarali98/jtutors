@@ -1170,3 +1170,30 @@ export const getTutorEarnings = async (req: Request, res: Response) => {
   }
 };
 
+export const acceptTerms = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+
+    const tutor = await prisma.tutor.findUnique({
+      where: { userId },
+    });
+
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    await prisma.tutor.update({
+      where: { id: tutor.id },
+      data: {
+        termsAccepted: true,
+        termsAcceptedAt: new Date(),
+      },
+    });
+
+    res.json({ message: 'Terms and conditions accepted successfully' });
+  } catch (error) {
+    console.error('Accept terms error:', error);
+    res.status(500).json({ error: 'Error accepting terms and conditions' });
+  }
+};
+

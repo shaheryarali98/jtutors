@@ -1,21 +1,26 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import api from '../../lib/api'
 
 const TermsAndConditions = () => {
   const [agreed, setAgreed] = useState(false)
   const navigate = useNavigate()
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     if (agreed) {
-      // TODO: Save agreement status to backend
-      navigate('/tutor/dashboard')
+      try {
+        await api.post('/tutor/accept-terms')
+        navigate('/tutor/dashboard')
+      } catch (error) {
+        console.error('Error accepting terms:', error)
+      }
     }
   }
 
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="section-title mb-6">Terms and Conditions</h2>
-      
+
       <div className="space-y-6 mb-8">
         <div>
           <h3 className="text-xl font-bold mb-4">Tutor Usage Agreement – Non-Circumvention & Exclusivity Clause</h3>
@@ -154,4 +159,3 @@ const TermsAndConditions = () => {
 }
 
 export default TermsAndConditions
-
