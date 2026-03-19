@@ -102,6 +102,8 @@ export const register = async (req: Request, res: Response) => {
       { expiresIn: "7d" }
     );
 
+    const profileImage = user.tutor?.profileImage || user.student?.profileImage || null;
+
     res.status(201).json({
       message: isAdmin
         ? "Admin account created successfully."
@@ -114,6 +116,7 @@ export const register = async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         emailConfirmed: user.emailConfirmed,
+        profileImage: profileImage,
       },
     });
   } catch (error: any) {
@@ -186,6 +189,8 @@ export const login = async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
+    const profileImage = user.tutor?.profileImage || user.student?.profileImage || null;
+
     res.json({
       message: 'Login successful',
       token,
@@ -195,7 +200,8 @@ export const login = async (req: Request, res: Response) => {
         role: user.role,
         emailConfirmed: user.emailConfirmed,
         tutorId: user.tutor?.id,
-        studentId: user.student?.id
+        studentId: user.student?.id,
+        profileImage: profileImage
       }
     });
   } catch (error) {

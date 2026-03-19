@@ -12,6 +12,9 @@ router.use(requireRole('STUDENT'));
 router.get('/profile', studentController.getProfile);
 router.put('/profile', studentController.updateProfile);
 
+// Terms and Conditions
+router.post('/accept-terms', studentController.acceptTerms);
+
 // Saved instructors
 router.get('/saved-instructors', studentController.getSavedInstructors);
 router.post('/saved-instructors', studentController.addSavedInstructor);

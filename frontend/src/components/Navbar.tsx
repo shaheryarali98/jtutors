@@ -111,10 +111,18 @@ const Navbar = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="h-11 w-11 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-lg hover:shadow-xl border-2 border-white"
+                    className="h-11 w-11 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-lg hover:shadow-xl border-2 border-white overflow-hidden"
                     style={{ background: 'linear-gradient(to bottom right, #012c54, #014a7a)' }}
                   >
-                    {userInitial}
+                    {user.profileImage ? (
+                      <img
+                        src={user.profileImage}
+                        alt={user.email}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      userInitial
+                    )}
                   </motion.button>
 
                   <AnimatePresence>
