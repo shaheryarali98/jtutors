@@ -137,7 +137,7 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
     <div>
       <h2 className="section-title">Background Check</h2>
       <p className="text-gray-600 mb-6">
-        To ensure the safety and trust of our platform, all tutors must complete a background check.
+        We conduct our background checks through <strong>Checkr</strong>, the world's most trusted background check company.
       </p>
       <p className="text-gray-700 mb-6 font-medium">
         JTutors will incur the cost of the background check.
