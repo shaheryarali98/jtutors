@@ -74,7 +74,7 @@ const subjectsHierarchy = {
         'Drawing', 'Drums', 'Ear Training', 'Film',
         'Flute', 'French Horn', 'General Music', 'Graphic Design', 'Guitar', 'Music History',
         'Music Production', 'Music Theory', 'Painting', 'Photography', 'Piano', 'Saxophone',
-        'Sight Singing', 'Songwriting', 'Theatres', 'Video Production', 'Violin', 'Voice (Music)'
+        'Sight Singing', 'Songwriting', 'Theatre', 'Video Production', 'Violin', 'Voice (Music)'
     ],
     'Other / Skills': [
         'Architecture', 'Handwriting', 'Homeschool', // Removed Literacy, Cosmetology
