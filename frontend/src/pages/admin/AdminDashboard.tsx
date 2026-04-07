@@ -86,6 +86,8 @@ interface AdminUser {
     lastName?: string | null
     profileCompletionPercentage?: number
     profileCompleted?: boolean
+    stripeAccountId?: string | null
+    stripeOnboarded?: boolean
     backgroundCheck?: {
       status: string
       checkrStatus?: string | null
@@ -121,6 +123,7 @@ interface DetailedUser {
     zipcode?: string | null
     languagesSpoken?: string[]
     profileImage?: string | null
+    stripeAccountId?: string | null
     stripeOnboarded?: boolean
     profileCompletionPercentage?: number
     profileCompleted?: boolean
@@ -475,6 +478,41 @@ const AdminDashboard = () => {
     } catch (err) {
       console.error('Error deleting user:', err)
       setError('Unable to delete user.')
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
+
+  const handleUpdateBackgroundCheckStatus = async (userId: string, status: string) => {
+    try {
+      setUpdatingUserId(userId)
+      const res = await api.patch(`/admin/users/${userId}/background-check`, { status })
+      const { profileCompletion } = res.data
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId && u.tutor?.backgroundCheck
+            ? {
+                ...u,
+                tutor: {
+                  ...u.tutor,
+                  backgroundCheck: { ...u.tutor.backgroundCheck, status },
+                  profileCompletionPercentage: profileCompletion ?? u.tutor.profileCompletionPercentage,
+                  profileCompleted: profileCompletion === 100 ? true : (u.tutor.profileCompleted ?? false),
+                },
+              }
+            : u
+        )
+      )
+      if (selectedUserDetail?.id === userId && selectedUserDetail.tutor?.backgroundCheck) {
+        setSelectedUserDetail((prev) =>
+          prev && prev.tutor?.backgroundCheck
+            ? { ...prev, tutor: { ...prev.tutor, backgroundCheck: { ...prev.tutor.backgroundCheck, status } } }
+            : prev
+        )
+      }
+    } catch (err) {
+      console.error('Error updating background check status:', err)
+      setError('Unable to update background check status.')
     } finally {
       setUpdatingUserId(null)
     }
@@ -985,6 +1023,7 @@ const AdminDashboard = () => {
                         <th className="px-4 py-3">User</th>
                         <th className="px-4 py-3">Role</th>
                         <th className="px-4 py-3">Profile</th>
+                        <th className="px-4 py-3">Stripe</th>
                         <th className="px-4 py-3">BG Check</th>
                         <th className="px-4 py-3">Email Confirmed</th>
                         <th className="px-4 py-3">Created</th>
@@ -1040,23 +1079,45 @@ const AdminDashboard = () => {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            {user.tutor?.backgroundCheck ? (
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                user.tutor.backgroundCheck.status === 'APPROVED'
-                                  ? 'bg-green-100 text-green-700'
-                                  : user.tutor.backgroundCheck.status === 'REJECTED'
-                                  ? 'bg-red-100 text-red-700'
-                                  : user.tutor.backgroundCheck.status === 'REVIEW'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : user.tutor.backgroundCheck.status === 'EXPIRED'
-                                  ? 'bg-gray-100 text-gray-600'
-                                  : 'bg-blue-100 text-blue-700'
-                              }`}>
-                                {user.tutor.backgroundCheck.status}
-                                {user.tutor.backgroundCheck.checkrStatus && (
-                                  <span className="ml-1 opacity-60">({user.tutor.backgroundCheck.checkrStatus})</span>
-                                )}
+                            {user.tutor ? (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${user.tutor.stripeOnboarded ? 'bg-green-100 text-green-700' : user.tutor.stripeAccountId ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                                {user.tutor.stripeOnboarded ? 'Connected' : user.tutor.stripeAccountId ? 'Pending' : 'Not connected'}
                               </span>
+                            ) : (
+                              <span className="text-xs text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {user.tutor?.backgroundCheck ? (
+                              <div className="flex flex-col gap-1.5">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  user.tutor.backgroundCheck.status === 'APPROVED'
+                                    ? 'bg-green-100 text-green-700'
+                                    : user.tutor.backgroundCheck.status === 'REJECTED'
+                                    ? 'bg-red-100 text-red-700'
+                                    : user.tutor.backgroundCheck.status === 'REVIEW'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : user.tutor.backgroundCheck.status === 'EXPIRED'
+                                    ? 'bg-gray-100 text-gray-600'
+                                    : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {user.tutor.backgroundCheck.status === 'PENDING' ? 'SUBMITTED' : user.tutor.backgroundCheck.status}
+                                </span>
+                                <select
+                                  value=""
+                                  onChange={(e) => {
+                                    if (e.target.value) handleUpdateBackgroundCheckStatus(user.id, e.target.value)
+                                  }}
+                                  disabled={updatingUserId === user.id}
+                                  className="input text-xs py-0.5"
+                                >
+                                  <option value="">Change status…</option>
+                                  <option value="PENDING">Submitted (Pending)</option>
+                                  <option value="APPROVED">Approved</option>
+                                  <option value="REJECTED">Rejected</option>
+                                  <option value="REVIEW">REVIEW</option>
+                                </select>
+                              </div>
                             ) : user.tutor ? (
                               <span className="text-xs text-slate-400">Not submitted</span>
                             ) : (
@@ -1102,7 +1163,7 @@ const AdminDashboard = () => {
                       })}
                       {filteredUsers.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="px-4 py-6 text-center text-slate-500 text-sm">
+                          <td colSpan={8} className="px-4 py-6 text-center text-slate-500 text-sm">
                             {userSearchQuery || userRoleFilter !== 'ALL' ? 'No users match your filters.' : 'No users found.'}
                           </td>
                         </tr>
@@ -1836,7 +1897,12 @@ const AdminDashboard = () => {
             {loadingUserDetail ? (
               <div className="p-12 text-center text-slate-500">Loading user details…</div>
             ) : selectedUserDetail ? (
-              <UserDetailPanel user={selectedUserDetail} onClose={() => setSelectedUserDetail(null)} />
+              <UserDetailPanel
+                user={selectedUserDetail}
+                onClose={() => setSelectedUserDetail(null)}
+                onUpdateBgStatus={handleUpdateBackgroundCheckStatus}
+                updatingUserId={updatingUserId}
+              />
             ) : null}
           </div>
         </div>
@@ -1846,7 +1912,7 @@ const AdminDashboard = () => {
 }
 
 /* ── User Detail Panel ── */
-const UserDetailPanel = ({ user, onClose }: { user: DetailedUser; onClose: () => void }) => {
+const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId }: { user: DetailedUser; onClose: () => void; onUpdateBgStatus: (userId: string, status: string) => Promise<void>; updatingUserId: string | null }) => {
   const tutor = user.tutor
   const student = user.student
   const bg = tutor?.backgroundCheck
@@ -1900,8 +1966,8 @@ const UserDetailPanel = ({ user, onClose }: { user: DetailedUser; onClose: () =>
               />
               <StatusBadge
                 label="Stripe"
-                status={tutor.stripeOnboarded ? 'Connected' : 'Not connected'}
-                color={tutor.stripeOnboarded ? 'green' : 'slate'}
+                status={tutor.stripeOnboarded ? 'Connected' : tutor.stripeAccountId ? 'Pending' : 'Not connected'}
+                color={tutor.stripeOnboarded ? 'green' : tutor.stripeAccountId ? 'amber' : 'slate'}
               />
               <StatusBadge
                 label="BG Check"
@@ -2037,13 +2103,33 @@ const UserDetailPanel = ({ user, onClose }: { user: DetailedUser; onClose: () =>
                   {bg.checkrCompletedAt && <DetailField label="Checkr Completed" value={new Date(bg.checkrCompletedAt).toLocaleDateString()} />}
                   {bg.comments && <div className="col-span-full"><DetailField label="Comments" value={bg.comments} /></div>}
                 </div>
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Manual Status Update</p>
+                  <div className="flex items-center gap-3">
+                    {(['PENDING', 'APPROVED', 'REJECTED', 'REVIEW'] as const).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => onUpdateBgStatus(user.id, s)}
+                        disabled={bg.status === s || updatingUserId === user.id}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors disabled:opacity-40 ${
+                          s === 'APPROVED' ? 'border-green-300 text-green-700 hover:bg-green-50' :
+                          s === 'REJECTED' ? 'border-red-300 text-red-700 hover:bg-red-50' :
+                          s === 'REVIEW'   ? 'border-yellow-300 text-yellow-700 hover:bg-yellow-50' :
+                          'border-blue-300 text-blue-700 hover:bg-blue-50'
+                        } ${bg.status === s ? 'bg-slate-100' : 'bg-white'}`}
+                      >
+                        {bg.status === s ? `✓ ${s}` : `Mark ${s}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </DetailSection>
             )}
 
             {/* Payment */}
             <DetailSection icon={<DollarSign className="h-5 w-5" />} title="Payment Setup">
               <div className="grid grid-cols-2 gap-4">
-                <DetailField label="Stripe Connected" value={tutor.stripeOnboarded ? 'Yes' : 'No'} />
+                <DetailField label="Stripe Connected" value={tutor.stripeOnboarded ? 'Yes' : tutor.stripeAccountId ? 'Pending' : 'No'} />
                 <DetailField label="Hourly Fee" value={tutor.hourlyFee ? `$${tutor.hourlyFee}` : 'Not set'} />
               </div>
             </DetailSection>

@@ -32,27 +32,6 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
   const [feedback, setFeedback] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [backgroundCheckStatus, setBackgroundCheckStatus] = useState<string | null>(null)
-  const [checkrInvitationUrl, setCheckrInvitationUrl] = useState<string | null>(null)
-  const [checkrStatus, setCheckrStatus] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const refreshCheckrStatus = async () => {
-    try {
-      setRefreshing(true)
-      const response = await api.get('/tutor/profile/background-check/refresh')
-      const { status, checkrStatus: newCheckrStatus, updated } = response.data
-      setBackgroundCheckStatus(status)
-      setCheckrStatus(newCheckrStatus)
-      if (updated) {
-        setFeedback(`Status updated: ${status}`)
-        window.dispatchEvent(new Event('tutor-profile-updated'))
-      }
-    } catch (error) {
-      console.error('Error refreshing status:', error)
-    } finally {
-      setRefreshing(false)
-    }
-  }
 
   useEffect(() => {
     fetchBackgroundCheck()
@@ -66,8 +45,6 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
       if (bgCheck) {
         setSubmitted(true)
         setBackgroundCheckStatus(bgCheck.status)
-        setCheckrInvitationUrl(bgCheck.checkrInvitationUrl || null)
-        setCheckrStatus(bgCheck.checkrStatus || null)
         // Populate form with existing data
         setValue('fullLegalFirstName', bgCheck.fullLegalFirstName)
         setValue('fullLegalLastName', bgCheck.fullLegalLastName)
@@ -100,29 +77,18 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
       setFeedback('')
       setErrorMessage('')
       
-      const response = await api.post('/tutor/profile/background-check', data)
-      
-      // Capture Checkr invitation URL if returned
-      const hasCheckrUrl = !!response.data.checkrInvitationUrl
-      if (hasCheckrUrl) {
-        setCheckrInvitationUrl(response.data.checkrInvitationUrl)
-      }
+      await api.post('/tutor/profile/background-check', data)
 
-      // 1. Scroll to the top to ensure success notification is visible
+      // Scroll to the top to ensure success notification is visible
       window.scrollTo(0, 0); 
 
       setSubmitted(true)
       setBackgroundCheckStatus('PENDING')
       window.dispatchEvent(new Event('tutor-profile-updated'))
 
-      // If Checkr returned an invitation URL, stay on the page so the user can click it
-      if (hasCheckrUrl) {
-        setFeedback('Background check submitted! Please complete the Checkr verification below to continue.')
-      } else {
-        setFeedback('Background check saved successfully.')
-        if (onSaveSuccess) {
-          onSaveSuccess()
-        }
+      setFeedback('Your background check information was submitted and is awaiting manual review.')
+      if (onSaveSuccess) {
+        onSaveSuccess()
       }
       
     } catch (error) {
@@ -137,10 +103,7 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
     <div>
       <h2 className="section-title">Background Check</h2>
       <p className="text-gray-600 mb-6">
-        We conduct our background checks through <strong>Checkr</strong>, the world's most trusted background check company.
-      </p>
-      <p className="text-gray-700 mb-6 font-medium">
-        JTutors will incur the cost of the background check.
+        JTutors requires a background check for all tutors. Submit your information below and an admin will review it manually.
       </p>
 
       {feedback && (
@@ -157,8 +120,8 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
 
       {submitted && (
         <div className={`mb-6 p-4 rounded-lg ${
-          backgroundCheckStatus === 'APPROVED' 
-            ? 'bg-green-50 border-2 border-green-200' 
+          backgroundCheckStatus === 'APPROVED'
+            ? 'bg-green-50 border-2 border-green-200'
             : backgroundCheckStatus === 'REJECTED'
             ? 'bg-red-50 border-2 border-red-200'
             : backgroundCheckStatus === 'REVIEW'
@@ -167,44 +130,24 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
             ? 'bg-gray-50 border-2 border-gray-200'
             : 'bg-blue-50 border-2 border-blue-200'
         }`}>
-          <h3 className="font-bold mb-2">
-            Status: {backgroundCheckStatus}
-          </h3>
-          <p className="text-sm">
-            {backgroundCheckStatus === 'PENDING' && 'Your background check is being processed via Checkr. We will notify you once it is complete.'}
-            {backgroundCheckStatus === 'APPROVED' && 'Your background check has been approved!'}
-            {backgroundCheckStatus === 'REJECTED' && 'Your background check was not approved. Please contact support.'}
-            {backgroundCheckStatus === 'REVIEW' && 'Your background check requires additional review. Our team will reach out shortly.'}
-            {backgroundCheckStatus === 'EXPIRED' && 'Your background check invitation has expired. Please resubmit to try again.'}
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+              backgroundCheckStatus === 'APPROVED' ? 'bg-green-100 text-green-800' :
+              backgroundCheckStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
+              backgroundCheckStatus === 'REVIEW'   ? 'bg-yellow-100 text-yellow-800' :
+              backgroundCheckStatus === 'EXPIRED'  ? 'bg-gray-100 text-gray-700' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              {backgroundCheckStatus === 'PENDING' ? 'SUBMITTED' : backgroundCheckStatus}
+            </span>
+          </div>
+          <p className="text-sm font-medium text-gray-800">
+            {backgroundCheckStatus === 'PENDING' && 'Your background check was submitted and is awaiting manual review. We will notify you once an admin has reviewed it.'}
+            {backgroundCheckStatus === 'APPROVED' && 'Your background check has been approved! Your profile is now fully active and visible to students.'}
+            {backgroundCheckStatus === 'REJECTED' && 'Your background check was not approved. Please contact support for more information.'}
+            {backgroundCheckStatus === 'REVIEW' && 'Your background check requires additional review. Our team will reach out to you shortly.'}
+            {backgroundCheckStatus === 'EXPIRED' && 'Your background check submission has expired. Please resubmit below.'}
           </p>
-          {checkrInvitationUrl && backgroundCheckStatus === 'PENDING' && (
-            <div className="mt-3">
-              <a
-                href={checkrInvitationUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                Complete Checkr Verification &rarr;
-              </a>
-              <p className="text-xs text-gray-500 mt-1">
-                Click above to complete the identity verification process with Checkr.
-              </p>
-            </div>
-          )}
-          {checkrStatus && (
-            <p className="text-xs text-gray-400 mt-2">Checkr status: {checkrStatus}</p>
-          )}
-          {backgroundCheckStatus === 'PENDING' && (
-            <button
-              type="button"
-              onClick={refreshCheckrStatus}
-              disabled={refreshing}
-              className="mt-3 inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              {refreshing ? 'Checking...' : 'Refresh Status'}
-            </button>
-          )}
         </div>
       )}
 
@@ -427,15 +370,19 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
 
         <button
           type="submit"
-          disabled={loading || (submitted && backgroundCheckStatus === 'APPROVED')}
-          className="btn btn-primary w-full md:w-auto"
+          disabled={loading || backgroundCheckStatus === 'APPROVED' || backgroundCheckStatus === 'PENDING'}
+          className="btn btn-primary w-full md:w-auto disabled:opacity-50"
         >
-          {loading 
-            ? 'Submitting...' 
+          {loading
+            ? 'Submitting...'
+            : backgroundCheckStatus === 'APPROVED'
+            ? 'Background Check Approved'
+            : backgroundCheckStatus === 'PENDING'
+            ? 'Awaiting Review'
             : backgroundCheckStatus === 'EXPIRED'
             ? 'Resubmit Background Check'
-            : submitted 
-            ? 'Update Background Check' 
+            : submitted
+            ? 'Update Background Check'
             : 'Submit Background Check'}
         </button>
       </form>

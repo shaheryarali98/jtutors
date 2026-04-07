@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { getReport, mapCheckrStatus } from '../services/checkr.service';
+import { getReport, getCandidate, mapCheckrStatus } from '../services/checkr.service';
 import { sendEmail } from '../services/email.service';
+import { calculateProfileCompletion } from './tutor.controller';
 
 const prisma = new PrismaClient();
 
@@ -64,7 +65,7 @@ async function handleReportCompleted(event: any) {
   console.log(`[Checkr Webhook] Report ${reportId} completed with status: ${reportStatus}`);
 
   // Find the background check by Checkr candidate ID or report ID
-  const backgroundCheck = await prisma.backgroundCheck.findFirst({
+  let backgroundCheck = await prisma.backgroundCheck.findFirst({
     where: {
       OR: [
         { checkrReportId: reportId },
@@ -79,6 +80,38 @@ async function handleReportCompleted(event: any) {
       },
     },
   });
+
+  // Fallback: if the tutor used the apply link (no candidate pre-created in our DB),
+  // fetch the candidate's email from Checkr and match by the email stored on the
+  // BackgroundCheck record.
+  if (!backgroundCheck && candidateId) {
+    try {
+      const candidate = await getCandidate(candidateId);
+      const candidateEmail = candidate?.email;
+      if (candidateEmail) {
+        console.log(`[Checkr Webhook] Trying email fallback match for: ${candidateEmail}`);
+        backgroundCheck = await prisma.backgroundCheck.findFirst({
+          where: { email: candidateEmail },
+          include: {
+            tutor: {
+              include: {
+                user: { select: { email: true } },
+              },
+            },
+          },
+        });
+        // Stamp the candidate ID so future webhooks match directly
+        if (backgroundCheck) {
+          await prisma.backgroundCheck.update({
+            where: { id: backgroundCheck.id },
+            data: { checkrCandidateId: candidateId },
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[Checkr Webhook] Could not fetch candidate for email fallback:', err);
+    }
+  }
 
   if (!backgroundCheck) {
     console.warn(`[Checkr Webhook] No background check found for report ${reportId} / candidate ${candidateId}`);
@@ -104,6 +137,9 @@ async function handleReportCompleted(event: any) {
       data: { backgroundCheckCompleted: true },
     });
   }
+
+  // Recalculate profile completion so profileCompleted / public listing stay in sync
+  await calculateProfileCompletion(backgroundCheck.tutorId);
 
   // Send email notification to the tutor
   const tutorEmail = backgroundCheck.tutor?.user?.email;
@@ -150,7 +186,33 @@ async function handleInvitationCompleted(event: any) {
   });
 
   if (!backgroundCheck) {
-    console.warn(`[Checkr Webhook] No background check found for invitation ${invitationId}`);
+    // Apply-link fallback: match by candidate email
+    let matched = false;
+    if (candidateId) {
+      try {
+        const candidate = await getCandidate(candidateId);
+        if (candidate?.email) {
+          const byEmail = await prisma.backgroundCheck.findFirst({ where: { email: candidate.email } });
+          if (byEmail) {
+            await prisma.backgroundCheck.update({
+              where: { id: byEmail.id },
+              data: {
+                checkrCandidateId: candidateId,
+                checkrInvitationId: invitationId,
+                ...(reportId && { checkrReportId: reportId }),
+                status: 'PENDING',
+              },
+            });
+            matched = true;
+          }
+        }
+      } catch (err) {
+        console.warn('[Checkr Webhook] Could not fetch candidate for invitation email fallback:', err);
+      }
+    }
+    if (!matched) {
+      console.warn(`[Checkr Webhook] No background check found for invitation ${invitationId}`);
+    }
     return;
   }
 

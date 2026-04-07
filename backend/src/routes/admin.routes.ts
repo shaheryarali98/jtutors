@@ -15,6 +15,7 @@ import {
   refundPaymentAdmin,
   getGoogleClassroomStatusAdmin,
   getUserDetail,
+  updateBackgroundCheckStatus,
 } from '../controllers/admin.controller';
 
 const router = express.Router();
@@ -39,6 +40,7 @@ router.post('/payments/:id/refund', refundPaymentAdmin);
 
 router.get('/integrations/google-classroom/status', getGoogleClassroomStatusAdmin);
 router.get('/users/:id/detail', getUserDetail);
+router.patch('/users/:userId/background-check', updateBackgroundCheckStatus);
 
 export default router;
 

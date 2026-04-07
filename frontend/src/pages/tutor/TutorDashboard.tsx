@@ -84,52 +84,46 @@ const TutorDashboard = () => {
           <h2 className="text-xl font-bold mb-4 text-slate-900">Getting Started</h2>
           <div className="space-y-3">
             <div className="flex items-center">
-              <span className={`mr-3 ${profileCompletion >= 12 ? 'text-green-500' : 'text-gray-400'}`}>
-                {profileCompletion >= 12 ? '✓' : '○'}
+              <span className={`mr-3 ${profileCompletion >= 14 ? 'text-green-500' : 'text-gray-400'}`}>
+                {profileCompletion >= 14 ? '✓' : '○'}
               </span>
               <span className="text-slate-800">Complete personal information</span>
             </div>
             <div className="flex items-center">
-              <span className={`mr-3 ${profileCompletion >= 25 ? 'text-green-500' : 'text-gray-400'}`}>
-                {profileCompletion >= 25 ? '✓' : '○'}
+              <span className={`mr-3 ${profileCompletion >= 29 ? 'text-green-500' : 'text-gray-400'}`}>
+                {profileCompletion >= 29 ? '✓' : '○'}
               </span>
               <span className="text-slate-800">Add your teaching experience</span>
             </div>
             <div className="flex items-center">
-              <span className={`mr-3 ${profileCompletion >= 37 ? 'text-green-500' : 'text-gray-400'}`}>
-                {profileCompletion >= 37 ? '✓' : '○'}
+              <span className={`mr-3 ${profileCompletion >= 43 ? 'text-green-500' : 'text-gray-400'}`}>
+                {profileCompletion >= 43 ? '✓' : '○'}
               </span>
               <span className="text-slate-800">Add your education background</span>
             </div>
             <div className="flex items-center">
-              <span className={`mr-3 ${profileCompletion >= 50 ? 'text-green-500' : 'text-gray-400'}`}>
-                {profileCompletion >= 50 ? '✓' : '○'}
+              <span className={`mr-3 ${profileCompletion >= 57 ? 'text-green-500' : 'text-gray-400'}`}>
+                {profileCompletion >= 57 ? '✓' : '○'}
               </span>
               <span className="text-slate-800">Select subjects you can teach</span>
             </div>
             <div className="flex items-center">
-              <span className={`mr-3 ${profileCompletion >= 62 ? 'text-green-500' : 'text-gray-400'}`}>
-                {profileCompletion >= 62 ? '✓' : '○'}
+              <span className={`mr-3 ${profileCompletion >= 71 ? 'text-green-500' : 'text-gray-400'}`}>
+                {profileCompletion >= 71 ? '✓' : '○'}
               </span>
               <span className="text-slate-800">Set your availability</span>
             </div>
             <div className="flex items-center">
-              <span className={`mr-3 ${profileCompletion >= 75 ? 'text-green-500' : 'text-gray-400'}`}>
-                {profileCompletion >= 75 ? '✓' : '○'}
+              <span className={`mr-3 ${profileCompletion >= 86 ? 'text-green-500' : 'text-gray-400'}`}>
+                {profileCompletion >= 86 ? '✓' : '○'}
               </span>
               <span className="text-slate-800">Connect your payment method</span>
             </div>
             <div className="flex items-center">
-              <span className={`mr-3 ${profileCompletion >= 87 ? 'text-green-500' : 'text-gray-400'}`}>
-                {profileCompletion >= 87 ? '✓' : '○'}
+              <span className={`mr-3 ${profileCompletion >= 100 ? 'text-green-500' : 'text-gray-400'}`}>
+                {profileCompletion >= 100 ? '✓' : '○'}
               </span>
               <span className="text-slate-800">Complete background check</span>
-            </div>
-            <div className="flex items-center">
-              <span className={`mr-3 ${profileCompletion === 100 ? 'text-green-500' : 'text-gray-400'}`}>
-                {profileCompletion === 100 ? '✓' : '○'}
-              </span>
-              <span className="text-slate-800">Upload profile photo</span>
             </div>
           </div>
         </div>

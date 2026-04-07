@@ -210,6 +210,12 @@ export const searchTutors = async (req: Request, res: Response) => {
 
     const tutors = await prisma.tutor.findMany({
       where: {
+        backgroundCheck: {
+          status: 'APPROVED',
+        },
+        user: {
+          emailConfirmed: true,
+        },
         ...(minFee && { hourlyFee: { gte: parseFloat(minFee as string) } }),
         ...(maxFee && { hourlyFee: { lte: parseFloat(maxFee as string) } }),
         ...(grade && { gradesCanTeach: { contains: `"${grade}"` } }),

@@ -4,6 +4,8 @@ import { getAdminSettings, getFormattedAdminSettings, updateAdminSettings } from
 import { ensureGoogleClassroomForBooking } from '../services/classSession.service';
 import { confirmPayment, markPaymentRefunded } from '../services/payment.service';
 import { getGoogleClassroomStatus } from '../services/googleClassroom.service';
+import { calculateProfileCompletion } from './tutor.controller';
+import { stripe } from '../services/stripe.service';
 
 const prisma = new PrismaClient();
 
@@ -84,7 +86,14 @@ export const listUsers = async (req: Request, res: Response) => {
     const users = await prisma.user.findMany({
       include: {
         tutor: {
-          include: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profileCompletionPercentage: true,
+            profileCompleted: true,
+            stripeAccountId: true,
+            stripeOnboarded: true,
             backgroundCheck: {
               select: {
                 status: true,
@@ -107,6 +116,27 @@ export const listUsers = async (req: Request, res: Response) => {
         createdAt: 'desc'
       }
     });
+
+    // Live-check Stripe status for tutors with accounts that aren't marked as onboarded
+    if (stripe) {
+      const tutorsToCheck = users.filter(u => u.tutor?.stripeAccountId && !u.tutor?.stripeOnboarded);
+      for (const user of tutorsToCheck) {
+        try {
+          const account = await stripe.accounts.retrieve(user.tutor!.stripeAccountId!);
+          const onboarded = account.charges_enabled && account.payouts_enabled;
+          if (onboarded) {
+            await prisma.tutor.update({
+              where: { id: user.tutor!.id },
+              data: { stripeOnboarded: true }
+            });
+            (user.tutor as any).stripeOnboarded = true;
+            await calculateProfileCompletion(user.tutor!.id);
+          }
+        } catch (e) {
+          // Skip if Stripe check fails for this user
+        }
+      }
+    }
 
     res.json({
       users: users.map(({ password, ...user }) => user)
@@ -505,6 +535,24 @@ export const getUserDetail = async (req: Request, res: Response) => {
 
     const { password, ...safeUser } = user;
 
+    // Live-check Stripe status if tutor has a Stripe account but isn't marked as onboarded
+    if (safeUser.tutor && safeUser.tutor.stripeAccountId && !safeUser.tutor.stripeOnboarded && stripe) {
+      try {
+        const account = await stripe.accounts.retrieve(safeUser.tutor.stripeAccountId);
+        const onboarded = account.charges_enabled && account.payouts_enabled;
+        if (onboarded) {
+          await prisma.tutor.update({
+            where: { id: safeUser.tutor.id },
+            data: { stripeOnboarded: true }
+          });
+          (safeUser.tutor as any).stripeOnboarded = true;
+          await calculateProfileCompletion(safeUser.tutor.id);
+        }
+      } catch (e) {
+        console.error('Error live-checking Stripe status:', e);
+      }
+    }
+
     // Parse JSON-string arrays for the frontend
     if (safeUser.tutor) {
       const t = safeUser.tutor as any;
@@ -547,8 +595,10 @@ export const getPublicTutors = async (req: Request, res: Response) => {
 
     const tutors = await prisma.tutor.findMany({
       where: {
-        profileCompleted: true,
         user: { emailConfirmed: true },
+        backgroundCheck: {
+          status: 'APPROVED',
+        },
         ...(city && { city: city as string }),
         ...(state && { state: state as string }),
         ...(country && { country: country as string }),
@@ -598,6 +648,44 @@ export const getPublicTutors = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get public tutors error:', error);
     res.status(500).json({ error: 'Error fetching tutors' });
+  }
+};
+
+export const updateBackgroundCheckStatus = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { status } = req.body as { status: string };
+
+    const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'REVIEW'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    const tutor = await prisma.tutor.findUnique({ where: { userId } });
+    if (!tutor) return res.status(404).json({ error: 'Tutor not found' });
+
+    const bgCheck = await prisma.backgroundCheck.findUnique({ where: { tutorId: tutor.id } });
+    if (!bgCheck) return res.status(404).json({ error: 'No background check submission found for this tutor' });
+
+    const updated = await prisma.backgroundCheck.update({
+      where: { id: bgCheck.id },
+      data: { status },
+    });
+
+    // Keep tutor.backgroundCheckCompleted in sync
+    await prisma.tutor.update({
+      where: { id: tutor.id },
+      data: { backgroundCheckCompleted: status === 'APPROVED' },
+    });
+
+    // Recalculate profile completion so profileCompleted flag is up-to-date.
+    // This is critical — getPublicTutors filters by profileCompleted: true.
+    const completion = await calculateProfileCompletion(tutor.id);
+
+    return res.json({ message: `Background check status updated to ${status}`, backgroundCheck: updated, profileCompletion: completion });
+  } catch (error) {
+    console.error('Update background check status error:', error);
+    res.status(500).json({ error: 'Error updating background check status' });
   }
 };
 

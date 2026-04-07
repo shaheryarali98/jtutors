@@ -1,37 +1,45 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '../../lib/api'
 
 // 1. Define the props interface
 interface PayoutMethodProps {
-  onSaveSuccess: () => void; // Function to call on successful connection/onboarding
+  onSaveSuccess: () => void; // Function to call on successful connection/onboarding
 }
 
 // 2. Update the component signature to accept the prop
 const PayoutMethod = ({ onSaveSuccess }: PayoutMethodProps) => {
-  const [stripeStatus, setStripeStatus] = useState({
-    connected: false,
-    onboarded: false,
-    chargesEnabled: false,
-    payoutsEnabled: false
-  })
-  const [loading, setLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
+  const [stripeStatus, setStripeStatus] = useState({
+    connected: false,
+    onboarded: false,
+    chargesEnabled: false,
+    payoutsEnabled: false
+  })
+  const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+  const wasAlreadyOnboarded = useRef<boolean | null>(null)
 
-  useEffect(() => {
-    fetchStripeStatus()
-  }, [])
+  useEffect(() => {
+    fetchStripeStatus()
+  }, [])
 
-  const fetchStripeStatus = async () => {
-    try {
-      const response = await api.get('/tutor/stripe/status')
-      setStripeStatus(response.data)
-      
-      // 3. Execute the navigation callback upon successful onboarding
-      if (response.data.onboarded) {
-        window.dispatchEvent(new Event('tutor-profile-updated'))
-        onSaveSuccess(); 
-      }
-
+  const fetchStripeStatus = async () => {
+    try {
+      const response = await api.get('/tutor/stripe/status')
+      setStripeStatus(response.data)
+      
+      // Only auto-advance if the user just came back from Stripe onboarding
+      // (i.e., wasn't already onboarded when the component first mounted)
+      if (response.data.onboarded) {
+        window.dispatchEvent(new Event('tutor-profile-updated'))
+        if (wasAlreadyOnboarded.current === false) {
+          // First detection of newly onboarded — advance to next section
+          onSaveSuccess();
+        }
+      }
+      // Track whether the user was already onboarded on first load
+      if (wasAlreadyOnboarded.current === null) {
+        wasAlreadyOnboarded.current = response.data.onboarded
+      }
     } catch (error) {
       console.error('Error fetching Stripe status:', error)
       setErrorMessage('Unable to fetch payout status right now.')

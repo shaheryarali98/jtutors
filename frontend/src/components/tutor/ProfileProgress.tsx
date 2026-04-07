@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
 
@@ -6,8 +6,6 @@ const ProfileProgress = () => {
   const [completion, setCompletion] = useState(0)
   const [showSuccess, setShowSuccess] = useState(false)
   const navigate = useNavigate()
-  const hasRedirectedRef = useRef(false)
-  const redirectTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     const fetchCompletion = async () => {
@@ -15,21 +13,7 @@ const ProfileProgress = () => {
         const response = await api.get('/tutor/profile/completion')
         const value = response.data.profileCompletion
         setCompletion(value)
-        if (value === 100) {
-          setShowSuccess(true)
-          if (!hasRedirectedRef.current) {
-            hasRedirectedRef.current = true
-            if (redirectTimeoutRef.current) {
-              window.clearTimeout(redirectTimeoutRef.current)
-            }
-            redirectTimeoutRef.current = window.setTimeout(() => {
-              navigate('/tutor/dashboard')
-            }, 2000)
-          }
-        } else {
-          setShowSuccess(false)
-          hasRedirectedRef.current = false
-        }
+        setShowSuccess(value === 100)
       } catch (error) {
         console.error('Error fetching profile completion:', error)
       }
@@ -41,9 +25,6 @@ const ProfileProgress = () => {
 
     return () => {
       window.removeEventListener('tutor-profile-updated', handleUpdate)
-      if (redirectTimeoutRef.current) {
-        window.clearTimeout(redirectTimeoutRef.current)
-      }
     }
   }, [navigate])
 
@@ -61,12 +42,12 @@ const ProfileProgress = () => {
       </div>
       {showSuccess && (
         <div className="bg-primary-50 border border-primary-100 text-primary-700 px-3 py-2 rounded-lg flex items-center justify-between gap-3">
-          <span className="text-sm font-medium">Profile complete! Redirecting you to your dashboard.</span>
+          <span className="text-sm font-medium">Profile complete! Your profile is now visible to students.</span>
           <button
             className="text-sm font-semibold underline"
             onClick={() => navigate('/tutor/dashboard')}
           >
-            Go now
+            Go to Dashboard
           </button>
         </div>
       )}

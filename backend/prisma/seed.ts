@@ -9,19 +9,18 @@ const prisma = new PrismaClient()
 const subjectsHierarchy = {
     'Standardized Tests': [
         'ACT', 'ACT English', 'ACT Math', 'ACT Reading', 'ACT Science', 'DAT', 'GED', 'GMAT',
-        'GRE', 'IELTS', 'LSAT', 'MCAT', 'PCAT', 'PSAT', 'SAT', 'SAT Math', 'SAT Reading',
-        'SAT Writing', 'Series 3', 'Series 6', 'Series 7', 'Series 63', 'Series 65',
-        'Series 66', 'TOEFL'
+        'GRE', 'IELTS', 'LSAT', 'MCAT', 'PCAT', 'SAT', 'SAT Math', 'SAT Reading',
+        'SAT Writing', 'TOEFL'
     ],
     'Mathematics': [
         'Actuarial Science', 'Algebra 1', 'Algebra 2', 'Calculus', 'Discrete Math',
-        'Econometrics', 'Elementary Math', 'Geometry', 'Linear Algebra', 'Logic',
-        'Precalculus', 'Prealgebra', 'Probability', 'Quantum Physics', 'Statistics',
+        'Elementary Math', 'Geometry', 'Linear Algebra', 'Logic',
+        'Precalculus', 'Prealgebra', 'Probability', 'Statistics',
         'Trigonometry'
     ],
     'Science': [
         'Anatomy', 'Astronomy', 'Biochemistry', 'Biology', 'Biostatistics', 'Botany',
-        'Chemical Engineering', 'Chemistry', 'Civil Engineering', 'Ecology', 'Earth Science',
+        'Chemical Engineering', 'Chemistry', 'Civil Engineering', 'Ecology', 'Earth Science', 'Quantum Physics',
         'Environmental Science', 'Epidemiology', 'Genetics', 'Geology', 'Mechanical Engineering',
         'Microbiology', 'Neuroscience', 'Nursing', 'Nutrition', 'Organic Chemistry',
         'Pharmacology', 'Physical Science', 'Physics', 'Physiology', 'Zoology'
@@ -46,16 +45,16 @@ const subjectsHierarchy = {
     ],
     'History / Social Studies': [
         'African American Studies', 'American History', 'Anthropology', 'Archaeology',
-        'Classics', 'Criminology / Criminal Justice', 'Debate', 'Economics',
-        'European History', 'Government and Politics', 'History of Israel', 'Holocaust Studies',
-        'Jewish History', 'Political Science', 'Religion', 'Social Studies', 'Social Work',
+        'Criminology / Criminal Justice', 'Debate',
+        'European History', 'History of Israel', 'Holocaust Studies',
+        'Jewish History', 'Political Science',
         'Sociology', 'United States History', 'World History', 'Zionism'
     ],
     'Business / Law': [
-        'Business', 'Career Development', 'Entrepreneurship', 'Finance', 'Financial Accounting',
-        'Interview Prep', 'Law', 'Legal Writing', 'Macroeconomics', 'Managerial Accounting',
+        'Business', 'Entrepreneurship', 'Finance', 'Financial Accounting',
+        'Interview Prep', 'Law', 'Legal Writing', 'Economics', 'Managerial Accounting',
         'Marketing', 'MBA', 'Project Management', 'Real Estate', 'Sports Management',
-        'Sports Medicine', 'Tax Accounting'
+        'Tax Accounting'
     ],
     'Jewish Studies': [
         'Bar Mitzvah', 'Chassidus', 'Chumash', 'Conversational Hebrew', 'Halacha',
@@ -68,13 +67,13 @@ const subjectsHierarchy = {
         'Proofreading', 'Reading', 'Spelling', 'Vocabulary', 'Writing'
     ],
     'Music / Art': [
-        'Adobe After Effects', 'Adobe Flash', 'Adobe Illustrator', 'Adobe InDesign',
+        'Adobe After Effects', 'Adobe Illustrator', 'Adobe InDesign',
         'Adobe Lightroom', 'Adobe Photoshop', 'Adobe Premier', 'Art History', 'Art Theory',
-        'Composition (Music)', 'Cosmetology', // Kept Cosmetology here
-        'Drawing', 'Drums', 'Ear Training', 'Film',
-        'Flute', 'French Horn', 'General Music', 'Graphic Design', 'Guitar', 'Music History',
-        'Music Production', 'Music Theory', 'Painting', 'Photography', 'Piano', 'Saxophone',
-        'Sight Singing', 'Songwriting', 'Theatre', 'Video Production', 'Violin', 'Voice (Music)'
+        'Composition (Music)',
+        'Drawing', 'Drums', 'Film',
+        'Flute', 'Graphic Design', 'Guitar', 'Music History',
+        'Music Production', 'Music Theory', 'Painting', 'Photography', 'Piano',
+        'Songwriting', 'Acting', 'Video Production', 'Violin', 'Voice Training'
     ],
     'Other / Skills': [
         'Architecture', 'Handwriting', 'Homeschool', // Removed Literacy, Cosmetology

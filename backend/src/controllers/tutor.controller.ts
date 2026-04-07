@@ -6,12 +6,11 @@ import { getAdminSettings } from '../services/settings.service';
 import { sendEmail } from '../services/email.service';
 import { getWalletSummary } from '../services/wallet.service';
 import { stripe } from '../services/stripe.service';
-import { isCheckrConfigured, createCandidate, createInvitation, getReport, mapCheckrStatus } from '../services/checkr.service';
 
 const prisma = new PrismaClient();
 
 // Helper function to calculate profile completion
-const calculateProfileCompletion = async (tutorId: string): Promise<number> => {
+export const calculateProfileCompletion = async (tutorId: string): Promise<number> => {
   const tutor = await prisma.tutor.findUnique({
     where: { id: tutorId },
     include: {
@@ -31,7 +30,7 @@ const calculateProfileCompletion = async (tutorId: string): Promise<number> => {
   if (!tutor) return 0;
 
   let completedSections = 0;
-  const totalSections = 8;
+  const totalSections = 7;
 
   // 1. Personal Information (check key fields)
   if (tutor.firstName && tutor.lastName && tutor.hourlyFee && tutor.country && tutor.city) {
@@ -65,11 +64,6 @@ const calculateProfileCompletion = async (tutorId: string): Promise<number> => {
 
   // 7. Background Check
   if (tutor.backgroundCheck) {
-    completedSections++;
-  }
-
-  // 8. Profile Image
-  if (tutor.profileImage) {
     completedSections++;
   }
 
@@ -695,7 +689,7 @@ export const submitBackgroundCheck = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Background check already approved' });
     }
 
-    // Prepare the base data
+    // Prepare the base data (manual approval flow — no Checkr API calls)
     const bgCheckData = {
       fullLegalFirstName,
       fullLegalLastName,
@@ -716,65 +710,6 @@ export const submitBackgroundCheck = async (req: Request, res: Response) => {
       status: 'PENDING',
     } as any;
 
-    // ─── Checkr Integration ─────────────────────────────────────
-    let checkrInvitationUrl: string | null = null;
-
-    if (isCheckrConfigured()) {
-      try {
-        // Format DOB as YYYY-MM-DD for Checkr
-        const dob = new Date(dateOfBirth);
-        const formattedDob = `${dob.getFullYear()}-${String(dob.getMonth() + 1).padStart(2, '0')}-${String(dob.getDate()).padStart(2, '0')}`;
-
-        // Normalize SSN (remove dashes for Checkr)
-        const normalizedSsn = socialSecurityNumber.replace(/-/g, '');
-
-        // 1. Create a Checkr candidate
-        console.log('[Checkr] Creating candidate for:', email);
-        const candidate = await createCandidate({
-          first_name: fullLegalFirstName,
-          last_name: fullLegalLastName,
-          email,
-          dob: formattedDob,
-          ssn: normalizedSsn,
-          zipcode: postalCode,
-          ...(otherNamesUsed ? { middle_name: otherNamesUsed } : { no_middle_name: true }),
-        });
-
-        console.log('[Checkr] Candidate created:', candidate.id);
-
-        // 2. Create an invitation (this triggers the background check)
-        // Use CHECKR_PACKAGE env var or default to test_pro_criminal (staging) / tasker_standard (prod)
-        const checkrPackage = process.env.CHECKR_PACKAGE || 'test_pro_criminal';
-        const invitation = await createInvitation({
-          candidate_id: candidate.id,
-          package: checkrPackage,
-          work_locations: [
-            {
-              country: country || 'US',
-              state: stateProvinceRegion || undefined,
-              city: city || undefined,
-            },
-          ],
-        });
-
-        console.log('[Checkr] Invitation created:', invitation.id, 'URL:', invitation.invitation_url);
-
-        // Store Checkr IDs
-        bgCheckData.checkrCandidateId = candidate.id;
-        bgCheckData.checkrInvitationId = invitation.id;
-        bgCheckData.checkrInvitationUrl = invitation.invitation_url || null;
-        bgCheckData.checkrStatus = 'pending';
-        checkrInvitationUrl = invitation.invitation_url || null;
-      } catch (checkrError: any) {
-        console.error('[Checkr] Error initiating background check:', checkrError?.response?.data || checkrError.message);
-        // Don't fail the whole request – save the form data and mark as pending
-        // The admin can manually trigger it later or it can be retried
-        bgCheckData.checkrStatus = 'error';
-        bgCheckData.comments = `${comments || ''}\n[Checkr Error: ${checkrError?.response?.data?.error || checkrError.message}]`.trim();
-      }
-    }
-    // ─────────────────────────────────────────────────────────────
-
     let backgroundCheck;
     if (existing) {
       backgroundCheck = await prisma.backgroundCheck.update({
@@ -790,22 +725,14 @@ export const submitBackgroundCheck = async (req: Request, res: Response) => {
       });
     }
 
-    await prisma.tutor.update({
-      where: { id: tutor.id },
-      data: { backgroundCheckCompleted: true }
-    });
-
     const completion = await calculateProfileCompletion(tutor.id);
 
     res.json({
-      message: isCheckrConfigured()
-        ? 'Background check submitted to Checkr successfully'
-        : 'Background check submitted successfully',
+      message: 'Background check submitted successfully. It is now awaiting manual review.',
       backgroundCheck: {
         ...backgroundCheck,
         socialSecurityNumber: '***-**-' + backgroundCheck.socialSecurityNumber.slice(-4),
       },
-      checkrInvitationUrl,
       profileCompletion: completion
     });
   } catch (error) {
@@ -815,8 +742,8 @@ export const submitBackgroundCheck = async (req: Request, res: Response) => {
 };
 
 /**
- * Poll Checkr for the latest report status and update our DB.
- * No webhook needed — tutor or admin can trigger this.
+ * Return the current background check status.
+ * Manual approval flow — admin reviews externally and updates status in the admin panel.
  */
 export const refreshBackgroundCheckStatus = async (req: Request, res: Response) => {
   try {
@@ -828,64 +755,17 @@ export const refreshBackgroundCheckStatus = async (req: Request, res: Response) 
     const bgCheck = await prisma.backgroundCheck.findUnique({ where: { tutorId: tutor.id } });
     if (!bgCheck) return res.status(404).json({ error: 'No background check found' });
 
-    // Already in a terminal state
-    if (bgCheck.status === 'APPROVED' || bgCheck.status === 'REJECTED') {
-      return res.json({
-        message: `Background check already ${bgCheck.status.toLowerCase()}`,
-        status: bgCheck.status,
-        checkrStatus: bgCheck.checkrStatus,
-      });
-    }
-
-    if (!isCheckrConfigured() || !bgCheck.checkrReportId) {
-      return res.json({
-        message: 'No Checkr report to poll',
-        status: bgCheck.status,
-        checkrStatus: bgCheck.checkrStatus,
-      });
-    }
-
-    // Poll Checkr for the report
-    console.log('[Checkr] Polling report:', bgCheck.checkrReportId);
-    const report = await getReport(bgCheck.checkrReportId);
-    console.log('[Checkr] Report status:', report.status, '| result:', report.result);
-
-    if (report.status === 'complete' && report.result) {
-      const internalStatus = mapCheckrStatus(report.result);
-
-      await prisma.backgroundCheck.update({
-        where: { id: bgCheck.id },
-        data: {
-          checkrStatus: report.result,
-          checkrCompletedAt: new Date(),
-          status: internalStatus,
-        },
-      });
-
-      if (internalStatus === 'APPROVED') {
-        await prisma.tutor.update({
-          where: { id: tutor.id },
-          data: { backgroundCheckCompleted: true },
-        });
-      }
-
-      return res.json({
-        message: `Background check ${internalStatus.toLowerCase()}`,
-        status: internalStatus,
-        checkrStatus: report.result,
-        updated: true,
-      });
-    }
-
-    // Still pending
     res.json({
-      message: 'Background check still processing',
+      message: bgCheck.status === 'APPROVED'
+        ? 'Background check approved'
+        : bgCheck.status === 'REJECTED'
+        ? 'Background check rejected'
+        : 'Background check awaiting manual review',
       status: bgCheck.status,
-      checkrStatus: report.status,
-      updated: false,
+      checkrStatus: bgCheck.checkrStatus,
     });
   } catch (error: any) {
-    console.error('Refresh background check error:', error?.response?.data || error.message);
+    console.error('Refresh background check error:', error);
     res.status(500).json({ error: 'Error refreshing background check status' });
   }
 };
@@ -931,8 +811,8 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     
     // Ensure HTTPS for live mode (Stripe requirement)
-    let refreshUrl = `${frontendUrl}/tutor/profile/payout`;
-    let returnUrl = `${frontendUrl}/tutor/profile/payout/success`;
+    let refreshUrl = `${frontendUrl}/tutor/profile?section=payout`;
+    let returnUrl = `${frontendUrl}/tutor/profile?section=payout`;
     
     if (isLiveMode) {
       // Live mode requires HTTPS

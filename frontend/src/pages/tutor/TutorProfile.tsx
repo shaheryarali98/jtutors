@@ -11,12 +11,17 @@ import BackgroundCheck from '../../components/tutor/BackgroundCheck'
 import TutorTermsModal from '../../components/tutor/TutorTermsModal'
 import ProfileProgress from '../../components/tutor/ProfileProgress'
 import Footer from '../../components/Footer'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 type Section = 'personal' | 'experience' | 'education' | 'subjects' | 'availability' | 'payout' | 'background' | 'terms'
 
+const VALID_SECTIONS: Section[] = ['personal', 'experience', 'education', 'subjects', 'availability', 'payout', 'background', 'terms']
+
 const TutorProfile = () => {
-  const [activeSection, setActiveSection] = useState<Section>('personal')
+  const [searchParams] = useSearchParams()
+  const sectionParam = searchParams.get('section') as Section | null
+  const initialSection: Section = sectionParam && VALID_SECTIONS.includes(sectionParam) ? sectionParam : 'personal'
+  const [activeSection, setActiveSection] = useState<Section>(initialSection)
   const [showTermsModal, setShowTermsModal] = useState(false)
   const navigate = useNavigate()
 
