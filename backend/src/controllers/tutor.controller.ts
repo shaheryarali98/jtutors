@@ -811,8 +811,9 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     
     // Ensure HTTPS for live mode (Stripe requirement)
-    let refreshUrl = `${frontendUrl}/tutor/profile?section=payout`;
-    let returnUrl = `${frontendUrl}/tutor/profile?section=payout`;
+    // stripe_return=true lets the frontend know the user just completed Stripe onboarding
+    let refreshUrl = `${frontendUrl}/tutor/profile?section=payout&stripe_refresh=true`;
+    let returnUrl = `${frontendUrl}/tutor/profile?section=payout&stripe_return=true`;
     
     if (isLiveMode) {
       // Live mode requires HTTPS

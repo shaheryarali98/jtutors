@@ -15,19 +15,28 @@ const prisma = new PrismaClient();
 export const startBackgroundCheck = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
+    console.log('[startBackgroundCheck] Starting for userId:', userId);
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, tutor: { select: { id: true, firstName: true } } },
     });
 
-    if (!user?.tutor) {
+    if (!user) {
+      console.error('[startBackgroundCheck] User not found:', userId);
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+
+    if (!user.tutor) {
+      console.error('[startBackgroundCheck] Tutor profile not found for userId:', userId);
       return res.status(404).json({ error: 'Tutor profile not found' });
     }
 
     const tutorId = user.tutor.id;
     const email = user.email;
     const firstName = user.tutor.firstName || 'Tutor';
+
+    console.log('[startBackgroundCheck] Creating/updating background check for tutorId:', tutorId);
 
     // Create or update a minimal placeholder record
     const existing = await prisma.backgroundCheck.findUnique({ where: { tutorId } });
@@ -39,6 +48,7 @@ export const startBackgroundCheck = async (req: Request, res: Response) => {
           status: 'PENDING',
         },
       });
+      console.log('[startBackgroundCheck] Created new background check record');
 
       // Send welcome email on first submission
       await sendEmail({
@@ -88,17 +98,21 @@ export const startBackgroundCheck = async (req: Request, res: Response) => {
         `,
         text: `Hi ${firstName}, a Checkr form has been opened for your background check. If the window didn't open, you can access it here: ${process.env.CHECKR_APPLY_URL}. The process takes 5-10 minutes. Have your legal name, date of birth, Social Security Number, current address, and driver's license (if applicable) ready. Our team will review within 1-3 business days.`,
       }).catch((err) => console.error('[startBackgroundCheck] Failed to send welcome email:', err));
+    } else {
+      console.log('[startBackgroundCheck] Background check already exists for tutorId:', tutorId);
     }
 
     const applyUrl = process.env.CHECKR_APPLY_URL;
     if (!applyUrl) {
-      return res.status(500).json({ error: 'Checkr apply URL is not configured' });
+      console.error('[startBackgroundCheck] CHECKR_APPLY_URL not configured in environment');
+      return res.status(500).json({ error: 'Checkr is not configured. Please contact support.' });
     }
 
+    console.log('[startBackgroundCheck] Returning applyUrl successfully');
     res.json({ applyUrl });
   } catch (error) {
     console.error('[startBackgroundCheck] Error:', error);
-    res.status(500).json({ error: 'Failed to start background check' });
+    res.status(500).json({ error: 'Failed to start background check. Please try again.' });
   }
 };
 

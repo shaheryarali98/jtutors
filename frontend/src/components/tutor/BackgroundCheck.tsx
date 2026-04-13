@@ -20,6 +20,7 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
   const [status, setStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     api.get('/auth/me')
@@ -33,16 +34,31 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
 
   const handleStart = async () => {
     try {
+      setError(null)
       setLoading(true)
       const res = await api.post('/checkr/start-background-check')
+      
+      // Validate response contains the applyUrl
+      if (!res.data || !res.data.applyUrl) {
+        const errorMsg = res.data?.error || 'No Checkr URL received from server'
+        console.error('[BackgroundCheck] Invalid response:', res.data)
+        setError(errorMsg)
+        return
+      }
+      
       const { applyUrl } = res.data
+      
+      // Only set status after confirming redirect will work
       setStatus('PENDING')
       if (onSaveSuccess) onSaveSuccess()
       window.dispatchEvent(new Event('tutor-profile-updated'))
+      
       // Open Checkr apply link in a new tab
       window.open(applyUrl, '_blank', 'noopener,noreferrer')
-    } catch (err) {
-      console.error('Error starting background check:', err)
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to start background check'
+      console.error('[BackgroundCheck] Error:', err)
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }
@@ -173,6 +189,23 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
           Complete your background check to unlock your full tutor profile and accept bookings.
         </p>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-red-900">Error Starting Background Check</p>
+            <p className="text-red-800 text-sm mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => setError(null)}
+            className="text-red-500 hover:text-red-700 flex-shrink-0"
+          >
+            <AlertCircle className="h-5 w-5 opacity-50" />
+          </button>
+        </div>
+      )}
 
       {/* Status Card - Only show if status exists */}
       {status && (
