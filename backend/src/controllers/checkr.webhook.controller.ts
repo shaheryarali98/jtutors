@@ -45,7 +45,6 @@ export const startBackgroundCheck = async (req: Request, res: Response) => {
         data: {
           tutorId,
           email,
-          fullLegalFirstName: firstName,
           status: 'PENDING',
         },
       });
