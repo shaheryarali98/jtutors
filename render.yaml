@@ -20,6 +20,10 @@ services:
         value: https://jtutors.com
       - key: PORT
         value: 5000
+      - key: CHECKR_APPLY_URL
+        sync: false
+      - key: CHECKR_API_KEY
+        sync: false
 
   - type: web
     name: tutor-portal-frontend
