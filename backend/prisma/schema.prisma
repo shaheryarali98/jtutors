@@ -188,24 +188,24 @@ model BackgroundCheck {
   tutorId           String   @unique
   tutor             Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   
-  fullLegalFirstName String
-  fullLegalLastName  String
+  fullLegalFirstName String?
+  fullLegalLastName  String?
   otherNamesUsed     String?
   
-  addressLine1      String
+  addressLine1      String?
   addressLine2      String?
-  city              String
-  stateProvinceRegion String
-  postalCode        String
-  country           String
-  livedMoreThan3Years Boolean
+  city              String?
+  stateProvinceRegion String?
+  postalCode        String?
+  country           String?
+  livedMoreThan3Years Boolean?
   
-  dateOfBirth       DateTime
-  socialSecurityNumber String // Should be encrypted in production
-  hasUSDriverLicense Boolean
+  dateOfBirth       DateTime?
+  socialSecurityNumber String? // Should be encrypted in production
+  hasUSDriverLicense Boolean?
   
   email             String
-  consentGiven      Boolean
+  consentGiven      Boolean  @default(false)
   comments          String?
   
   // Checkr integration fields

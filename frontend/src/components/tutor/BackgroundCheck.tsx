@@ -1,391 +1,358 @@
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
 import api from '../../lib/api'
-
-interface BackgroundCheckForm {
-  fullLegalFirstName: string
-  fullLegalLastName: string
-  otherNamesUsed: string
-  addressLine1: string
-  addressLine2: string
-  city: string
-  stateProvinceRegion: string
-  postalCode: string
-  country: string
-  livedMoreThan3Years: boolean
-  dateOfBirth: string
-  socialSecurityNumber: string
-  hasUSDriverLicense: boolean
-  email: string
-  consentGiven: boolean
-  comments: string
-}
+import {
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  XCircle,
+  ExternalLink,
+  Shield,
+  FileText,
+  Users,
+  Zap,
+} from 'lucide-react'
 
 interface BackgroundCheckProps {
   onSaveSuccess?: () => void
 }
 
 const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm<BackgroundCheckForm>()
+  const [status, setStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [feedback, setFeedback] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [backgroundCheckStatus, setBackgroundCheckStatus] = useState<string | null>(null)
+  const [fetching, setFetching] = useState(true)
 
   useEffect(() => {
-    fetchBackgroundCheck()
+    api.get('/auth/me')
+      .then(res => {
+        const bgCheck = res.data.tutor?.backgroundCheck
+        if (bgCheck) setStatus(bgCheck.status)
+      })
+      .catch(err => console.error('Error fetching background check status:', err))
+      .finally(() => setFetching(false))
   }, [])
 
-  const fetchBackgroundCheck = async () => {
-    try {
-      const response = await api.get('/auth/me')
-      const bgCheck = response.data.tutor?.backgroundCheck
-      
-      if (bgCheck) {
-        setSubmitted(true)
-        setBackgroundCheckStatus(bgCheck.status)
-        // Populate form with existing data
-        setValue('fullLegalFirstName', bgCheck.fullLegalFirstName)
-        setValue('fullLegalLastName', bgCheck.fullLegalLastName)
-        setValue('otherNamesUsed', bgCheck.otherNamesUsed || '')
-        setValue('addressLine1', bgCheck.addressLine1)
-        setValue('addressLine2', bgCheck.addressLine2 || '')
-        setValue('city', bgCheck.city)
-        setValue('stateProvinceRegion', bgCheck.stateProvinceRegion)
-        setValue('postalCode', bgCheck.postalCode)
-        setValue('country', bgCheck.country)
-        setValue('livedMoreThan3Years', bgCheck.livedMoreThan3Years)
-        // Ensure date format is correct for input type="date"
-        if (bgCheck.dateOfBirth) {
-          setValue('dateOfBirth', bgCheck.dateOfBirth.split('T')[0])
-        }
-        setValue('socialSecurityNumber', bgCheck.socialSecurityNumber)
-        setValue('hasUSDriverLicense', bgCheck.hasUSDriverLicense)
-        setValue('email', bgCheck.email)
-        setValue('consentGiven', bgCheck.consentGiven)
-        setValue('comments', bgCheck.comments || '')
-      }
-    } catch (error) {
-      console.error('Error fetching background check:', error)
-    }
-  }
-
-  const onSubmit = async (data: BackgroundCheckForm) => {
+  const handleStart = async () => {
     try {
       setLoading(true)
-      setFeedback('')
-      setErrorMessage('')
-      
-      await api.post('/tutor/profile/background-check', data)
-
-      // Scroll to the top to ensure success notification is visible
-      window.scrollTo(0, 0); 
-
-      setSubmitted(true)
-      setBackgroundCheckStatus('PENDING')
+      const res = await api.post('/checkr/start-background-check')
+      const { applyUrl } = res.data
+      setStatus('PENDING')
+      if (onSaveSuccess) onSaveSuccess()
       window.dispatchEvent(new Event('tutor-profile-updated'))
-
-      setFeedback('Your background check information was submitted and is awaiting manual review.')
-      if (onSaveSuccess) {
-        onSaveSuccess()
-      }
-      
-    } catch (error) {
-      console.error('Error submitting background check:', error)
-      setErrorMessage('Error submitting background check. Please try again.')
+      // Open Checkr apply link in a new tab
+      window.open(applyUrl, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      console.error('Error starting background check:', err)
     } finally {
       setLoading(false)
     }
   }
 
+  const getStatusIcon = () => {
+    switch (status) {
+      case 'APPROVED':
+        return <CheckCircle className="h-12 w-12 text-green-600" />
+      case 'REJECTED':
+        return <XCircle className="h-12 w-12 text-red-600" />
+      case 'REVIEW':
+        return <AlertCircle className="h-12 w-12 text-amber-600" />
+      case 'PENDING':
+        return <Clock className="h-12 w-12 text-blue-600" />
+      case 'EXPIRED':
+        return <AlertCircle className="h-12 w-12 text-gray-600" />
+      default:
+        return <Shield className="h-12 w-12 text-slate-600" />
+    }
+  }
+
+  const getStatusColor = (variant: 'bg' | 'border' | 'badge' | 'text' = 'bg') => {
+    if (variant === 'bg') {
+      return status === 'APPROVED' ? 'bg-green-50' :
+             status === 'REJECTED' ? 'bg-red-50' :
+             status === 'REVIEW' ? 'bg-amber-50' :
+             status === 'PENDING' ? 'bg-blue-50' :
+             status === 'EXPIRED' ? 'bg-gray-50' :
+             'bg-slate-50'
+    }
+    if (variant === 'border') {
+      return status === 'APPROVED' ? 'border-green-200' :
+             status === 'REJECTED' ? 'border-red-200' :
+             status === 'REVIEW' ? 'border-amber-200' :
+             status === 'PENDING' ? 'border-blue-200' :
+             status === 'EXPIRED' ? 'border-gray-200' :
+             'border-slate-200'
+    }
+    if (variant === 'badge') {
+      return status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+             status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+             status === 'REVIEW' ? 'bg-amber-100 text-amber-800' :
+             status === 'PENDING' ? 'bg-blue-100 text-blue-800' :
+             status === 'EXPIRED' ? 'bg-gray-100 text-gray-800' :
+             'bg-slate-100 text-slate-800'
+    }
+    return status === 'APPROVED' ? 'text-green-700' :
+           status === 'REJECTED' ? 'text-red-700' :
+           status === 'REVIEW' ? 'text-amber-700' :
+           status === 'PENDING' ? 'text-blue-700' :
+           status === 'EXPIRED' ? 'text-gray-700' :
+           'text-slate-700'
+  }
+
+  const statusLabel = status === 'PENDING' ? 'SUBMITTED' : (status || 'NOT STARTED')
+
+  const statusMessage = () => {
+    switch (status) {
+      case 'PENDING':
+        return {
+          title: 'Background Check Submitted',
+          message: 'Your background check has been submitted to Checkr. Our admin team is reviewing your application.',
+          details: 'This typically takes 1-3 business days. We\'ll send you an email once the review is complete.',
+        }
+      case 'APPROVED':
+        return {
+          title: 'Background Check Approved ✓',
+          message: 'Congratulations! Your background check has been approved.',
+          details: 'Your profile is now fully active and visible to students. You can start accepting bookings.',
+        }
+      case 'REVIEW':
+        return {
+          title: 'Additional Review Required',
+          message: 'Your background check is under additional review.',
+          details: 'Our team will contact you shortly if we need any clarification. No action needed from you right now.',
+        }
+      case 'REJECTED':
+        return {
+          title: 'Background Check Not Approved',
+          message: 'Unfortunately, your background check was not approved.',
+          details: 'Please contact our support team at support@jtutor.com for more information and next steps.',
+        }
+      case 'EXPIRED':
+        return {
+          title: 'Background Check Expired',
+          message: 'Your background check has expired.',
+          details: 'You\'ll need to submit a new one to continue tutoring. Click the button below to get started.',
+        }
+      default:
+        return null
+    }
+  }
+
+  const msg = statusMessage()
+
+  if (fetching) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="inline-block">
+            <svg className="animate-spin h-8 w-8 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          </div>
+          <p className="text-slate-500 text-sm mt-3">Loading background check status…</p>
+        </div>
+      </div>
+    )
+  }
+
+  const isNotStarted = !status
+  const isPending = status === 'PENDING'
+  const isApproved = status === 'APPROVED'
+  const isRejected = status === 'REJECTED'
+  const isExpired = status === 'EXPIRED'
+
   return (
-    <div>
-      <h2 className="section-title">Background Check</h2>
-      <p className="text-gray-600 mb-6">
-        JTutors requires a background check for all tutors. Submit your information below and an admin will review it manually.
-      </p>
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <h2 className="text-3xl font-bold text-slate-900">Background Check</h2>
+          <Shield className="h-7 w-7 text-orange-600" />
+        </div>
+        <p className="text-slate-600 text-lg">
+          Complete your background check to unlock your full tutor profile and accept bookings.
+        </p>
+      </div>
 
-      {feedback && (
-        <div className="bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">
-          {feedback}
+      {/* Status Card - Only show if status exists */}
+      {status && (
+        <div className={`border-2 rounded-2xl p-8 ${getStatusColor('bg')} ${getStatusColor('border')} transition-all`}>
+          <div className="flex items-start gap-6">
+            <div className="flex-shrink-0 pt-1">
+              {getStatusIcon()}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className={`text-xl font-bold ${getStatusColor('text')}`}>{msg?.title}</h3>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor('badge')}`}>
+                  {statusLabel}
+                </span>
+              </div>
+              <p className="text-slate-900 font-medium mb-2">{msg?.message}</p>
+              <p className="text-slate-600 text-sm">{msg?.details}</p>
+            </div>
+          </div>
         </div>
       )}
 
-      {errorMessage && (
-        <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-lg mb-4">
-          {errorMessage}
+      {/* Main CTA Section */}
+      {(isNotStarted || isExpired) && (
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-2xl p-8">
+          <div className="flex items-start gap-6">
+            <div className="p-3 bg-orange-600 rounded-full flex-shrink-0">
+              <Zap className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Get Started in 3 Steps</h3>
+              <ol className="space-y-3 text-slate-700 text-sm mb-6">
+                <li className="flex gap-3">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-orange-600 text-white text-xs font-bold flex-shrink-0">1</span>
+                  <span><strong>Click "Start Background Check"</strong> - You'll be guided to Checkr's secure form</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-orange-600 text-white text-xs font-bold flex-shrink-0">2</span>
+                  <span><strong>Complete the Checkr form</strong> - Takes 5-10 minutes with your personal info</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-orange-600 text-white text-xs font-bold flex-shrink-0">3</span>
+                  <span><strong>Admin review</strong> - We'll verify within 1-3 business days</span>
+                </li>
+              </ol>
+
+              <button
+                onClick={handleStart}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    <span>Opening Checkr…</span>
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="h-5 w-5" />
+                    <span>Start Background Check</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {submitted && (
-        <div className={`mb-6 p-4 rounded-lg ${
-          backgroundCheckStatus === 'APPROVED'
-            ? 'bg-green-50 border-2 border-green-200'
-            : backgroundCheckStatus === 'REJECTED'
-            ? 'bg-red-50 border-2 border-red-200'
-            : backgroundCheckStatus === 'REVIEW'
-            ? 'bg-yellow-50 border-2 border-yellow-200'
-            : backgroundCheckStatus === 'EXPIRED'
-            ? 'bg-gray-50 border-2 border-gray-200'
-            : 'bg-blue-50 border-2 border-blue-200'
-        }`}>
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-              backgroundCheckStatus === 'APPROVED' ? 'bg-green-100 text-green-800' :
-              backgroundCheckStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
-              backgroundCheckStatus === 'REVIEW'   ? 'bg-yellow-100 text-yellow-800' :
-              backgroundCheckStatus === 'EXPIRED'  ? 'bg-gray-100 text-gray-700' :
-              'bg-blue-100 text-blue-800'
-            }`}>
-              {backgroundCheckStatus === 'PENDING' ? 'SUBMITTED' : backgroundCheckStatus}
-            </span>
-          </div>
-          <p className="text-sm font-medium text-gray-800">
-            {backgroundCheckStatus === 'PENDING' && 'Your background check was submitted and is awaiting manual review. We will notify you once an admin has reviewed it.'}
-            {backgroundCheckStatus === 'APPROVED' && 'Your background check has been approved! Your profile is now fully active and visible to students.'}
-            {backgroundCheckStatus === 'REJECTED' && 'Your background check was not approved. Please contact support for more information.'}
-            {backgroundCheckStatus === 'REVIEW' && 'Your background check requires additional review. Our team will reach out to you shortly.'}
-            {backgroundCheckStatus === 'EXPIRED' && 'Your background check submission has expired. Please resubmit below.'}
-          </p>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <label className="label">Full Legal First Name *</label>
-            <input
-              type="text"
-              className="input"
-              {...register('fullLegalFirstName', { required: 'First name is required' })}
-            />
-            {errors.fullLegalFirstName && <p className="error-text">{errors.fullLegalFirstName.message}</p>}
-          </div>
-
-          <div>
-            <label className="label">Full Legal Last Name *</label>
-            <input
-              type="text"
-              className="input"
-              {...register('fullLegalLastName', { required: 'Last name is required' })}
-            />
-            {errors.fullLegalLastName && <p className="error-text">{errors.fullLegalLastName.message}</p>}
-          </div>
-        </div>
-
-        <div>
-          <label className="label">Other Names Used (maiden/former names)</label>
-          <input
-            type="text"
-            className="input"
-            placeholder="Leave blank if none"
-            {...register('otherNamesUsed')}
-          />
-        </div>
-
-        <div className="border-t pt-6">
-          <h3 className="text-lg font-semibold mb-4">Current Address</h3>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="label">Address Line 1 *</label>
-              <input
-                type="text"
-                className="input"
-                {...register('addressLine1', { required: 'Address is required' })}
-              />
-              {errors.addressLine1 && <p className="error-text">{errors.addressLine1.message}</p>}
+      {/* Pending Actions */}
+      {isPending && (
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-8">
+          <div className="flex items-start gap-6">
+            <div className="p-3 bg-blue-600 rounded-full flex-shrink-0">
+              <FileText className="h-6 w-6 text-white" />
             </div>
-
-            <div>
-              <label className="label">Address Line 2</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="Apt, Suite, etc. (optional)"
-                {...register('addressLine2')}
-              />
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="label">City *</label>
-                <input
-                  type="text"
-                  className="input"
-                  {...register('city', { required: 'City is required' })}
-                />
-                {errors.city && <p className="error-text">{errors.city.message}</p>}
-              </div>
-
-              <div>
-                <label className="label">State / Province / Region *</label>
-                <input
-                  type="text"
-                  className="input"
-                  {...register('stateProvinceRegion', { required: 'State/Province is required' })}
-                />
-                {errors.stateProvinceRegion && <p className="error-text">{errors.stateProvinceRegion.message}</p>}
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="label">Postal Code *</label>
-                <input
-                  type="text"
-                  className="input"
-                  {...register('postalCode', { required: 'Postal code is required' })}
-                />
-                {errors.postalCode && <p className="error-text">{errors.postalCode.message}</p>}
-              </div>
-
-              <div>
-                <label className="label">Country *</label>
-                <input
-                  type="text"
-                  className="input"
-                  {...register('country', { required: 'Country is required' })}
-                />
-                {errors.country && <p className="error-text">{errors.country.message}</p>}
-              </div>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="livedMoreThan3Years"
-                className="mr-2"
-                {...register('livedMoreThan3Years')}
-              />
-              <label htmlFor="livedMoreThan3Years" className="text-sm text-gray-700">
-                Have you lived at this address for more than 3 years?
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t pt-6">
-          <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="label">Date of Birth * (MM/DD/YYYY)</label>
-              <input
-                type="date"
-                className="input"
-                {...register('dateOfBirth', { required: 'Date of birth is required' })}
-              />
-              {errors.dateOfBirth && <p className="error-text">{errors.dateOfBirth.message}</p>}
-            </div>
-
-            <div>
-              <label className="label">Social Security Number *</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="XXX-XX-XXXX"
-                {...register('socialSecurityNumber', { 
-                  required: 'SSN is required',
-                  pattern: {
-                    value: /^\d{3}-?\d{2}-?\d{4}$/,
-                    message: 'Invalid SSN format'
-                  }
-                })}
-              />
-              {errors.socialSecurityNumber && <p className="error-text">{errors.socialSecurityNumber.message}</p>}
-              <p className="text-xs text-gray-600 mt-1">
-                Your SSN is encrypted and securely stored
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">What's Next?</h3>
+              <p className="text-slate-700 text-sm mb-4">
+                Your background check is with our admin team for review. While you wait, you can start setting up the rest of your profile.
               </p>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="hasUSDriverLicense"
-                className="mr-2"
-                {...register('hasUSDriverLicense')}
-              />
-              <label htmlFor="hasUSDriverLicense" className="text-sm text-gray-700">
-                Do you hold a current US driver's license?
-              </label>
-            </div>
-
-            <div>
-              <label className="label">Email *</label>
-              <input
-                type="email"
-                className="input"
-                {...register('email', { 
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Invalid email address'
-                  }
-                })}
-              />
-              {errors.email && <p className="error-text">{errors.email.message}</p>}
-            </div>
-
-            <div>
-              <label className="label">Additional Comments (optional)</label>
-              <textarea
-                className="input"
-                rows={3}
-                placeholder="Any additional information you'd like to provide..."
-                {...register('comments')}
-              />
+              <button
+                onClick={handleStart}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-600 font-medium rounded-lg border-2 border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Opening…' : (
+                  <>
+                    <ExternalLink className="h-4 w-4" />
+                    Return to Checkr Form
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="border-t pt-6">
-          <div className="bg-yellow-50 p-4 rounded-lg mb-4">
-            <h4 className="font-semibold mb-2">Consent & Agreement</h4>
-            <p className="text-sm text-gray-700 mb-3">
-              By checking the box below, you certify that:
-            </p>
-            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-              <li>All information provided is accurate to the best of your knowledge</li>
-              <li>You consent to a background check being performed</li>
-              <li>You understand that false information may result in account termination</li>
-            </ul>
+      {/* Info Cards Grid */}
+      {!isApproved && !isRejected && (
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+            <div className="flex gap-3 mb-2">
+              <Shield className="h-5 w-5 text-slate-600 flex-shrink-0 mt-0.5" />
+              <h4 className="font-bold text-slate-900">Secure & Encrypted</h4>
+            </div>
+            <p className="text-sm text-slate-600">Your data is encrypted and processed securely by Checkr, a trusted background check provider.</p>
           </div>
 
-          <div className="flex items-start mb-6">
-            <input
-              type="checkbox"
-              id="consentGiven"
-              className="mt-1 mr-2"
-              {...register('consentGiven', { required: 'You must give consent' })}
-            />
-            <label htmlFor="consentGiven" className="text-sm text-gray-700">
-              I certify that the information provided is accurate to the best of my knowledge 
-              and consent to a background check. *
-            </label>
+          <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+            <div className="flex gap-3 mb-2">
+              <Clock className="h-5 w-5 text-slate-600 flex-shrink-0 mt-0.5" />
+              <h4 className="font-bold text-slate-900">Fast Review</h4>
+            </div>
+            <p className="text-sm text-slate-600">Most background checks are reviewed within 1-3 business days. You'll get notified via email.</p>
           </div>
-          {errors.consentGiven && <p className="error-text">{errors.consentGiven.message}</p>}
+
+          <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+            <div className="flex gap-3 mb-2">
+              <Users className="h-5 w-5 text-slate-600 flex-shrink-0 mt-0.5" />
+              <h4 className="font-bold text-slate-900">Parent Confidence</h4>
+            </div>
+            <p className="text-sm text-slate-600">Parents trust verified tutors. Completing your background check boosts your credibility.</p>
+          </div>
+
+          <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+            <div className="flex gap-3 mb-2">
+              <FileText className="h-5 w-5 text-slate-600 flex-shrink-0 mt-0.5" />
+              <h4 className="font-bold text-slate-900">Simple Process</h4>
+            </div>
+            <p className="text-sm text-slate-600">Just provide your basic info, driver's license, and SSN. No additional documents needed.</p>
+          </div>
         </div>
+      )}
 
-        <button
-          type="submit"
-          disabled={loading || backgroundCheckStatus === 'APPROVED' || backgroundCheckStatus === 'PENDING'}
-          className="btn btn-primary w-full md:w-auto disabled:opacity-50"
-        >
-          {loading
-            ? 'Submitting...'
-            : backgroundCheckStatus === 'APPROVED'
-            ? 'Background Check Approved'
-            : backgroundCheckStatus === 'PENDING'
-            ? 'Awaiting Review'
-            : backgroundCheckStatus === 'EXPIRED'
-            ? 'Resubmit Background Check'
-            : submitted
-            ? 'Update Background Check'
-            : 'Submit Background Check'}
-        </button>
-      </form>
+      {/* Approved State - Show next steps */}
+      {isApproved && (
+        <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-8">
+          <h3 className="text-lg font-bold text-green-900 mb-4">You're All Set! 🎉</h3>
+          <ul className="space-y-3 text-green-800 text-sm mb-6">
+            <li className="flex gap-3 items-start">
+              <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <span>Your profile is now fully active and visible to students</span>
+            </li>
+            <li className="flex gap-3 items-start">
+              <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <span>You can start accepting bookings immediately</span>
+            </li>
+            <li className="flex gap-3 items-start">
+              <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <span>Parents see your verified status on your profile</span>
+            </li>
+          </ul>
+          <p className="text-sm text-green-700 font-medium">Complete the rest of your profile to maximize your chances of getting booked!</p>
+        </div>
+      )}
+
+      {/* Rejected State - Show support info */}
+      {isRejected && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-8">
+          <h3 className="text-lg font-bold text-red-900 mb-4">Background Check Not Approved</h3>
+          <p className="text-red-800 text-sm mb-6">
+            Your background check was not approved. Our admin team will review your case. Please contact our support team for more information about your specific situation.
+          </p>
+          <a
+            href="mailto:support@jtutor.com"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors"
+          >
+            <ExternalLink className="h-5 w-5" />
+            Contact Support
+          </a>
+        </div>
+      )}
+
+      {/* Disclaimer */}
+      <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-4 border border-slate-200">
+        <strong>Privacy Notice:</strong> Your background check is processed securely by Checkr, Inc. Your personal information is not shared with JTutors and is processed according to Checkr's privacy policy.
+      </p>
     </div>
   )
 }

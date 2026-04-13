@@ -7,6 +7,102 @@ import { calculateProfileCompletion } from './tutor.controller';
 const prisma = new PrismaClient();
 
 /**
+ * Called when a tutor clicks "Start Background Check".
+ * Creates a minimal BackgroundCheck placeholder so the webhook can match
+ * the tutor later by email when they complete the Checkr apply-link form.
+ * Also returns the CHECKR_APPLY_URL so the frontend can redirect the tutor.
+ */
+export const startBackgroundCheck = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, tutor: { select: { id: true, firstName: true } } },
+    });
+
+    if (!user?.tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    const tutorId = user.tutor.id;
+    const email = user.email;
+    const firstName = user.tutor.firstName || 'Tutor';
+
+    // Create or update a minimal placeholder record
+    const existing = await prisma.backgroundCheck.findUnique({ where: { tutorId } });
+    if (!existing) {
+      await prisma.backgroundCheck.create({
+        data: {
+          tutorId,
+          email,
+          status: 'PENDING',
+        },
+      });
+
+      // Send welcome email on first submission
+      await sendEmail({
+        to: email,
+        subject: '🎯 Background Check Started - JTutors',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #f5a11a; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+              <h2 style="margin: 0; font-size: 24px;">🎯 Background Check Started</h2>
+            </div>
+            <div style="background-color: #fffaf0; padding: 30px; border: 1px solid #fed7aa;">
+              <p style="font-size: 16px; color: #1f2937; margin: 0 0 20px 0;">
+                Hi ${firstName},
+              </p>
+              <p style="font-size: 14px; color: #1f2937; margin: 0 0 15px 0;">
+                A Checkr form window should have opened in your browser. If not, you can <a href="${process.env.CHECKR_APPLY_URL}" style="color: #f5a11a; text-decoration: underline;">click here to open the form</a>.
+              </p>
+              <div style="background-color: white; border-left: 4px solid #f5a11a; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; color: #374151; font-size: 14px;">
+                  <strong>What you'll need:</strong>
+                </p>
+                <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #374151; font-size: 14px;">
+                  <li>Your legal name & date of birth</li>
+                  <li>Your Social Security Number</li>
+                  <li>Your current address</li>
+                  <li>Driver's License (if you have one)</li>
+                </ul>
+              </div>
+              <p style="font-size: 14px; color: #1f2937; margin: 15px 0;">
+                The process typically takes 5-10 minutes. Your information is encrypted and processed securely by Checkr.
+              </p>
+              <div style="background-color: #fef3c7; border: 1px solid #fcd34d; padding: 12px; border-radius: 4px; margin: 20px 0;">
+                <p style="margin: 0; color: #92400e; font-size: 13px;">
+                  <strong>💡 Tip:</strong> Have your information ready before starting. This makes the process faster!
+                </p>
+              </div>
+              <div style="background-color: white; border: 1px solid #e5e7eb; padding: 15px; border-radius: 4px; margin-top: 20px; text-align: center;">
+                <a href="${process.env.CHECKR_APPLY_URL}" style="background-color: #f5a11a; color: white; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">
+                  Open Checkr Form
+                </a>
+              </div>
+              <p style="font-size: 12px; color: #6b7280; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+                After you submit the form, our admin team will review your background check within 1-3 business days. You'll receive an email with the results.
+              </p>
+            </div>
+          </div>
+        `,
+        text: `Hi ${firstName}, a Checkr form has been opened for your background check. If the window didn't open, you can access it here: ${process.env.CHECKR_APPLY_URL}. The process takes 5-10 minutes. Have your legal name, date of birth, Social Security Number, current address, and driver's license (if applicable) ready. Our team will review within 1-3 business days.`,
+      }).catch((err) => console.error('[startBackgroundCheck] Failed to send welcome email:', err));
+    }
+
+    const applyUrl = process.env.CHECKR_APPLY_URL;
+    if (!applyUrl) {
+      return res.status(500).json({ error: 'Checkr apply URL is not configured' });
+    }
+
+    res.json({ applyUrl });
+  } catch (error) {
+    console.error('[startBackgroundCheck] Error:', error);
+    res.status(500).json({ error: 'Failed to start background check' });
+  }
+};
+
+/**
  * Handle Checkr webhooks
  * Checkr sends POST requests to this endpoint for various events:
  * - report.completed
@@ -144,23 +240,123 @@ async function handleReportCompleted(event: any) {
   // Send email notification to the tutor
   const tutorEmail = backgroundCheck.tutor?.user?.email;
   if (tutorEmail) {
-    const statusMessage =
-      internalStatus === 'APPROVED'
-        ? 'Your background check has been approved! Your profile is now complete.'
-        : internalStatus === 'REVIEW'
-        ? 'Your background check requires additional review. Our team will reach out shortly.'
-        : 'Your background check is still being processed.';
+    let emailContent = {
+      subject: '',
+      html: '',
+      text: '',
+    };
+
+    if (internalStatus === 'APPROVED') {
+      emailContent = {
+        subject: '🎉 Your Background Check is Approved! - JTutors',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #10b981; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+              <h2 style="margin: 0; font-size: 24px;">✓ Background Check Approved</h2>
+            </div>
+            <div style="background-color: #f0fdf4; padding: 30px; border: 1px solid #d1fae5;">
+              <p style="font-size: 16px; color: #1f2937; margin: 0 0 20px 0;">
+                Great news! Your background check has been successfully approved. 🎉
+              </p>
+              <div style="background-color: white; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; color: #374151; font-size: 14px;">
+                  <strong>What's next?</strong><br/>
+                  Your profile is now fully active and visible to students. You can start accepting bookings right away!
+                </p>
+              </div>
+              <ul style="color: #1f2937; font-size: 14px; margin: 20px 0; padding-left: 20px;">
+                <li>Your verified status is now displayed on your profile</li>
+                <li>Students can begin booking sessions with you</li>
+                <li>Payments will be processed according to your Stripe payout schedule</li>
+              </ul>
+              <div style="background-color: white; border: 1px solid #e5e7eb; padding: 15px; border-radius: 4px; margin-top: 20px; text-align: center;">
+                <a href="https://app.jtutor.com/dashboard" style="background-color: #10b981; color: white; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">
+                  Go to Dashboard
+                </a>
+              </div>
+              <p style="font-size: 12px; color: #6b7280; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+                If you have any questions, please contact our support team at support@jtutor.com
+              </p>
+            </div>
+          </div>
+        `,
+        text: 'Great news! Your background check has been successfully approved. Your profile is now fully active and visible to students. You can start accepting bookings right away! Go to your dashboard to view your updated profile.',
+      };
+    } else if (internalStatus === 'REVIEW') {
+      emailContent = {
+        subject: '⏳ Background Check Under Review - JTutors',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #f59e0b; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+              <h2 style="margin: 0; font-size: 24px;">⏳ Under Review</h2>
+            </div>
+            <div style="background-color: #fffbeb; padding: 30px; border: 1px solid #fde68a;">
+              <p style="font-size: 16px; color: #1f2937; margin: 0 0 20px 0;">
+                Your background check requires additional verification and is currently under review by our team.
+              </p>
+              <div style="background-color: white; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; color: #374151; font-size: 14px;">
+                  <strong>What happens next?</strong><br/>
+                  Our admin team will review your information. This typically takes 2-3 business days. If we need any clarification, we'll contact you directly.
+                </p>
+              </div>
+              <p style="font-size: 14px; color: #1f2937; margin: 15px 0;">
+                You'll receive another email once the review is complete. In the meantime, you can continue setting up your profile.
+              </p>
+              <div style="background-color: white; border: 1px solid #e5e7eb; padding: 15px; border-radius: 4px; margin-top: 20px; text-align: center;">
+                <a href="https://app.jtutor.com/dashboard" style="background-color: #f59e0b; color: white; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">
+                  View Dashboard
+                </a>
+              </div>
+              <p style="font-size: 12px; color: #6b7280; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+                Questions? Contact support@jtutor.com
+              </p>
+            </div>
+          </div>
+        `,
+        text: 'Your background check is under review by our admin team. This typically takes 2-3 business days. If we need any clarification, we\'ll reach out directly. You\'ll receive another email once the review is complete.',
+      };
+    } else {
+      emailContent = {
+        subject: '📋 Background Check Submitted - JTutors',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #3b82f6; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+              <h2 style="margin: 0; font-size: 24px;">📋 Submitted</h2>
+            </div>
+            <div style="background-color: #eff6ff; padding: 30px; border: 1px solid #bfdbfe;">
+              <p style="font-size: 16px; color: #1f2937; margin: 0 0 20px 0;">
+                Thank you! Your background check has been received and is being processed.
+              </p>
+              <div style="background-color: white; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; color: #374151; font-size: 14px;">
+                  <strong>Processing Timeline</strong><br/>
+                  Most background checks are completed within 1-3 business days. We'll send you an email once it's approved or if we need more information.
+                </p>
+              </div>
+              <p style="font-size: 14px; color: #1f2937; margin: 15px 0;">
+                While you wait, you can complete other sections of your profile like education, experience, and availability to maximize your chances of getting booked.
+              </p>
+              <div style="background-color: white; border: 1px solid #e5e7eb; padding: 15px; border-radius: 4px; margin-top: 20px; text-align: center;">
+                <a href="https://app.jtutor.com/dashboard" style="background-color: #3b82f6; color: white; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-weight: bold; display: inline-block;">
+                  Complete Your Profile
+                </a>
+              </div>
+              <p style="font-size: 12px; color: #6b7280; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+                Need help? Contact support@jtutor.com
+              </p>
+            </div>
+          </div>
+        `,
+        text: 'Thank you! Your background check has been submitted. Most checks are completed within 1-3 business days. You\'ll receive an email once it\'s approved or if we need additional information.',
+      };
+    }
 
     await sendEmail({
       to: tutorEmail,
-      subject: `JTutors Background Check Update`,
-      html: `
-        <h2>Background Check Update</h2>
-        <p>${statusMessage}</p>
-        <p>Log in to your dashboard to see the full status.</p>
-        <p>Best regards,<br/>The JTutors Team</p>
-      `,
-      text: statusMessage,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text,
     }).catch((err) => console.error('[Checkr Webhook] Failed to send email:', err));
   }
 
