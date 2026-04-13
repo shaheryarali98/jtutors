@@ -24,6 +24,8 @@ services:
         sync: false
       - key: CHECKR_API_KEY
         sync: false
+      - key: CONTACT_EMAIL
+        value: shaheryarali446@gmail.com
 
   - type: web
     name: tutor-portal-frontend

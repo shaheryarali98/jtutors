@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
+import api from '../lib/api'
 
 const Footer = () => {
   const [formData, setFormData] = useState({
@@ -12,16 +13,22 @@ const Footer = () => {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
+  const [error, setError] = useState<string | null>(null)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
-    // TODO: Implement form submission to backend
-    setTimeout(() => {
-      setSubmitting(false)
+    setError(null)
+    try {
+      await api.post('/contact/submit', formData)
       setSubmitted(true)
       setFormData({ name: '', email: '', subject: '', message: '' })
-      setTimeout(() => setSubmitted(false), 3000)
-    }, 1000)
+      setTimeout(() => setSubmitted(false), 5000)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to send message. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -70,6 +77,11 @@ const Footer = () => {
           {submitted && (
             <div className="md:col-span-2 bg-green-500/20 border border-green-300 text-white px-4 py-2 rounded-lg">
               Thank you! Your message has been sent.
+            </div>
+          )}
+          {error && (
+            <div className="md:col-span-2 bg-red-500/20 border border-red-300 text-white px-4 py-2 rounded-lg">
+              {error}
             </div>
           )}
           <button

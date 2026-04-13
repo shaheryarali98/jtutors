@@ -14,6 +14,7 @@ import classSessionRoutes from './routes/classSession.routes';
 import emailTemplateRoutes from './routes/emailTemplate.routes';
 import settingsRoutes from './routes/settings.routes';
 import checkrRoutes from './routes/checkr.routes';
+import contactRoutes from './routes/contact.routes';
 import { handleStripeWebhook } from './controllers/stripe.webhook.controller';
 
 dotenv.config();
@@ -69,6 +70,7 @@ app.use('/api/class-sessions', classSessionRoutes);
 app.use('/api/email-templates', emailTemplateRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/checkr', checkrRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Public API: approved tutors (no auth required)
 import { getPublicTutors } from './controllers/admin.controller';

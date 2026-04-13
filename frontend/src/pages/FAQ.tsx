@@ -56,7 +56,7 @@ const FAQ = () => {
             Still have questions?
           </p>
           <a
-            href="mailto:info@jtutors.com"
+            href="mailto:shaheryarali446@gmail.com"
             className="inline-block px-6 py-3 rounded-full bg-white font-semibold shadow-lg hover:bg-slate-100 transition-colors"
             style={{ color: '#f5a11a' }}
           >
