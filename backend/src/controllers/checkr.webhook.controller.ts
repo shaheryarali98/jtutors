@@ -19,7 +19,7 @@ export const startBackgroundCheck = async (req: Request, res: Response) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, tutor: { select: { id: true, firstName: true } } },
+      select: { email: true, tutor: { select: { id: true, firstName: true, lastName: true } } },
     });
 
     if (!user) {
@@ -35,6 +35,7 @@ export const startBackgroundCheck = async (req: Request, res: Response) => {
     const tutorId = user.tutor.id;
     const email = user.email;
     const firstName = user.tutor.firstName || 'Tutor';
+    const lastName = user.tutor.lastName || '';
 
     console.log('[startBackgroundCheck] Creating/updating background check for tutorId:', tutorId);
 
@@ -46,6 +47,19 @@ export const startBackgroundCheck = async (req: Request, res: Response) => {
           tutorId,
           email,
           status: 'PENDING',
+          // Provide placeholder values for NOT NULL columns (filled by Checkr)
+          fullLegalFirstName: firstName,
+          fullLegalLastName: lastName,
+          addressLine1: '',
+          city: '',
+          stateProvinceRegion: '',
+          postalCode: '',
+          country: '',
+          livedMoreThan3Years: false,
+          dateOfBirth: new Date('1900-01-01'),
+          socialSecurityNumber: '',
+          hasUSDriverLicense: false,
+          consentGiven: false,
         },
       });
       console.log('[startBackgroundCheck] Created new background check record');
