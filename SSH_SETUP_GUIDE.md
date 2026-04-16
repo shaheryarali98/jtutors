@@ -1,13 +1,13 @@
 # SSH Key Setup for Multiple GitHub Accounts
 
-This guide will help you set up a separate SSH key for the jtutors repository with email shaheryarali446@gmail.com.
+This guide will help you set up a separate SSH key for the jtutors repository with email Info@jtutors.com.
 
 ## Step 1: Generate a New SSH Key
 
 Open PowerShell or Git Bash and run:
 
 ```bash
-ssh-keygen -t ed25519 -C "shaheryarali446@gmail.com" -f "$HOME/.ssh/id_ed25519_jtutors"
+ssh-keygen -t ed25519 -C "Info@jtutors.com" -f "$HOME/.ssh/id_ed25519_jtutors"
 ```
 
 **When prompted:**
@@ -84,7 +84,7 @@ Set the Git user for this specific repository:
 ```bash
 cd D:\jtutor
 git config user.name "shaheryarali98"
-git config user.email "shaheryarali446@gmail.com"
+git config user.email "Info@jtutors.com"
 ```
 
 ## Step 7: Test SSH Connection

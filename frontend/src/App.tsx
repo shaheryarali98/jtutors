@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword from './pages/auth/ResetPassword'
+import ChangePassword from './pages/auth/ChangePassword'
 import TutorDashboard from './pages/tutor/TutorDashboard'
 import TutorProfile from './pages/tutor/TutorProfile'
 import TutorSessions from './pages/tutor/TutorSessions'
@@ -46,6 +49,9 @@ function App() {
             user ? <Navigate to={resolveDefaultRoute(user)} /> : <Register />
           }
         />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/change-password" element={<ChangePassword />} />
 
         {/* Tutor Routes */}
         <Route path="/tutor/dashboard" element={

@@ -8,6 +8,7 @@ import {
   LogOut,
   Sparkles,
   BookOpen,
+  KeyRound,
 } from 'lucide-react'
 
 const Navbar = () => {
@@ -161,6 +162,13 @@ const Navbar = () => {
                               </button>
                             ))}
                             <button
+                              onClick={() => { navigate('/change-password'); setProfileMenuOpen(false) }}
+                              className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl transition-colors flex items-center gap-3"
+                            >
+                              <KeyRound className="w-4 h-4" />
+                              Change Password
+                            </button>
+                            <button
                               onClick={handleLogout}
                               className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors flex items-center gap-3"
                             >
@@ -282,6 +290,14 @@ const Navbar = () => {
                       {user.role}
                     </p>
                   </div>
+                  <NavLink
+                    to="/change-password"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl transition-all"
+                  >
+                    <KeyRound className="w-5 h-5" />
+                    Change Password
+                  </NavLink>
                   <button
                     onClick={handleLogout}
                     className="flex items-center gap-3 w-full px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-all"
@@ -331,6 +347,13 @@ const Navbar = () => {
                     {link.label}
                   </button>
                 ))}
+                <button
+                  onClick={() => { navigate('/change-password'); setProfileMenuOpen(false); setMobileMenuOpen(false) }}
+                  className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-violet-50 rounded-xl flex items-center gap-3"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  Change Password
+                </button>
                 <button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-3"

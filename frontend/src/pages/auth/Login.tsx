@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
+import { Eye, EyeOff } from 'lucide-react'
 import api from '../../lib/api'
 import { useAuthStore } from '../../store/authStore'
 import Navbar from '../../components/Navbar'
@@ -16,6 +17,7 @@ const Login = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
 
@@ -114,13 +116,31 @@ const Login = () => {
               </div>
 
               <div>
-                <label className="label">Password</label>
-                <input
-                  type="password"
-                  className="input"
-                  placeholder="••••••••"
-                  {...register('password', { required: 'Password is required' })}
-                />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="label">Password</label>
+                  <Link 
+                    to="/forgot-password" 
+                    className="text-sm text-primary-600 hover:text-primary-700 font-semibold"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className="input pr-10"
+                    placeholder="••••••••"
+                    {...register('password', { required: 'Password is required' })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
                 {errors.password && <p className="error-text">{errors.password.message}</p>}
               </div>
 

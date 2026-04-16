@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { sendEmail } from '../services/email.service';
 
-const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'shaheryarali446@gmail.com';
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL || 'Info@jtutors.com';
 
 export const submitContactForm = async (req: Request, res: Response) => {
   try {
