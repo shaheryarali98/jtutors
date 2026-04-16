@@ -16,6 +16,8 @@ model User {
   password  String
   role      String   @default("STUDENT")
   emailConfirmed Boolean @default(false)
+  resetToken String?
+  resetTokenExpiry DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -30,11 +30,17 @@ export const sendTemplatedEmail = async (
 
   if (!template || !template.isActive) {
     console.warn(`Email template ${templateName} not found or inactive. Using fallback.`);
-    // Fallback to basic email
+    // Fallback: build a minimal but useful email using the raw variables
+    const resetLink = variables.resetLink ? String(variables.resetLink) : null;
+    const userName = variables.userName ? String(variables.userName) : 'there';
+    const fallbackHtml = resetLink
+      ? `<p>Hi ${userName},</p><p>You requested to reset your password. Click the link below to reset it:</p><p><a href="${resetLink}">Reset Password</a></p><p>This link will expire in 1 hour. If you didn't request this, please ignore this email.</p><p>Best regards,<br/>The JTutors Team</p>`
+      : `<p>Hello,</p><p>This is a notification from JTutors.</p>`;
+    const fallbackSubject = resetLink ? 'Reset Your Password - JTutors' : 'Notification from JTutors';
     await sendEmail({
       to,
-      subject: `Notification from JTutors`,
-      html: `<p>Hello,</p><p>This is a notification from JTutors.</p>`,
+      subject: fallbackSubject,
+      html: fallbackHtml,
     });
     return;
   }

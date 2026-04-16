@@ -16,6 +16,7 @@ import settingsRoutes from './routes/settings.routes';
 import checkrRoutes from './routes/checkr.routes';
 import contactRoutes from './routes/contact.routes';
 import { handleStripeWebhook } from './controllers/stripe.webhook.controller';
+import { initializeDefaultTemplates } from './services/emailTemplate.service';
 
 dotenv.config();
 
@@ -89,7 +90,14 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Server is running on port ${PORT}`);
+  // Ensure email templates are seeded on startup
+  try {
+    await initializeDefaultTemplates();
+    console.log('Email templates initialized');
+  } catch (err) {
+    console.warn('Failed to initialize email templates:', err);
+  }
 });
 
