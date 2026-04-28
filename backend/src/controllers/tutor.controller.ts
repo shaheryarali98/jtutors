@@ -870,6 +870,10 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
 
 export const getStripeStatus = async (req: Request, res: Response) => {
   try {
+    if (process.env.DEV_BYPASS_STRIPE === 'true') {
+      return res.json({ devBypass: true, connected: true, onboarded: true, chargesEnabled: true, payoutsEnabled: true });
+    }
+
     if (!stripe) {
       return res.json({ 
         connected: false, 
@@ -976,6 +980,9 @@ export const getTutorSessions = async (req: Request, res: Response) => {
           ? {
               id: booking.classSession.id,
               status: booking.classSession.status,
+              tutorApproved: booking.classSession.tutorApproved,
+              adminApproved: booking.classSession.adminApproved,
+              paymentReleased: booking.classSession.paymentReleased,
               googleClassroomLink: booking.classSession.googleClassroomLink,
               googleMeetLink: booking.classSession.googleMeetLink,
             }
@@ -1075,6 +1082,61 @@ export const acceptTerms = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Accept terms error:', error);
     res.status(500).json({ error: 'Error accepting terms and conditions' });
+  }
+};
+
+// ── Get tutor's JTutors provisioned email ─────────────────────────────────────
+export const getJTutorsEmail = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const tutor = await prisma.tutor.findUnique({
+      where: { userId },
+      select: { jtutorsEmail: true },
+    });
+    if (!tutor) return res.status(404).json({ error: 'Tutor profile not found' });
+    res.json({ jtutorsEmail: tutor.jtutorsEmail ?? null });
+  } catch (error) {
+    console.error('Get JTutors email error:', error);
+    res.status(500).json({ error: 'Error fetching JTutors email' });
+  }
+};
+
+export const cancelBookingTutor = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    const tutor = await prisma.tutor.findUnique({ where: { userId } });
+    if (!tutor) return res.status(404).json({ error: 'Tutor profile not found' });
+
+    const booking = await prisma.booking.findFirst({
+      where: { id, tutorId: tutor.id },
+      include: { payment: true },
+    });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
+      return res.status(400).json({ error: 'Only PENDING or CONFIRMED bookings can be cancelled.' });
+    }
+
+    const devBypass = process.env.DEV_BYPASS_STRIPE === 'true';
+
+    if (booking.payment && booking.payment.paymentStatus === 'PAID') {
+      if (!devBypass && booking.payment.stripePaymentIntentId) {
+        const { stripe } = await import('../services/stripe.service');
+        await stripe!.refunds.create({ payment_intent: booking.payment.stripePaymentIntentId });
+      }
+      await prisma.payment.update({
+        where: { id: booking.payment.id },
+        data: { paymentStatus: 'REFUNDED' },
+      });
+    }
+
+    await prisma.booking.update({ where: { id }, data: { status: 'CANCELLED' } });
+
+    res.json({ message: 'Booking cancelled successfully.' + (booking.payment?.paymentStatus === 'PAID' ? ' The student has been refunded.' : '') });
+  } catch (error) {
+    console.error('Cancel booking (tutor) error:', error);
+    res.status(500).json({ error: 'Error cancelling booking' });
   }
 };
 

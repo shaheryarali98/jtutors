@@ -14,8 +14,9 @@ const defaultSettingsPayload: Omit<AdminSettings, 'id' | 'createdAt' | 'updatedA
   sendSignupConfirmation: true,
   sendProfileCompletionEmail: true,
   autoApproveUsers: true,
-  adminCommissionPercentage: 10.0,
+  adminCommissionPercentage: 9.25,
   adminCommissionFixed: 0.0,
+  studentFeePercentage: 4.5,
   withdrawalAutoApproveDays: 2,
   withdrawMethods: JSON.stringify(DEFAULT_WITHDRAW_METHODS),
   withdrawFixedCharge: 0,
@@ -34,6 +35,7 @@ const defaultSettingsPayload: Omit<AdminSettings, 'id' | 'createdAt' | 'updatedA
   emailFooterColor: '#F5F5F5',
   defaultStudentImage: DEFAULT_STUDENT_IMAGE,
   defaultTutorImage: DEFAULT_TUTOR_IMAGE,
+  adminPaymentInfo: null,
 };
 
 const formatSettings = (settings: AdminSettings) => ({
@@ -88,6 +90,7 @@ type UpdatableAdminSettings = Partial<
     | 'autoApproveUsers'
     | 'adminCommissionPercentage'
     | 'adminCommissionFixed'
+    | 'studentFeePercentage'
     | 'withdrawalAutoApproveDays'
     | 'withdrawMethods'
     | 'withdrawFixedCharge'
@@ -106,6 +109,7 @@ type UpdatableAdminSettings = Partial<
     | 'emailFooterColor'
     | 'defaultStudentImage'
     | 'defaultTutorImage'
+    | 'adminPaymentInfo'
   >
 >;
 

@@ -21,20 +21,29 @@ export const calculateCommission = async (
   adminCommissionFixed: number;
   adminCommissionAmount: number;
   tutorAmount: number;
+  studentFeePercentage: number;
+  studentFeeAmount: number;
+  studentChargeAmount: number;
 }> => {
   const settings = await getAdminSettings();
-  const percentage = settings.adminCommissionPercentage || 10.0;
+  const tutorCommissionPct = settings.adminCommissionPercentage || 9.25;
+  const studentFeePct = (settings as any).studentFeePercentage ?? 4.5;
   const fixed = settings.adminCommissionFixed || 0.0;
 
-  const percentageAmount = (amount * percentage) / 100;
-  const adminCommissionAmount = percentageAmount + fixed;
-  const tutorAmount = amount - adminCommissionAmount;
+  const studentFeeAmount = (amount * studentFeePct) / 100;
+  const tutorCommissionAmount = (amount * tutorCommissionPct) / 100;
+  const adminCommissionAmount = studentFeeAmount + tutorCommissionAmount + fixed;
+  const tutorAmount = amount - tutorCommissionAmount - fixed;
+  const studentChargeAmount = amount + studentFeeAmount;
 
   return {
-    adminCommissionPercentage: percentage,
+    adminCommissionPercentage: tutorCommissionPct,
     adminCommissionFixed: fixed,
     adminCommissionAmount: Math.round(adminCommissionAmount * 100) / 100,
     tutorAmount: Math.round(tutorAmount * 100) / 100,
+    studentFeePercentage: studentFeePct,
+    studentFeeAmount: Math.round(studentFeeAmount * 100) / 100,
+    studentChargeAmount: Math.round(studentChargeAmount * 100) / 100,
   };
 };
 
@@ -119,7 +128,11 @@ export const confirmPayment = async (paymentId: string, stripeChargeId?: string)
   }
 
   // Verify payment intent if provided
-  if (payment.stripePaymentIntentId) {
+  // Skip verification in dev-bypass mode or when the ID is a dev placeholder
+  const devBypass = process.env.DEV_BYPASS_STRIPE === 'true';
+  const isDevIntent = !payment.stripePaymentIntentId || payment.stripePaymentIntentId === 'dev_bypass';
+
+  if (payment.stripePaymentIntentId && !devBypass && !isDevIntent) {
     try {
       const intent = await confirmPaymentIntent(payment.stripePaymentIntentId);
       if (!intent) {
@@ -149,6 +162,14 @@ export const confirmPayment = async (paymentId: string, stripeChargeId?: string)
       booking: true,
     },
   });
+
+  // Confirm the booking when payment succeeds
+  if (updated.bookingId) {
+    await prisma.booking.update({
+      where: { id: updated.bookingId },
+      data: { status: 'CONFIRMED' },
+    });
+  }
 
   // Send payment confirmation email to student
   try {

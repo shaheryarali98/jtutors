@@ -60,7 +60,13 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
       include: { user: true },
     });
 
-    if (!tutor || !tutor.stripeAccountId) {
+    if (!tutor) {
+      return { success: false, error: 'Tutor not found' };
+    }
+
+    const devBypass = process.env.DEV_BYPASS_STRIPE === 'true';
+
+    if (!devBypass && !tutor.stripeAccountId) {
       return { success: false, error: 'Tutor does not have a Stripe Connect account set up' };
     }
 
@@ -84,26 +90,31 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
       amountToTransfer = commission.tutorAmount;
     }
 
-    // Create transfer to tutor's Stripe Connect account
+    // Create transfer to tutor's Stripe Connect account (skip in dev bypass mode)
     let transferId: string | undefined;
-    try {
-      const transfer = await createTransfer(
-        amountToTransfer,
-        tutor.stripeAccountId,
-        {
-          paymentId: payment.id,
-          classSessionId: classSession.id,
-          bookingId: classSession.bookingId,
-          tutorId: tutor.id,
-        }
-      );
+    if (!devBypass && tutor.stripeAccountId) {
+      try {
+        const transfer = await createTransfer(
+          amountToTransfer,
+          tutor.stripeAccountId,
+          {
+            paymentId: payment.id,
+            classSessionId: classSession.id,
+            bookingId: classSession.bookingId,
+            tutorId: tutor.id,
+          }
+        );
 
-      if (transfer) {
-        transferId = transfer.id;
+        if (transfer) {
+          transferId = transfer.id;
+        }
+      } catch (error: any) {
+        console.error('Error creating Stripe transfer:', error);
+        return { success: false, error: `Failed to create transfer: ${error.message}` };
       }
-    } catch (error: any) {
-      console.error('Error creating Stripe transfer:', error);
-      return { success: false, error: `Failed to create transfer: ${error.message}` };
+    } else {
+      transferId = 'dev_bypass';
+      console.log(`[DEV] Skipped Stripe transfer of $${amountToTransfer} to tutor ${tutor.id}`);
     }
 
     // Update class session to mark payment as released

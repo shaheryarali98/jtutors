@@ -114,3 +114,99 @@ export const createAccountLink = async (
   });
 };
 
+// Create Stripe Checkout Session for course enrollment
+// 90% goes to tutor via Stripe Connect, 10% stays as platform fee
+export const createEnrollmentCheckoutSession = async (options: {
+  courseTitle: string;
+  courseDescription: string;
+  priceInCents: number;
+  tutorStripeAccountId: string;
+  enrollmentId: string;
+  courseId: string;
+  studentId: string;
+  successUrl: string;
+  cancelUrl: string;
+}): Promise<Stripe.Checkout.Session> => {
+  if (!stripe) throw new Error('Stripe is not configured');
+
+  const platformFeeCents = Math.round(options.priceInCents * 0.10);
+
+  return stripe.checkout.sessions.create({
+    mode: 'payment',
+    line_items: [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: options.courseTitle,
+            description: options.courseDescription,
+          },
+          unit_amount: options.priceInCents,
+        },
+        quantity: 1,
+      },
+    ],
+    payment_intent_data: {
+      application_fee_amount: platformFeeCents,
+      transfer_data: {
+        destination: options.tutorStripeAccountId,
+      },
+    },
+    success_url: options.successUrl,
+    cancel_url: options.cancelUrl,
+    metadata: {
+      enrollmentId: options.enrollmentId,
+      courseId: options.courseId,
+      studentId: options.studentId,
+    },
+  });
+};
+
+// Create Stripe Checkout Session for a legacy Booking payment
+// Same 90/10 Connect split as enrollments
+export const createBookingCheckoutSession = async (options: {
+  bookingTitle: string;
+  bookingDescription: string;
+  priceInCents: number;
+  platformFeeAmountCents?: number; // actual commission amount; falls back to 10% if not provided
+  tutorStripeAccountId: string;
+  paymentId: string;
+  bookingId: string;
+  studentId: string;
+  successUrl: string;
+  cancelUrl: string;
+}): Promise<Stripe.Checkout.Session> => {
+  if (!stripe) throw new Error('Stripe is not configured');
+
+  const platformFeeCents = options.platformFeeAmountCents ?? Math.round(options.priceInCents * 0.10);
+
+  return stripe.checkout.sessions.create({
+    mode: 'payment',
+    line_items: [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: options.bookingTitle,
+            description: options.bookingDescription,
+          },
+          unit_amount: options.priceInCents,
+        },
+        quantity: 1,
+      },
+    ],
+    payment_intent_data: {
+      application_fee_amount: platformFeeCents,
+      transfer_data: {
+        destination: options.tutorStripeAccountId,
+      },
+    },
+    success_url: options.successUrl,
+    cancel_url: options.cancelUrl,
+    metadata: {
+      paymentId: options.paymentId,
+      bookingId: options.bookingId,
+      studentId: options.studentId,
+    },
+  });
+};

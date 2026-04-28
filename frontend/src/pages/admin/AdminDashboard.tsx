@@ -54,6 +54,7 @@ interface AdminSettings {
   autoApproveUsers: boolean
   adminCommissionPercentage: number
   adminCommissionFixed: number
+  studentFeePercentage?: number
   withdrawalAutoApproveDays: number | null
   withdrawMethods: string[]
   withdrawFixedCharge?: number
@@ -88,6 +89,7 @@ interface AdminUser {
     profileCompleted?: boolean
     stripeAccountId?: string | null
     stripeOnboarded?: boolean
+    jtutorsEmail?: string | null
     backgroundCheck?: {
       status: string
       checkrStatus?: string | null
@@ -125,6 +127,7 @@ interface DetailedUser {
     profileImage?: string | null
     stripeAccountId?: string | null
     stripeOnboarded?: boolean
+    jtutorsEmail?: string | null
     profileCompletionPercentage?: number
     profileCompleted?: boolean
     experiences?: Array<{
@@ -195,6 +198,7 @@ interface ClassSession {
   status: string
   tutorApproved: boolean
   adminApproved: boolean
+  paymentReleased: boolean
   completedAt?: string | null
   booking?: {
     student?: { user?: { email: string } }
@@ -263,11 +267,13 @@ type AdminTab =
   | 'hires'
   | 'users'
   | 'subjects'
+  | 'courses'
   | 'settings'
   | 'withdrawals'
   | 'classes'
   | 'emails'
   | 'integrations'
+  | 'earnings'
 
 const AdminDashboard = () => {
   const location = useLocation()
@@ -277,7 +283,7 @@ const AdminDashboard = () => {
   // Handle hash-based navigation for tabs
   useEffect(() => {
     const hash = location.hash.replace('#', '')
-    const validTabs: AdminTab[] = ['overview', 'hires', 'users', 'subjects', 'settings', 'withdrawals', 'classes', 'emails', 'integrations']
+    const validTabs: AdminTab[] = ['overview', 'hires', 'users', 'subjects', 'courses', 'settings', 'withdrawals', 'classes', 'emails', 'integrations', 'earnings']
     if (hash && validTabs.includes(hash as AdminTab)) {
       setActiveTab(hash as AdminTab)
     }
@@ -291,6 +297,10 @@ const AdminDashboard = () => {
   const [payments, setPayments] = useState<AdminPayment[]>([])
   const [subjects, setSubjects] = useState<SubjectItem[]>([])
   const [googleStatus, setGoogleStatus] = useState<GoogleStatus | null>(null)
+  const [adminCourses, setAdminCourses] = useState<any[]>([])
+  const [adminEarnings, setAdminEarnings] = useState<any>(null)
+  const [adminPaymentInfoDraft, setAdminPaymentInfoDraft] = useState('')
+  const [savingAdminPaymentInfo, setSavingAdminPaymentInfo] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [savingSettings, setSavingSettings] = useState(false)
@@ -306,6 +316,8 @@ const AdminDashboard = () => {
   const [loadingUserDetail, setLoadingUserDetail] = useState(false)
   const [userSearchQuery, setUserSearchQuery] = useState('')
   const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL')
+  const [jtutorsEmailDrafts, setJtutorsEmailDrafts] = useState<Record<string, string>>({})
+  const [jtutorsEmailEditing, setJtutorsEmailEditing] = useState<string | null>(null)
 
   useEffect(() => {
     const loadCore = async () => {
@@ -357,8 +369,32 @@ const AdminDashboard = () => {
       loadGoogleStatus()
     } else if (activeTab === 'hires') {
       loadHires()
+    } else if (activeTab === 'courses') {
+      loadAdminCourses()
+    } else if (activeTab === 'earnings') {
+      loadAdminEarnings()
     }
   }, [activeTab])
+
+  const loadAdminCourses = async () => {
+    try {
+      const res = await api.get<{ courses: any[] }>('/admin/courses')
+      setAdminCourses(res.data.courses || [])
+    } catch (err) {
+      console.error('Error loading admin courses:', err)
+    }
+  }
+
+  const loadAdminEarnings = async () => {
+    try {
+      const res = await api.get('/admin/earnings')
+      setAdminEarnings(res.data)
+      setAdminPaymentInfoDraft(res.data.adminPaymentInfo || '')
+    } catch (err) {
+      console.error('Error loading admin earnings:', err)
+      setError('Failed to load earnings.')
+    }
+  }
 
   const loadWithdrawals = async () => {
     try {
@@ -531,6 +567,28 @@ const AdminDashboard = () => {
     }
   }
 
+  const handleSetJTutorsEmail = async (userId: string, tutorId: string, email: string) => {
+    try {
+      setUpdatingUserId(userId)
+      await api.patch(`/admin/tutors/${tutorId}/jtutors-email`, { jtutorsEmail: email })
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId && u.tutor ? { ...u, tutor: { ...u.tutor, jtutorsEmail: email } } : u
+        )
+      )
+      if (selectedUserDetail?.id === userId && selectedUserDetail.tutor) {
+        setSelectedUserDetail((prev) =>
+          prev && prev.tutor ? { ...prev, tutor: { ...prev.tutor, jtutorsEmail: email } } : prev
+        )
+      }
+      setJtutorsEmailEditing(null)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update JTutors email.')
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
+
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
       const matchesSearch = !userSearchQuery ||
@@ -620,6 +678,16 @@ const AdminDashboard = () => {
     }
   }
 
+  const handleReleasePayment = async (sessionId: string) => {
+    try {
+      await api.post(`/class-sessions/${sessionId}/release-payment`, {})
+      await loadClassSessions()
+    } catch (err: any) {
+      console.error('Error releasing payment:', err)
+      setError(err.response?.data?.error || 'Failed to release payment.')
+    }
+  }
+
   const handleRefundPayment = async (paymentId: string) => {
     if (!confirm('Mark this payment as refunded?')) return
     try {
@@ -678,11 +746,13 @@ const AdminDashboard = () => {
     { id: 'hires', label: 'Hires & Payments', description: 'Manage tutor engagements and Stripe payments' },
     { id: 'users', label: 'Users', description: 'Roles, verification, and account controls' },
     { id: 'subjects', label: 'Subjects & Topics', description: 'Curate the tutoring catalogue' },
+    { id: 'courses', label: 'Courses', description: 'Tutor-published courses and enrollments' },
     { id: 'settings', label: 'Platform Settings', description: 'Email, commission, and withdrawal rules' },
     { id: 'withdrawals', label: 'Withdrawals', description: 'Approve tutor and admin payouts' },
     { id: 'classes', label: 'Class Sessions', description: 'Monitor class approvals and Google links' },
     { id: 'emails', label: 'Email Templates', description: 'Automated communication templates' },
     { id: 'integrations', label: 'Integrations', description: 'Google Classroom connection status' },
+    { id: 'earnings', label: 'My Earnings', description: 'Platform commission and admin payouts' },
   ]
 
   return (
@@ -1044,6 +1114,46 @@ const AdminDashboard = () => {
                             <div className="text-xs text-slate-400 uppercase tracking-wide">
                               {user.tutor ? 'Tutor profile' : user.student ? 'Student profile' : 'No profile yet'}
                             </div>
+                            {user.tutor && (
+                              <div className="mt-1">
+                                {jtutorsEmailEditing === user.id ? (
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <input
+                                      type="email"
+                                      autoFocus
+                                      className="text-xs border border-slate-200 rounded px-2 py-0.5 w-36 outline-none focus:ring-1 focus:ring-sky-400"
+                                      value={jtutorsEmailDrafts[user.id] ?? user.tutor.jtutorsEmail ?? ''}
+                                      onChange={(e) => setJtutorsEmailDrafts((p) => ({ ...p, [user.id]: e.target.value }))}
+                                      placeholder="name@jtutors.com"
+                                    />
+                                    <button
+                                      onClick={() => handleSetJTutorsEmail(user.id, user.tutor!.id!, jtutorsEmailDrafts[user.id] ?? '')}
+                                      disabled={updatingUserId === user.id}
+                                      className="text-xs font-semibold text-sky-600 hover:text-sky-700 disabled:opacity-50"
+                                    >Save</button>
+                                    <button onClick={() => setJtutorsEmailEditing(null)} className="text-xs text-slate-400 hover:text-slate-600">×</button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    {user.tutor.jtutorsEmail ? (
+                                      <span className="text-xs text-sky-600 flex items-center gap-0.5">
+                                        <Mail className="h-3 w-3" />{user.tutor.jtutorsEmail}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-slate-400">No JTutors email</span>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setJtutorsEmailDrafts((p) => ({ ...p, [user.id]: user.tutor?.jtutorsEmail ?? '' }))
+                                        setJtutorsEmailEditing(user.id)
+                                      }}
+                                      className="text-xs text-slate-400 hover:text-sky-600 ml-1"
+                                      title="Set JTutors email"
+                                    >✏️</button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <select
@@ -1265,6 +1375,90 @@ const AdminDashboard = () => {
               </section>
             )}
 
+            {activeTab === 'courses' && (
+              <section className="bg-white rounded-3xl shadow p-6">
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-900">Courses</h2>
+                    <p className="text-sm text-slate-500">Read-only oversight of all tutor-published courses and enrollments.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={loadAdminCourses}
+                    className="text-sm font-semibold text-primary-600 hover:text-primary-700"
+                  >
+                    Refresh
+                  </button>
+                </div>
+                {adminCourses.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
+                    No courses have been created yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
+                          <th className="px-3 py-2">Course</th>
+                          <th className="px-3 py-2">Tutor</th>
+                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2">Price</th>
+                          <th className="px-3 py-2">Enrollments</th>
+                          <th className="px-3 py-2">Revenue (90% to tutor)</th>
+                          <th className="px-3 py-2">Meeting</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {adminCourses.map((c) => {
+                          const status = (c.status || 'DRAFT').toUpperCase()
+                          const statusClass =
+                            status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700'
+                            : status === 'ARCHIVED' ? 'bg-slate-200 text-slate-600'
+                            : 'bg-amber-100 text-amber-700'
+                          return (
+                            <tr key={c.id} className="hover:bg-slate-50">
+                              <td className="px-3 py-3">
+                                <div className="font-semibold text-slate-900">{c.title}</div>
+                                <div className="text-xs text-slate-500 line-clamp-1">{c.description}</div>
+                              </td>
+                              <td className="px-3 py-3 text-slate-700">
+                                <div>{c.tutor?.firstName} {c.tutor?.lastName}</div>
+                                <div className="text-xs text-slate-500">{c.tutor?.email}</div>
+                                <div className="text-xs mt-1">
+                                  {c.tutor?.stripeOnboarded
+                                    ? <span className="text-emerald-600">Stripe ready</span>
+                                    : <span className="text-red-600">Stripe NOT onboarded</span>}
+                                </div>
+                              </td>
+                              <td className="px-3 py-3">
+                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusClass}`}>{status}</span>
+                              </td>
+                              <td className="px-3 py-3 text-slate-700">${Number(c.price || 0).toFixed(2)}</td>
+                              <td className="px-3 py-3 text-slate-700">
+                                {c.paidEnrollments}/{c.enrollmentsCount}
+                                <div className="text-xs text-slate-500">paid / total</div>
+                              </td>
+                              <td className="px-3 py-3 text-slate-700">
+                                ${Number(c.totalRevenue || 0).toFixed(2)}
+                              </td>
+                              <td className="px-3 py-3 text-slate-700 text-xs">
+                                <div>{c.meetingType || '—'}</div>
+                                {c.meetingLink && (
+                                  <a href={c.meetingLink} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline break-all">
+                                    Link
+                                  </a>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            )}
+
             {activeTab === 'settings' && settings && (
               <section className="bg-white rounded-3xl shadow p-6">
                 <div className="mb-6">
@@ -1379,7 +1573,7 @@ const AdminDashboard = () => {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Admin Commission Percentage
+                          Tutor Commission Percentage
                         </label>
                         <div className="flex items-center gap-4">
                           <input
@@ -1397,7 +1591,30 @@ const AdminDashboard = () => {
                           <span className="text-sm text-slate-500">%</span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          Percentage of each sale that goes to admin (e.g., 10.0%)
+                          Percentage deducted from tutor payout (e.g., 9.25%)
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Student Fee Percentage
+                        </label>
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={settings.studentFeePercentage ?? 4.5}
+                            onChange={(event) =>
+                              handleUpdateSettings({ studentFeePercentage: parseFloat(event.target.value) })
+                            }
+                            disabled={savingSettings}
+                            className="input w-32"
+                          />
+                          <span className="text-sm text-slate-500">%</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Percentage added on top of session price charged to students (e.g., 4.5%)
                         </p>
                       </div>
                       <div>
@@ -1424,8 +1641,13 @@ const AdminDashboard = () => {
                       </div>
                       <div className="bg-slate-50 p-4 rounded-lg">
                         <p className="text-sm text-slate-700">
-                          <strong>Current Commission:</strong> {settings.adminCommissionPercentage}% + $
-                          {settings.adminCommissionFixed.toFixed(2)}
+                          <strong>Tutor Commission:</strong> {settings.adminCommissionPercentage}% deducted from tutor payout
+                        </p>
+                        <p className="text-sm text-slate-700 mt-1">
+                          <strong>Student Fee:</strong> {settings.studentFeePercentage ?? 4.5}% added to session price
+                        </p>
+                        <p className="text-sm text-slate-700 mt-1">
+                          <strong>Fixed Fee:</strong> ${settings.adminCommissionFixed.toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -1703,6 +1925,7 @@ const AdminDashboard = () => {
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">Tutor Approved</th>
                         <th className="px-4 py-3">Admin Approved</th>
+                        <th className="px-4 py-3">Payment</th>
                         <th className="px-4 py-3">Actions</th>
                       </tr>
                     </thead>
@@ -1731,12 +1954,29 @@ const AdminDashboard = () => {
                             )}
                           </td>
                           <td className="px-4 py-3">
+                            {session.paymentReleased ? (
+                              <span className="text-emerald-600 font-semibold">✓ Released</span>
+                            ) : session.adminApproved ? (
+                              <span className="text-amber-600">Pending</span>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
                             {session.tutorApproved && !session.adminApproved && (
                               <button
                                 onClick={() => handleApproveClass(session.id)}
                                 className="text-sm font-semibold text-green-600 hover:text-green-700"
                               >
                                 Approve
+                              </button>
+                            )}
+                            {session.adminApproved && !session.paymentReleased && (
+                              <button
+                                onClick={() => handleReleasePayment(session.id)}
+                                className="ml-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                              >
+                                Release Payment
                               </button>
                             )}
                             {session.googleClassroomLink && (
@@ -1754,7 +1994,7 @@ const AdminDashboard = () => {
                       ))}
                   {classSessions.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="px-4 py-6 text-center text-slate-500 text-sm">
+                          <td colSpan={7} className="px-4 py-6 text-center text-slate-500 text-sm">
                             No class sessions found.
                           </td>
                         </tr>
@@ -1885,6 +2125,107 @@ const AdminDashboard = () => {
                 </div>
               </section>
             )}
+
+            {activeTab === 'earnings' && (
+              <section className="bg-white rounded-3xl shadow p-6 space-y-8">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">My Earnings</h2>
+                  <p className="text-sm text-slate-500">Platform commission collected and admin payouts.</p>
+                </div>
+
+                {!adminEarnings ? (
+                  <p className="text-slate-500 text-sm">Loading earnings…</p>
+                ) : (
+                  <>
+                    {/* Summary cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[
+                        { label: 'Total Commission', value: adminEarnings.summary.totalCommission },
+                        { label: 'Available Balance', value: adminEarnings.summary.availableBalance },
+                        { label: 'Total Withdrawn', value: adminEarnings.summary.totalWithdrawn },
+                        { label: 'Pending Withdrawals', value: adminEarnings.summary.pendingWithdrawals },
+                      ].map((card) => (
+                        <div key={card.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">{card.label}</p>
+                          <p className="text-2xl font-bold text-slate-900">${Number(card.value).toFixed(2)}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Recent commission rows */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900 mb-3">Recent Commissions</h3>
+                      {adminEarnings.recentPayments.length === 0 ? (
+                        <p className="text-sm text-slate-500">No paid sessions yet.</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-sm">
+                            <thead>
+                              <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b">
+                                <th className="px-3 py-2">Student</th>
+                                <th className="px-3 py-2">Tutor</th>
+                                <th className="px-3 py-2">Session</th>
+                                <th className="px-3 py-2">Admin Cut</th>
+                                <th className="px-3 py-2">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {adminEarnings.recentPayments.map((p: any) => (
+                                <tr key={p.id} className="hover:bg-slate-50">
+                                  <td className="px-3 py-2 text-slate-700">{p.studentEmail ?? '—'}</td>
+                                  <td className="px-3 py-2 text-slate-700">{p.tutorEmail ?? '—'}</td>
+                                  <td className="px-3 py-2 text-slate-700">${Number(p.amount).toFixed(2)}</td>
+                                  <td className="px-3 py-2 font-semibold text-emerald-700">${Number(p.adminCommissionAmount ?? 0).toFixed(2)}</td>
+                                  <td className="px-3 py-2 text-slate-500">{p.paidAt ? new Date(p.paidAt).toLocaleDateString() : '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Request withdrawal */}
+                    <div className="border-t border-slate-200 pt-6">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-3">Request Withdrawal</h3>
+                      <AdminWithdrawForm
+                        availableBalance={adminEarnings.summary.availableBalance}
+                        withdrawMethods={settings?.withdrawMethods ?? []}
+                        onSuccess={loadAdminEarnings}
+                      />
+                    </div>
+
+                    {/* Payment account info */}
+                    <div className="border-t border-slate-200 pt-6">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2">Payment Account Info</h3>
+                      <p className="text-sm text-slate-500 mb-3">Provide your bank / payment details so tutors or platform ops know how to pay you.</p>
+                      <textarea
+                        className="input h-28 w-full"
+                        value={adminPaymentInfoDraft}
+                        onChange={(e) => setAdminPaymentInfoDraft(e.target.value)}
+                        placeholder="e.g. Bank: HSBC, Account: 1234-5678, Sort: 00-00-00"
+                      />
+                      <button
+                        className="mt-3 btn btn-primary"
+                        disabled={savingAdminPaymentInfo}
+                        onClick={async () => {
+                          setSavingAdminPaymentInfo(true)
+                          try {
+                            await api.patch('/admin/settings', { adminPaymentInfo: adminPaymentInfoDraft })
+                          } catch (err) {
+                            setError('Failed to save payment info.')
+                          } finally {
+                            setSavingAdminPaymentInfo(false)
+                          }
+                        }}
+                      >
+                        {savingAdminPaymentInfo ? 'Saving…' : 'Save Payment Info'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
           </div>
         )}
       </main>
@@ -1902,6 +2243,7 @@ const AdminDashboard = () => {
                 onClose={() => setSelectedUserDetail(null)}
                 onUpdateBgStatus={handleUpdateBackgroundCheckStatus}
                 updatingUserId={updatingUserId}
+                onSetJTutorsEmail={(tutorId, email) => handleSetJTutorsEmail(selectedUserDetail!.id, tutorId, email)}
               />
             ) : null}
           </div>
@@ -1912,7 +2254,7 @@ const AdminDashboard = () => {
 }
 
 /* ── User Detail Panel ── */
-const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId }: { user: DetailedUser; onClose: () => void; onUpdateBgStatus: (userId: string, status: string) => Promise<void>; updatingUserId: string | null }) => {
+const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSetJTutorsEmail }: { user: DetailedUser; onClose: () => void; onUpdateBgStatus: (userId: string, status: string) => Promise<void>; updatingUserId: string | null; onSetJTutorsEmail: (tutorId: string, email: string) => Promise<void> }) => {
   const tutor = user.tutor
   const student = user.student
   const bg = tutor?.backgroundCheck
@@ -2133,6 +2475,15 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId }: { 
                 <DetailField label="Hourly Fee" value={tutor.hourlyFee ? `$${tutor.hourlyFee}` : 'Not set'} />
               </div>
             </DetailSection>
+
+            {/* JTutors Email */}
+            <DetailSection icon={<Mail className="h-5 w-5" />} title="JTutors Google Email">
+              <JTutorsEmailSection
+                tutorId={tutor.id}
+                currentEmail={tutor.jtutorsEmail}
+                onSave={onSetJTutorsEmail}
+              />
+            </DetailSection>
           </>
         )}
 
@@ -2195,6 +2546,47 @@ const StatusBadge = ({ label, status, color }: { label: string; status: string; 
   return (
     <div className={`px-3 py-1.5 rounded-xl border text-sm ${colorClasses[color] || colorClasses.slate}`}>
       <span className="font-medium">{label}:</span> {status}
+    </div>
+  )
+}
+
+const JTutorsEmailSection = ({ tutorId, currentEmail, onSave }: {
+  tutorId: string
+  currentEmail?: string | null
+  onSave: (tutorId: string, email: string) => Promise<void>
+}) => {
+  const [draft, setDraft] = useState(currentEmail ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-500">
+        Assign a Google Workspace email for this tutor. They use it to create Google Meet and Classroom sessions on the JTutors platform.
+      </p>
+      <div className="flex items-center gap-2">
+        <input
+          type="email"
+          value={draft}
+          onChange={(e) => { setDraft(e.target.value); setSaved(false) }}
+          placeholder="firstname.lastname@jtutors.com"
+          className="input flex-1"
+        />
+        <button
+          onClick={async () => {
+            if (!draft || !draft.includes('@')) return
+            setSaving(true)
+            await onSave(tutorId, draft)
+            setSaving(false)
+            setSaved(true)
+          }}
+          disabled={saving || !draft || !draft.includes('@')}
+          className="px-4 py-2 bg-[#012c54] text-white text-sm font-semibold rounded-xl hover:bg-[#012c54]/90 disabled:opacity-60 whitespace-nowrap"
+        >
+          {saving ? 'Saving…' : 'Set Email'}
+        </button>
+      </div>
+      {saved && <p className="text-sm text-green-600 font-medium">✓ JTutors email saved successfully</p>}
     </div>
   )
 }
@@ -2307,6 +2699,73 @@ const EmailTemplateEditor = ({ template, onSave, onCancel }: EmailTemplateEditor
           Cancel
         </button>
       </div>
+    </div>
+  )
+}
+
+/* ── Admin Withdraw Form ── */
+const AdminWithdrawForm = ({
+  availableBalance,
+  withdrawMethods,
+  onSuccess,
+}: {
+  availableBalance: number
+  withdrawMethods: string[]
+  onSuccess: () => void
+}) => {
+  const [amount, setAmount] = useState('')
+  const [method, setMethod] = useState(withdrawMethods[0] ?? 'Manual')
+  const [feedback, setFeedback] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async () => {
+    const numericAmount = parseFloat(amount)
+    if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
+      setFeedback('Please enter a valid amount.')
+      return
+    }
+    if (numericAmount > availableBalance) {
+      setFeedback('Amount exceeds available balance.')
+      return
+    }
+    try {
+      setSubmitting(true)
+      setFeedback('')
+      await api.post('/withdrawals', { amount: numericAmount, method, userType: 'ADMIN' })
+      setAmount('')
+      setFeedback('Withdrawal request submitted.')
+      onSuccess()
+    } catch (err: any) {
+      setFeedback(err.response?.data?.error || 'Unable to submit withdrawal request.')
+    } finally {
+      setSubmitting(false)
+      setTimeout(() => setFeedback(''), 4000)
+    }
+  }
+
+  return (
+    <div className="space-y-3 max-w-md">
+      <p className="text-sm text-slate-500">Available: <span className="font-semibold text-slate-800">${Number(availableBalance).toFixed(2)}</span></p>
+      <div className="flex gap-3">
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          className="input flex-1"
+          placeholder="Amount"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+        {withdrawMethods.length > 0 && (
+          <select className="input w-44" value={method} onChange={(e) => setMethod(e.target.value)}>
+            {withdrawMethods.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        )}
+      </div>
+      <button className="btn btn-primary" disabled={submitting} onClick={handleSubmit}>
+        {submitting ? 'Submitting…' : 'Request Withdrawal'}
+      </button>
+      {feedback && <p className="text-sm text-slate-600">{feedback}</p>}
     </div>
   )
 }

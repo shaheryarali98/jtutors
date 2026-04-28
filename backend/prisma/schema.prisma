@@ -52,6 +52,8 @@ model Student {
   termsAccepted   Boolean   @default(false)
   termsAcceptedAt DateTime?
 
+  stripeCustomerId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -59,6 +61,9 @@ model Student {
   bookings Booking[]
   payments Payment[]
   savedTutors StudentSavedTutor[]
+  conversations Conversation[]
+  tutorRequests TutorRequest[]
+  enrollments   Enrollment[]
 }
 
 model Tutor {
@@ -83,6 +88,9 @@ model Tutor {
   // Profile image
   profileImage String?
   
+  // JTutors provisioned email (Google Workspace)
+  jtutorsEmail String?
+
   // Stripe
   stripeAccountId String?
   stripeOnboarded Boolean @default(false)
@@ -110,6 +118,8 @@ model Tutor {
   bookings         Booking[]
   payments         Payment[]
   savedByStudents  StudentSavedTutor[]
+  conversations    Conversation[]
+  courses          Course[]
 }
 
 model Experience {
@@ -346,8 +356,9 @@ model AdminSettings {
   autoApproveUsers            Boolean  @default(true)
   
   // Commission Settings
-  adminCommissionPercentage   Float    @default(10.0)
+  adminCommissionPercentage   Float    @default(9.25)   // Tutor-side deduction
   adminCommissionFixed        Float    @default(0.0)
+  studentFeePercentage        Float    @default(4.5)    // Added on top of session price
   
   // Withdrawal Settings
   withdrawalAutoApproveDays   Int?     // null = manual, number = auto-approve after N days (default 2 for sandbox)
@@ -374,6 +385,7 @@ model AdminSettings {
   // Default avatars
   defaultStudentImage         String?
   defaultTutorImage           String?
+  adminPaymentInfo            String?
   
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
@@ -392,5 +404,115 @@ model EmailTemplate {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ==================
+// MESSAGING SYSTEM
+// ==================
+
+model Conversation {
+  id        String   @id @default(uuid())
+  
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutorId   String
+  tutor     Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  
+  lastMessageAt DateTime @default(now())
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages  Message[]
+
+  @@unique([studentId, tutorId])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  senderId       String   // User ID of sender
+  senderRole     String   // STUDENT or TUTOR
+  content        String
+  read           Boolean  @default(false)
+  
+  createdAt      DateTime @default(now())
+}
+
+// ==================
+// TUTOR REQUEST BOARD
+// ==================
+
+model TutorRequest {
+  id          String   @id @default(uuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String
+  subject     String?
+  grade       String?
+  budgetMin   Float?
+  budgetMax   Float?
+  preferredSchedule String? // e.g., "Weekday evenings", "Weekend mornings"
+  sessionType String?      // ONLINE, IN_PERSON, EITHER
+  
+  status      String   @default("OPEN") // OPEN, CLOSED, FULFILLED
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================
+// COURSES & ENROLLMENTS
+// ==================
+
+model Course {
+  id          String   @id @default(uuid())
+  tutorId     String
+  tutor       Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String
+  price       Float            // per enrollment / per course
+  schedule    String?          // human-readable e.g. "Tuesdays 6–8 PM"
+  meetingLink String?          // Google Meet / Classroom URL
+  meetingType String?          // GOOGLE_MEET, GOOGLE_CLASSROOM, ZOOM, OTHER
+  maxStudents Int?
+
+  // DRAFT → PUBLISHED → ARCHIVED
+  status      String   @default("DRAFT")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id                    String   @id @default(uuid())
+  courseId              String
+  course                Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentId             String
+  student               Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // PENDING → PAID | CANCELLED | REFUNDED
+  status                String   @default("PENDING")
+
+  // Stripe Checkout
+  stripeSessionId       String?
+  stripePaymentIntentId String?
+
+  amount                Float    // total charged
+  tutorAmount           Float    // 90 %
+  platformAmount        Float    // 10 %
+
+  paidAt                DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([courseId, studentId])
 }
 

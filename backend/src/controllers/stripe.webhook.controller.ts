@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { stripe } from '../services/stripe.service';
 import { confirmPayment } from '../services/payment.service';
 import { completeWithdrawal } from '../services/withdrawal.service';
+import { confirmEnrollmentPayment } from '../services/enrollment.service';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -38,6 +39,10 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
         break;
 
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+
       case 'payment_intent.payment_failed':
         await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
         break;
@@ -64,6 +69,38 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message || 'Error processing webhook' });
   }
 };
+
+// Handle completed Checkout Session (course enrollment OR booking payments)
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  const meta = session.metadata || {};
+  const paymentIntentId = typeof session.payment_intent === 'string'
+    ? session.payment_intent
+    : session.payment_intent?.id ?? '';
+
+  // Course enrollment checkout
+  if (meta.enrollmentId) {
+    try {
+      await confirmEnrollmentPayment(session.id, paymentIntentId);
+      console.log(`[Stripe Webhook] Enrollment confirmed: ${meta.enrollmentId}`);
+    } catch (error: any) {
+      console.error(`[Stripe Webhook] Error confirming enrollment ${meta.enrollmentId}:`, error);
+      throw error;
+    }
+    return;
+  }
+
+  // Legacy booking checkout
+  if (meta.paymentId) {
+    try {
+      await confirmPayment(meta.paymentId, paymentIntentId);
+      console.log(`[Stripe Webhook] Booking payment confirmed: ${meta.paymentId}`);
+    } catch (error: any) {
+      console.error(`[Stripe Webhook] Error confirming booking payment ${meta.paymentId}:`, error);
+      throw error;
+    }
+    return;
+  }
+}
 
 // Handle successful payment intent
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {

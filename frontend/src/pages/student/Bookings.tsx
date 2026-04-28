@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
-import PaymentModal from '../../components/student/PaymentModal'
 
 interface Booking {
   id: string
@@ -52,21 +51,20 @@ const StudentBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [selectedPayment, setSelectedPayment] = useState<{
-    clientSecret: string
-    paymentId: string
-    amount: number
-    currency: string
-  } | null>(null)
+  const [info, setInfo] = useState('')
+  const [payingId, setPayingId] = useState<string | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const fetchBookings = async () => {
     try {
       setLoading(true)
       const response = await api.get('/student/bookings')
-      setBookings(response.data.bookings)
+      setBookings(Array.isArray(response.data?.bookings) ? response.data.bookings : [])
     } catch (err) {
       console.error('Error fetching bookings:', err)
       setError('Unable to load your bookings right now.')
+      setBookings([])
     } finally {
       setLoading(false)
     }
@@ -74,45 +72,48 @@ const StudentBookings = () => {
 
   useEffect(() => {
     fetchBookings()
+    if (searchParams.get('paid') === '1') {
+      setInfo('Payment successful! Your booking is confirmed.')
+      searchParams.delete('paid'); searchParams.delete('session_id')
+      setSearchParams(searchParams, { replace: true })
+    } else if (searchParams.get('cancelled') === '1') {
+      setInfo('Payment was cancelled. You can try again anytime.')
+      searchParams.delete('cancelled')
+      setSearchParams(searchParams, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handlePayNow = async (booking: Booking) => {
+    setError(''); setInfo('')
+    setPayingId(booking.id)
     try {
-      const amount =
-        booking.payment?.amount ??
-        Math.max(1, Math.round((booking.durationHours || 1) * booking.tutor.hourlyFee * 100) / 100)
-
-      const response = await api.post('/payments', {
-        bookingId: booking.id,
-        amount,
-        currency: booking.payment?.currency || 'USD',
-      })
-
-      const payment = response.data.payment
-      if (!payment?.clientSecret) {
-        setError('Stripe is not configured. Please contact support.')
+      const response = await api.post('/payments/checkout', { bookingId: booking.id })
+      if (response.data?.url) {
+        window.location.href = response.data.url
         return
       }
-
-      setSelectedPayment({
-        clientSecret: payment.clientSecret,
-        paymentId: payment.id,
-        amount: payment.amount,
-        currency: payment.currency,
-      })
-    } catch (err) {
-      console.error('Error creating payment:', err)
-      setError('Unable to start payment. Please try again later.')
+      setError('Unable to start checkout.')
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Unable to start payment. Please try again later.')
+    } finally {
+      setPayingId(null)
     }
   }
 
-  const closePaymentModal = () => {
-    setSelectedPayment(null)
-  }
-
-  const handlePaymentSuccess = () => {
-    setSelectedPayment(null)
-    fetchBookings()
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!window.confirm('Cancel this booking? If already paid, a refund will be issued automatically.')) return
+    setCancellingId(bookingId)
+    setError(''); setInfo('')
+    try {
+      await api.patch(`/student/bookings/${bookingId}/cancel`)
+      setInfo('Booking cancelled successfully.')
+      await fetchBookings()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to cancel booking.')
+    } finally {
+      setCancellingId(null)
+    }
   }
 
   const renderStatusBadge = (status: string) => {
@@ -152,6 +153,9 @@ const StudentBookings = () => {
 
         {error && (
           <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-lg mb-4">{error}</div>
+        )}
+        {info && (
+          <div className="bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">{info}</div>
         )}
 
         {loading ? (
@@ -308,10 +312,21 @@ const StudentBookings = () => {
                     {needsPayment && (
                       <button
                         type="button"
-                        className="btn btn-primary inline-flex items-center justify-center gap-2 md:w-auto"
+                        className="btn btn-primary inline-flex items-center justify-center gap-2 md:w-auto disabled:opacity-60"
                         onClick={() => handlePayNow(booking)}
+                        disabled={payingId === booking.id}
                       >
-                        Pay with Stripe
+                        {payingId === booking.id ? 'Redirecting…' : 'Pay with Stripe'}
+                      </button>
+                    )}
+                    {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
+                      <button
+                        type="button"
+                        className="btn btn-outline border-rose-300 text-rose-600 hover:bg-rose-50 inline-flex items-center justify-center gap-2 md:w-auto disabled:opacity-60"
+                        onClick={() => handleCancelBooking(booking.id)}
+                        disabled={cancellingId === booking.id}
+                      >
+                        {cancellingId === booking.id ? 'Cancelling…' : 'Cancel booking'}
                       </button>
                     )}
                     <Link
@@ -328,14 +343,6 @@ const StudentBookings = () => {
         )}
       </div>
 
-      <PaymentModal
-        clientSecret={selectedPayment?.clientSecret || null}
-        paymentId={selectedPayment?.paymentId || null}
-        amount={selectedPayment?.amount || 0}
-        currency={selectedPayment?.currency || 'USD'}
-        onSuccess={handlePaymentSuccess}
-        onCancel={closePaymentModal}
-      />
       <Footer />
     </div>
   )

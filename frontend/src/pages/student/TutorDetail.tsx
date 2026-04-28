@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { ArrowLeft, Bookmark, BookmarkCheck, CalendarPlus, MapPin, Shield } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Bookmark, BookmarkCheck, CalendarPlus, MapPin, Shield, MessageCircle } from 'lucide-react'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
@@ -50,6 +50,7 @@ interface TutorDetail {
 
 const TutorDetailPage = () => {
   const { tutorId } = useParams()
+  const navigate = useNavigate()
   const [tutor, setTutor] = useState<TutorDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -171,7 +172,7 @@ console.log("tutor details ,",tutor)
                     <p className="text-2xl font-bold text-primary-600 mt-1">${tutor.hourlyFee.toFixed(2)}</p>
                   </div>
                 )}
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <button
                     type="button"
                     className="btn btn-primary inline-flex items-center gap-2"
@@ -179,6 +180,21 @@ console.log("tutor details ,",tutor)
                   >
                     <CalendarPlus size={18} />
                     Hire this tutor
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary inline-flex items-center gap-2"
+                    onClick={async () => {
+                      try {
+                        await api.post('/messages/conversations', { tutorId: tutor!.id })
+                        navigate('/student/messages')
+                      } catch (err) {
+                        console.error('Error starting conversation:', err)
+                      }
+                    }}
+                  >
+                    <MessageCircle size={18} />
+                    Message
                   </button>
                   <button
                     type="button"

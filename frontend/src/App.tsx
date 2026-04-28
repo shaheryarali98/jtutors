@@ -18,6 +18,14 @@ import StudentHourLog from './pages/student/HourLog'
 import StudentWallet from './pages/student/StudentWallet'
 import TutorDetailPage from './pages/student/TutorDetail'
 import BrowseTutors from './pages/student/BrowseTutors'
+import Messages from './pages/Messages'
+import StudentTutorRequests from './pages/student/TutorRequests'
+import BrowseStudentRequests from './pages/tutor/BrowseStudentRequests'
+import BrowseCourses from './pages/student/BrowseCourses'
+import MyCourses from './pages/student/MyCourses'
+import EnrollmentSuccess from './pages/student/EnrollmentSuccess'
+import CourseManager from './pages/tutor/CourseManager'
+import DevMockCheckout from './pages/DevMockCheckout'
 import HomePage from './pages/HomePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -74,6 +82,21 @@ function App() {
             <TutorEarnings />
           </ProtectedRoute>
         } />
+        <Route path="/tutor/messages" element={
+          <ProtectedRoute role="TUTOR">
+            <Messages />
+          </ProtectedRoute>
+        } />
+        <Route path="/tutor/student-requests" element={
+          <ProtectedRoute role="TUTOR">
+            <BrowseStudentRequests />
+          </ProtectedRoute>
+        } />
+        <Route path="/tutor/courses" element={
+          <ProtectedRoute role="TUTOR">
+            <CourseManager />
+          </ProtectedRoute>
+        } />
 
         {/* Student Routes */}
         <Route path="/student/dashboard" element={
@@ -121,6 +144,34 @@ function App() {
             <TutorDetailPage />
           </ProtectedRoute>
         } />
+        <Route path="/student/messages" element={
+          <ProtectedRoute role="STUDENT">
+            <Messages />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/tutor-requests" element={
+          <ProtectedRoute role="STUDENT">
+            <StudentTutorRequests />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/courses" element={
+          <ProtectedRoute role="STUDENT">
+            <BrowseCourses />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/my-courses" element={
+          <ProtectedRoute role="STUDENT">
+            <MyCourses />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/enrollment-success" element={
+          <ProtectedRoute role="STUDENT">
+            <EnrollmentSuccess />
+          </ProtectedRoute>
+        } />
+
+        {/* Dev-mode mock checkout — no auth required, disabled text in prod */}
+        <Route path="/dev/mock-checkout" element={<DevMockCheckout />} />
 
         {/* Admin Routes */}
         <Route path="/admin/dashboard" element={

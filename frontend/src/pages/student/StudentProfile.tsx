@@ -41,7 +41,7 @@ const gradeOptions = [
   'Adult Learner',
 ]
 
-const learningLocationOptions = ['public place', "Teacher's home", 'Online']
+const learningLocationOptions = ['public place', "Student's home", 'Online']
 
 const countryOptions = [
   'United States',

@@ -11,16 +11,16 @@ interface Invoice {
   paymentStatus: string
   paidAt?: string | null
   createdAt: string
-  booking: {
+  booking?: {
     id: string
     startTime: string
     endTime: string
-    tutor: {
+    tutor?: {
       firstName: string
       lastName: string
       profileImage?: string
-    }
-  }
+    } | null
+  } | null
 }
 
 const currencyFormatter = (amount: number, currency: string) =>
@@ -46,10 +46,11 @@ const StudentInvoices = () => {
     try {
       setLoading(true)
       const response = await api.get('/payments/my')
-      setInvoices(response.data.payments)
+      setInvoices(Array.isArray(response.data?.payments) ? response.data.payments : [])
     } catch (err) {
       console.error('Error fetching invoices:', err)
       setError('Unable to load invoices right now.')
+      setInvoices([])
     } finally {
       setLoading(false)
     }
@@ -111,9 +112,11 @@ const StudentInvoices = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {invoices.map((invoice) => {
-                  const tutor = invoice.booking.tutor
-                  const avatar = resolveImageUrl(tutor.profileImage)
-                  const status = invoice.paymentStatus.toUpperCase()
+                  const tutor = invoice.booking?.tutor ?? null
+                  const tutorFirst = tutor?.firstName ?? ''
+                  const tutorLast = tutor?.lastName ?? ''
+                  const avatar = resolveImageUrl(tutor?.profileImage || '')
+                  const status = (invoice.paymentStatus || 'PENDING').toUpperCase()
                   const statusClass =
                     status === 'PAID'
                       ? 'bg-emerald-100 text-emerald-700'
@@ -135,29 +138,35 @@ const StudentInvoices = () => {
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center text-xs font-semibold text-primary-600">
                             {avatar ? (
-                              <img src={avatar} alt={`${tutor.firstName}`} className="h-full w-full object-cover" />
+                              <img src={avatar} alt="" className="h-full w-full object-cover" />
                             ) : (
-                              `${tutor.firstName.charAt(0)}${tutor.lastName.charAt(0)}`
+                              `${tutorFirst.charAt(0)}${tutorLast.charAt(0)}` || '—'
                             )}
                           </div>
                           <div>
                             <p className="font-medium text-slate-900">
-                              {tutor.firstName} {tutor.lastName}
+                              {tutorFirst || tutorLast ? `${tutorFirst} ${tutorLast}`.trim() : 'Tutor unavailable'}
                             </p>
-                            <p className="text-xs text-slate-500">{invoice.booking.id.slice(0, 8)}…</p>
+                            <p className="text-xs text-slate-500">{invoice.booking?.id ? `${invoice.booking.id.slice(0, 8)}…` : '—'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-700">
-                        <div className="flex flex-col">
-                          <span>{dateFormatter.format(new Date(invoice.booking.startTime))}</span>
-                          <span className="text-xs text-slate-500">
-                            Ends {dateFormatter.format(new Date(invoice.booking.endTime))}
-                          </span>
-                        </div>
+                        {invoice.booking?.startTime ? (
+                          <div className="flex flex-col">
+                            <span>{dateFormatter.format(new Date(invoice.booking.startTime))}</span>
+                            {invoice.booking.endTime && (
+                              <span className="text-xs text-slate-500">
+                                Ends {dateFormatter.format(new Date(invoice.booking.endTime))}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">No session linked</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                        {currencyFormatter(invoice.amount, invoice.currency)}
+                        {currencyFormatter(invoice.amount || 0, invoice.currency || 'USD')}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-700">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusClass}`}>

@@ -46,6 +46,8 @@ router.post('/accept-terms', tutorController.acceptTerms);
 router.get('/profile/completion', tutorController.getProfileCompletion);
 router.get('/sessions', tutorController.getTutorSessions);
 router.get('/earnings', tutorController.getTutorEarnings);
+router.get('/jtutors-email', tutorController.getJTutorsEmail);
+router.patch('/bookings/:id/cancel', tutorController.cancelBookingTutor);
 
 export default router;
 

@@ -94,6 +94,7 @@ export const listUsers = async (req: Request, res: Response) => {
             profileCompleted: true,
             stripeAccountId: true,
             stripeOnboarded: true,
+            jtutorsEmail: true,
             backgroundCheck: {
               select: {
                 status: true,
@@ -241,6 +242,7 @@ export const updateSettingsController = async (req: Request, res: Response) => {
       autoApproveUsers,
       adminCommissionPercentage,
       adminCommissionFixed,
+      studentFeePercentage,
       withdrawalAutoApproveDays,
       withdrawMethods,
       withdrawFixedCharge,
@@ -259,6 +261,7 @@ export const updateSettingsController = async (req: Request, res: Response) => {
       emailFooterColor,
       defaultStudentImage,
       defaultTutorImage,
+      adminPaymentInfo,
     } = req.body;
 
     const numeric = (value: unknown) => {
@@ -276,6 +279,9 @@ export const updateSettingsController = async (req: Request, res: Response) => {
       }),
       ...(numeric(adminCommissionFixed) !== undefined && {
         adminCommissionFixed: numeric(adminCommissionFixed),
+      }),
+      ...(numeric(studentFeePercentage) !== undefined && {
+        studentFeePercentage: numeric(studentFeePercentage),
       }),
       ...(typeof withdrawalAutoApproveDays === 'number' && { withdrawalAutoApproveDays }),
       ...(withdrawalAutoApproveDays === null && { withdrawalAutoApproveDays: null }),
@@ -303,6 +309,7 @@ export const updateSettingsController = async (req: Request, res: Response) => {
       ...(typeof emailFooterColor === 'string' && { emailFooterColor }),
       ...(typeof defaultStudentImage === 'string' && { defaultStudentImage }),
       ...(typeof defaultTutorImage === 'string' && { defaultTutorImage }),
+      ...(typeof adminPaymentInfo === 'string' && { adminPaymentInfo }),
     };
 
     const updated = await updateAdminSettings(updates);
@@ -686,6 +693,152 @@ export const updateBackgroundCheckStatus = async (req: Request, res: Response) =
   } catch (error) {
     console.error('Update background check status error:', error);
     res.status(500).json({ error: 'Error updating background check status' });
+  }
+};
+
+// ── Set JTutors provisioned email for a tutor ─────────────────────────────────
+export const setTutorJTutorsEmail = async (req: Request, res: Response) => {
+  try {
+    const { tutorId } = req.params;
+    const { jtutorsEmail } = req.body as { jtutorsEmail: string };
+
+    if (!jtutorsEmail || !jtutorsEmail.includes('@')) {
+      return res.status(400).json({ error: 'Valid jtutorsEmail is required' });
+    }
+
+    const tutor = await prisma.tutor.findUnique({ where: { id: tutorId } });
+    if (!tutor) return res.status(404).json({ error: 'Tutor not found' });
+
+    const updated = await prisma.tutor.update({
+      where: { id: tutorId },
+      data: { jtutorsEmail },
+    });
+
+    return res.json({ message: 'JTutors email assigned', jtutorsEmail: updated.jtutorsEmail });
+  } catch (error) {
+    console.error('Set JTutors email error:', error);
+    res.status(500).json({ error: 'Error setting JTutors email' });
+  }
+};
+
+// List all courses with tutor + enrollment summary (admin oversight)
+export const listCoursesAdmin = async (_req: Request, res: Response) => {
+  try {
+    const courses = await prisma.course.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        tutor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            stripeOnboarded: true,
+            jtutorsEmail: true,
+            user: { select: { email: true } },
+          },
+        },
+        _count: { select: { enrollments: true } },
+        enrollments: {
+          select: { id: true, status: true, amount: true },
+        },
+      },
+    });
+
+    const result = courses.map((c) => {
+      const paid = c.enrollments.filter((e) => e.status === 'PAID');
+      const totalRevenue = paid.reduce((sum, e) => sum + (e.amount || 0), 0);
+      return {
+        id: c.id,
+        title: c.title,
+        description: c.description,
+        price: c.price,
+        status: c.status,
+        meetingType: c.meetingType,
+        meetingLink: c.meetingLink,
+        schedule: c.schedule,
+        createdAt: c.createdAt,
+        tutor: {
+          id: c.tutor.id,
+          firstName: c.tutor.firstName,
+          lastName: c.tutor.lastName,
+          email: c.tutor.user?.email,
+          stripeOnboarded: c.tutor.stripeOnboarded,
+          jtutorsEmail: c.tutor.jtutorsEmail,
+        },
+        enrollmentsCount: c._count.enrollments,
+        paidEnrollments: paid.length,
+        totalRevenue,
+      };
+    });
+
+    return res.json({ courses: result });
+  } catch (error) {
+    console.error('List courses admin error:', error);
+    res.status(500).json({ error: 'Error fetching courses' });
+  }
+};
+
+export const getAdminEarnings = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const [commissionData, withdrawals] = await Promise.all([
+      prisma.payment.aggregate({
+        where: { paymentStatus: 'PAID' },
+        _sum: { adminCommissionAmount: true },
+        _count: { id: true },
+      }),
+      prisma.withdrawal.groupBy({
+        by: ['status'],
+        where: { userId, userType: 'ADMIN' },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const recentPayments = await prisma.payment.findMany({
+      where: { paymentStatus: 'PAID' },
+      orderBy: { paidAt: 'desc' },
+      take: 20,
+      include: {
+        booking: {
+          include: {
+            student: { include: { user: true } },
+            tutor: { include: { user: true } },
+          },
+        },
+      },
+    });
+
+    const totalCommission = commissionData._sum.adminCommissionAmount ?? 0;
+    const withdrawn = withdrawals
+      .filter((w) => w.status === 'COMPLETED')
+      .reduce((a, w) => a + (w._sum.amount ?? 0), 0);
+    const pending = withdrawals
+      .filter((w) => ['PENDING', 'APPROVED', 'PROCESSING'].includes(w.status))
+      .reduce((a, w) => a + (w._sum.amount ?? 0), 0);
+
+    const settings = await getAdminSettings();
+
+    return res.json({
+      summary: {
+        totalCommission,
+        availableBalance: Math.max(0, totalCommission - withdrawn - pending),
+        totalWithdrawn: withdrawn,
+        pendingWithdrawals: pending,
+      },
+      recentPayments: recentPayments.map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        adminCommissionAmount: p.adminCommissionAmount,
+        currency: p.currency,
+        paidAt: p.paidAt,
+        studentEmail: p.booking?.student?.user?.email ?? null,
+        tutorEmail: p.booking?.tutor?.user?.email ?? null,
+      })),
+      adminPaymentInfo: (settings as any).adminPaymentInfo ?? '',
+    });
+  } catch (error) {
+    console.error('Get admin earnings error:', error);
+    res.status(500).json({ error: 'Error fetching admin earnings' });
   }
 };
 

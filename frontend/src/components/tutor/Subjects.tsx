@@ -32,6 +32,7 @@ const Subjects = () => {
   const [tutorSubjects, setTutorSubjects] = useState<TutorSubject[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetchingSubjects, setFetchingSubjects] = useState(true);
   const [feedback, setFeedback] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -44,6 +45,7 @@ const Subjects = () => {
 
   const fetchSubjects = async () => {
     setErrorMessage("");
+    setFetchingSubjects(true);
     try {
       // --- REAL API CALL: Fetch all subjects and categories ---
       const response = await api.get("/subjects");
@@ -58,6 +60,8 @@ const Subjects = () => {
       setErrorMessage(
         "Failed to load subjects from the server. Please check your backend is running."
       );
+    } finally {
+      setFetchingSubjects(false);
     }
   };
 
@@ -180,9 +184,14 @@ const Subjects = () => {
 
       {/* --- Main Subject Selection Area --- */}
 
-      {categories.length === 0 && !errorMessage ? (
-        <div className="text-gray-600 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="font-medium mb-2">Loading subjects...</p>
+      {fetchingSubjects ? (
+        <div className="text-gray-600 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+          <p className="font-medium mb-2">Loading subjects…</p>
+        </div>
+      ) : categories.length === 0 && !errorMessage ? (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="font-medium text-amber-800 mb-1">No subjects available yet.</p>
+          <p className="text-sm text-amber-700">Ask the platform admin to seed subjects in the Admin Dashboard → Subjects &amp; Topics tab.</p>
         </div>
       ) : (
         <>

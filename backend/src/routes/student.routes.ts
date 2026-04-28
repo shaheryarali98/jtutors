@@ -30,6 +30,10 @@ router.get('/tutors/:tutorId', studentController.getTutorDetails);
 // Bookings
 router.post('/bookings', studentController.createBooking);
 router.get('/bookings', studentController.getMyBookings);
+router.patch('/bookings/:id/cancel', studentController.cancelBookingStudent);
+
+// Payment methods (saved cards)
+router.get('/payment-methods', studentController.getStudentPaymentMethods);
 
 export default router;
 

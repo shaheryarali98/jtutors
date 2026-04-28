@@ -295,7 +295,16 @@ export const getTutorDetails = async (req: Request, res: Response) => {
 
     const saved = student.savedTutors.some((savedTutor) => savedTutor.tutorId === tutor.id);
 
-    res.json({ tutor: { ...formatTutor(tutor as any), saved } });
+    // Fetch existing (non-cancelled) bookings for this tutor so the frontend can filter slots
+    const existingBookings = await prisma.booking.findMany({
+      where: {
+        tutorId: tutor.id,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+      },
+      select: { startTime: true, endTime: true },
+    });
+
+    res.json({ tutor: { ...formatTutor(tutor as any), saved, existingBookings } });
   } catch (error) {
     console.error('Get tutor details error:', error);
     res.status(500).json({ error: 'Error fetching tutor details' });
@@ -340,6 +349,19 @@ export const createBooking = async (req: Request, res: Response) => {
 
     if (!tutor) {
       return res.status(404).json({ error: 'Tutor not found' });
+    }
+
+    // Overlap guard: reject if a PENDING/CONFIRMED booking already covers this window
+    const overlap = await prisma.booking.findFirst({
+      where: {
+        tutorId,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        startTime: { lt: end },
+        endTime: { gt: start },
+      },
+    });
+    if (overlap) {
+      return res.status(409).json({ error: 'This time slot is already booked. Please choose another time.' });
     }
 
     const booking = await prisma.booking.create({
@@ -655,6 +677,79 @@ export const acceptTerms = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Accept terms error:', error);
     res.status(500).json({ error: 'Error accepting terms and conditions' });
+  }
+};
+
+export const cancelBookingStudent = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    const student = await prisma.student.findUnique({ where: { userId } });
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+
+    const booking = await prisma.booking.findFirst({
+      where: { id, studentId: student.id },
+      include: { payment: true },
+    });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
+      return res.status(400).json({ error: 'Only PENDING or CONFIRMED bookings can be cancelled.' });
+    }
+
+    const devBypass = process.env.DEV_BYPASS_STRIPE === 'true';
+
+    // Refund if payment was made
+    if (booking.payment && booking.payment.paymentStatus === 'PAID') {
+      if (!devBypass && booking.payment.stripePaymentIntentId) {
+        const { stripe } = await import('../services/stripe.service');
+        await stripe!.refunds.create({ payment_intent: booking.payment.stripePaymentIntentId });
+      }
+      await prisma.payment.update({
+        where: { id: booking.payment.id },
+        data: { paymentStatus: 'REFUNDED' },
+      });
+    }
+
+    await prisma.booking.update({ where: { id }, data: { status: 'CANCELLED' } });
+
+    res.json({ message: 'Booking cancelled successfully.' + (booking.payment?.paymentStatus === 'PAID' ? ' A refund has been issued.' : '') });
+  } catch (error) {
+    console.error('Cancel booking (student) error:', error);
+    res.status(500).json({ error: 'Error cancelling booking' });
+  }
+};
+
+export const getStudentPaymentMethods = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const devBypass = process.env.DEV_BYPASS_STRIPE === 'true';
+
+    if (devBypass) {
+      return res.json({ paymentMethods: [] });
+    }
+
+    const student = await prisma.student.findUnique({ where: { userId } });
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+
+    const stripeCustomerId = (student as any).stripeCustomerId as string | null;
+    if (!stripeCustomerId) return res.json({ paymentMethods: [] });
+
+    const { stripe } = await import('../services/stripe.service');
+    const pms = await stripe!.paymentMethods.list({ customer: stripeCustomerId, type: 'card' });
+
+    const cards = pms.data.map((pm) => ({
+      id: pm.id,
+      brand: pm.card?.brand,
+      last4: pm.card?.last4,
+      expMonth: pm.card?.exp_month,
+      expYear: pm.card?.exp_year,
+    }));
+
+    res.json({ paymentMethods: cards });
+  } catch (error) {
+    console.error('Get payment methods error:', error);
+    res.status(500).json({ error: 'Error fetching payment methods' });
   }
 };
 

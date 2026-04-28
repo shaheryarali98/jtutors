@@ -38,6 +38,10 @@ const Navbar = () => {
     student: [
       { to: '/student/dashboard', label: 'Dashboard' },
       { to: '/student/browse-tutors', label: 'Browse Tutors' },
+      { to: '/student/tutor-requests', label: 'Find a Tutor' },
+      { to: '/student/courses', label: 'Courses' },
+      { to: '/student/my-courses', label: 'My Courses' },
+      { to: '/student/messages', label: 'Messages' },
       { to: '/student/profile', label: 'Profile' },
       { to: '/student/saved-instructors', label: 'Saved Instructors' },
       { to: '/student/bookings', label: 'My Bookings' },
@@ -49,7 +53,10 @@ const Navbar = () => {
       { to: '/tutor/dashboard', label: 'Dashboard' },
       { to: '/tutor/profile', label: 'Profile' },
       { to: '/tutor/sessions', label: 'My Sessions' },
+      { to: '/tutor/courses', label: 'My Courses' },
       { to: '/tutor/earnings', label: 'Earnings & Payouts' },
+      { to: '/tutor/student-requests', label: 'Student Requests' },
+      { to: '/tutor/messages', label: 'Messages' },
     ],
     admin: [
       { to: '/admin/dashboard#overview', label: 'Analytics' },

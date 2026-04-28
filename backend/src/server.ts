@@ -15,6 +15,10 @@ import emailTemplateRoutes from './routes/emailTemplate.routes';
 import settingsRoutes from './routes/settings.routes';
 import checkrRoutes from './routes/checkr.routes';
 import contactRoutes from './routes/contact.routes';
+import messageRoutes from './routes/message.routes';
+import tutorRequestRoutes from './routes/tutorRequest.routes';
+import courseRoutes from './routes/course.routes';
+import enrollmentRoutes from './routes/enrollment.routes';
 import { handleStripeWebhook } from './controllers/stripe.webhook.controller';
 import { initializeDefaultTemplates } from './services/emailTemplate.service';
 
@@ -27,16 +31,19 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'https://jtutors.com',
+  'https://jtutors-staging.vercel.app',
+  'https://jtutor.vercel.app',
   'http://localhost:3000',
-  'http://localhost:5173' // Vite default port
-].filter(Boolean); // Remove undefined values
+  'http://localhost:5173', // Vite default port
+].filter(Boolean) as string[];
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
+
+    // Allow any vercel.app subdomain for staging/preview deployments
+    if (origin.endsWith('.vercel.app') || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -72,14 +79,28 @@ app.use('/api/email-templates', emailTemplateRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/checkr', checkrRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/tutor-requests', tutorRequestRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/enrollments', enrollmentRoutes);
+
+// Dev-only bypass routes (never enabled in production)
+if (process.env.NODE_ENV !== 'production' && process.env.DEV_BYPASS_STRIPE === 'true') {
+  const devRoutes = require('./routes/dev.routes').default;
+  app.use('/api/dev', devRoutes);
+  console.log('[DEV] Stripe bypass routes enabled at /api/dev');
+}
 
 // Public API: approved tutors (no auth required)
 import { getPublicTutors } from './controllers/admin.controller';
 app.get('/api/public/tutors', getPublicTutors);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running' });
+// Health check (both paths — /health and /api/health for frontend warm-up pings)
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, timestamp: new Date().toISOString() });
+});
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, timestamp: new Date().toISOString() });
 });
 
 // Error handling middleware

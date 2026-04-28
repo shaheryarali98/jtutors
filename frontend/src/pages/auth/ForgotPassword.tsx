@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import api from '../../lib/api'
+import { withApiRetry } from '../../lib/apiRetry'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 
@@ -14,22 +15,27 @@ const ForgotPassword = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [retryMsg, setRetryMsg] = useState('')
 
   const onSubmit = async (data: ForgotPasswordForm) => {
     try {
       setLoading(true)
       setError('')
       setSuccess('')
-      const response = await api.post('/auth/forgot-password', {
-        email: data.email
-      })
+      setRetryMsg('')
+      const response = await withApiRetry(
+        () => api.post('/auth/forgot-password', { email: data.email }),
+        (attempt, total) => setRetryMsg(`Server is starting up\u2026 (attempt ${attempt + 1} of ${total})`)
+      )
+      setRetryMsg('')
       setSuccess(response.data.message || 'Password reset link has been sent to your email')
     } catch (err: any) {
+      setRetryMsg('')
       console.error('Forgot password error:', err)
       if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        setError('The server is taking longer than usual to respond. Please try again in a few moments.')
+        setError('The server is taking longer than usual. Please try again in 30 seconds.')
       } else if (err.code === 'ERR_NETWORK' || !err.response) {
-        setError('Cannot connect to server. Please check your internet connection or contact support.')
+        setError('Server is temporarily unavailable. Please try again in 30 seconds.')
       } else {
         setError(err.response?.data?.error || err.message || 'Failed to process password reset request')
       }
@@ -55,6 +61,13 @@ const ForgotPassword = () => {
             <div className="bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-lg mt-6">
               <p className="font-medium">{success}</p>
               <p className="text-sm mt-1">Check your email for the reset link. The link will expire in 1 hour.</p>
+            </div>
+          )}
+
+          {retryMsg && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mt-6 flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+              {retryMsg}
             </div>
           )}
 

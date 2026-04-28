@@ -29,6 +29,14 @@ interface WithdrawalResponse {
   walletSummary: WalletSummary | null
 }
 
+interface SavedCard {
+  id: string
+  brand: string
+  last4: string
+  expMonth: number
+  expYear: number
+}
+
 const StudentWallet = () => {
   const [data, setData] = useState<WithdrawalResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -37,6 +45,7 @@ const StudentWallet = () => {
   const [selectedMethod, setSelectedMethod] = useState('')
   const [withdrawing, setWithdrawing] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([])
   const { settings, fetchSettings } = usePlatformSettings()
 
   useEffect(() => {
@@ -57,8 +66,12 @@ const StudentWallet = () => {
     try {
       setLoading(true)
       setError('')
-      const response = await api.get<WithdrawalResponse>('/withdrawals/my')
-      setData(response.data)
+      const [walletRes, cardsRes] = await Promise.all([
+        api.get<WithdrawalResponse>('/withdrawals/my'),
+        api.get<{ paymentMethods: SavedCard[] }>('/student/payment-methods').catch(() => ({ data: { paymentMethods: [] } })),
+      ])
+      setData(walletRes.data)
+      setSavedCards(cardsRes.data.paymentMethods ?? [])
     } catch (err) {
       console.error('Error loading wallet data:', err)
       setError('Unable to load wallet history right now.')
@@ -273,6 +286,29 @@ const StudentWallet = () => {
                 </table>
               </div>
             </section>
+
+            {savedCards.length > 0 && (
+              <section className="bg-white rounded-3xl shadow p-6">
+                <h2 className="text-xl font-semibold text-slate-900 mb-4">Saved payment methods</h2>
+                <ul className="space-y-3">
+                  {savedCards.map((card) => (
+                    <li key={card.id} className="flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-slate-900 capitalize">
+                          {card.brand} &bull;&bull;&bull;&bull; {card.last4}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Expires {card.expMonth.toString().padStart(2, '0')}/{card.expYear}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-slate-400 mt-3">
+                  Cards are saved securely by Stripe and used for faster checkout.
+                </p>
+              </section>
+            )}
           </div>
         )}
       </main>

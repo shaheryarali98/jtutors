@@ -9,7 +9,13 @@ interface PayoutMethodProps {
 
 // 2. Update the component signature to accept the prop
 const PayoutMethod = ({ onSaveSuccess }: PayoutMethodProps) => {
-  const [stripeStatus, setStripeStatus] = useState({
+  const [stripeStatus, setStripeStatus] = useState<{
+    connected: boolean;
+    onboarded: boolean;
+    chargesEnabled: boolean;
+    payoutsEnabled: boolean;
+    devBypass?: boolean;
+  }>({
     connected: false,
     onboarded: false,
     chargesEnabled: false,
@@ -26,7 +32,7 @@ const PayoutMethod = ({ onSaveSuccess }: PayoutMethodProps) => {
 
   useEffect(() => {
     if (isStripeReturn) {
-      // User just came back from Stripe ó poll until onboarded or timeout
+      // User just came back from Stripe ÔøΩ poll until onboarded or timeout
       setPollingMessage("Verifying your Stripe account...")
       pollStripeStatus()
     } else if (isStripeRefresh) {
@@ -45,6 +51,12 @@ const PayoutMethod = ({ onSaveSuccess }: PayoutMethodProps) => {
     try {
       const response = await api.get("/tutor/stripe/status")
       setStripeStatus(response.data)
+      if (response.data.devBypass && !onSaveSuccessCalled.current) {
+        onSaveSuccessCalled.current = true
+        setLoading(false)
+        onSaveSuccess()
+        return
+      }
       if (response.data.onboarded) {
         window.dispatchEvent(new Event("tutor-profile-updated"))
       }
@@ -81,12 +93,12 @@ const PayoutMethod = ({ onSaveSuccess }: PayoutMethodProps) => {
         }
 
         if (attempts >= MAX_POLLS) {
-          // Stop polling ó show whatever status we have
+          // Stop polling ÔøΩ show whatever status we have
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
           setPollingMessage("")
           setLoading(false)
           if (data.connected) {
-            // Connected but onboarding not fully complete ó let user know
+            // Connected but onboarding not fully complete ÔøΩ let user know
             setErrorMessage("Your Stripe account is connected but the setup may not be fully complete yet. Please wait a moment and refresh, or contact support if this persists.")
           }
           return
@@ -155,7 +167,7 @@ const PayoutMethod = ({ onSaveSuccess }: PayoutMethodProps) => {
 
       {errorMessage && (
         <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-lg mb-4">
-          <p className="font-semibold mb-2">?? {errorMessage}</p>
+          <p className="font-semibold mb-2">‚ö†Ô∏è {errorMessage}</p>
           {errorMessage.includes("Stripe Connect is not enabled") && (
             <div className="mt-3 space-y-2">
               <p className="text-sm">To fix this:</p>
@@ -171,7 +183,15 @@ const PayoutMethod = ({ onSaveSuccess }: PayoutMethodProps) => {
         </div>
       )}
 
-      {!stripeStatus.connected ? (
+      {stripeStatus.devBypass ? (
+        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-2xl">‚úÖ</span>
+            <h3 className="text-lg font-bold text-green-900">Dev Mode ‚Äî Stripe Bypassed</h3>
+          </div>
+          <p className="text-green-800 text-sm">Payment processing is disabled in development mode (<code>DEV_BYPASS_STRIPE=true</code>). Payouts are simulated automatically.</p>
+        </div>
+      ) : !stripeStatus.connected ? (
         <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
           <div className="flex items-start mb-4">
             <div className="text-4xl mr-4">??</div>

@@ -23,10 +23,67 @@ interface BookTutorModalProps {
   onError?: (message: string) => void
 }
 
+interface AvailabilitySlot {
+  label: string
+  start: string
+  end: string
+}
+
 const nowLocal = () => {
   const now = new Date()
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
   return now.toISOString().slice(0, 16)
+}
+
+const DAY_MAP: Record<string, number> = {
+  Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
+  Thursday: 4, Friday: 5, Saturday: 6,
+}
+
+function generateSlots(availabilities: any[]): AvailabilitySlot[] {
+  const slots: AvailabilitySlot[] = []
+  const now = new Date()
+  const WEEKS = 3
+
+  for (const avail of availabilities) {
+    const days: string[] = Array.isArray(avail.daysAvailable) ? avail.daysAvailable : []
+    const sessionDuration: number = avail.sessionDuration || 60
+    const breakTime: number = avail.breakTime || 0
+
+    for (const dayName of days) {
+      const targetDay = DAY_MAP[dayName]
+      if (targetDay === undefined) continue
+
+      for (let week = 0; week < WEEKS; week++) {
+        const date = new Date()
+        const currentDay = date.getDay()
+        let daysUntil = targetDay - currentDay
+        if (daysUntil < 0) daysUntil += 7
+        date.setDate(date.getDate() + daysUntil + week * 7)
+
+        const [startH, startM] = (avail.startTime || '09:00').split(':').map(Number)
+        const [endH, endM] = (avail.endTime || '17:00').split(':').map(Number)
+        let slotStart = new Date(date)
+        slotStart.setHours(startH, startM, 0, 0)
+        const blockEnd = new Date(date)
+        blockEnd.setHours(endH, endM, 0, 0)
+
+        while (slotStart < blockEnd) {
+          const slotEnd = new Date(slotStart.getTime() + sessionDuration * 60000)
+          if (slotEnd > blockEnd) break
+          if (slotStart > now) {
+            slots.push({
+              label: `${slotStart.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} \u2022 ${slotStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} \u2013 ${slotEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+              start: slotStart.toISOString(),
+              end: slotEnd.toISOString(),
+            })
+          }
+          slotStart = new Date(slotStart.getTime() + (sessionDuration + breakTime) * 60000)
+        }
+      }
+    }
+  }
+  return slots.sort((a, b) => a.start.localeCompare(b.start)).slice(0, 30)
 }
 
 const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutorModalProps) => {
@@ -35,9 +92,12 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [slots, setSlots] = useState<AvailabilitySlot[]>([])
+  const [selectedSlotIdx, setSelectedSlotIdx] = useState<number | null>(null)
+  const [loadingSlots, setLoadingSlots] = useState(false)
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && tutor?.id) {
       const initialStart = nowLocal()
       const initialEnd = new Date(new Date(initialStart).getTime() + 60 * 60 * 1000)
       initialEnd.setMinutes(initialEnd.getMinutes() - initialEnd.getTimezoneOffset())
@@ -45,8 +105,29 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
       setEndTime(initialEnd.toISOString().slice(0, 16))
       setNotes('')
       setError('')
+      setSlots([])
+      setSelectedSlotIdx(null)
+      setLoadingSlots(true)
+      api.get(`/student/tutors/${tutor.id}`)
+        .then((res) => {
+          const availabilities = res.data?.tutor?.availabilities ?? res.data?.availabilities ?? []
+          const existingBookings: { startTime: string; endTime: string }[] = res.data?.tutor?.existingBookings ?? []
+          const parsed = availabilities.map((a: any) => ({
+            ...a,
+            daysAvailable: typeof a.daysAvailable === 'string' ? JSON.parse(a.daysAvailable) : a.daysAvailable,
+          }))
+          const generated = generateSlots(parsed).filter((slot) =>
+            !existingBookings.some(
+              (b) => new Date(slot.start) < new Date(b.endTime) && new Date(slot.end) > new Date(b.startTime)
+            )
+          )
+          setSlots(generated)
+          if (generated.length > 0) setSelectedSlotIdx(0)
+        })
+        .catch(() => { /* fall back to datetime inputs */ })
+        .finally(() => setLoadingSlots(false))
     }
-  }, [isOpen])
+  }, [isOpen, tutor?.id])
 
   if (!isOpen || !tutor) {
     return null
@@ -58,25 +139,26 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
     setError('')
 
     try {
-      if (!startTime || !endTime) {
-        throw new Error('Please select both a start time and an end time.')
-      }
+      let bookingStart: Date
+      let bookingEnd: Date
 
-      const start = new Date(startTime)
-      const end = new Date(endTime)
-
-      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-        throw new Error('The selected times are not valid. Please try again.')
-      }
-
-      if (end <= start) {
-        throw new Error('End time must be after the start time.')
+      if (slots.length > 0 && selectedSlotIdx !== null) {
+        bookingStart = new Date(slots[selectedSlotIdx].start)
+        bookingEnd = new Date(slots[selectedSlotIdx].end)
+      } else {
+        if (!startTime || !endTime) throw new Error('Please select both a start time and an end time.')
+        bookingStart = new Date(startTime)
+        bookingEnd = new Date(endTime)
+        if (Number.isNaN(bookingStart.getTime()) || Number.isNaN(bookingEnd.getTime())) {
+          throw new Error('The selected times are not valid. Please try again.')
+        }
+        if (bookingEnd <= bookingStart) throw new Error('End time must be after the start time.')
       }
 
       await api.post('/student/bookings', {
         tutorId: tutor.id,
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
+        startTime: bookingStart.toISOString(),
+        endTime: bookingEnd.toISOString(),
         notes: notes.trim() || undefined,
       })
 
@@ -129,30 +211,53 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid md:grid-cols-2 gap-4">
+            {loadingSlots ? (
+              <p className="text-sm text-slate-500">Loading available slots…</p>
+            ) : slots.length > 0 ? (
               <div>
-                <label className="label">Start time *</label>
-                <input
-                  type="datetime-local"
+                <label className="label">Select a time slot *</label>
+                <select
                   className="input"
-                  value={startTime}
-                  onChange={(event) => setStartTime(event.target.value)}
-                  min={nowLocal()}
+                  value={selectedSlotIdx ?? ''}
+                  onChange={(e) => setSelectedSlotIdx(Number(e.target.value))}
                   required
-                />
+                >
+                  {slots.map((slot, idx) => (
+                    <option key={slot.start} value={idx}>{slot.label}</option>
+                  ))}
+                </select>
               </div>
-              <div>
-                <label className="label">End time *</label>
-                <input
-                  type="datetime-local"
-                  className="input"
-                  value={endTime}
-                  onChange={(event) => setEndTime(event.target.value)}
-                  min={startTime}
-                  required
-                />
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  This tutor hasn’t set a schedule yet — pick any available time below.
+                </p>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Start time *</label>
+                    <input
+                      type="datetime-local"
+                      className="input"
+                      value={startTime}
+                      onChange={(event) => setStartTime(event.target.value)}
+                      min={nowLocal()}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">End time *</label>
+                    <input
+                      type="datetime-local"
+                      className="input"
+                      value={endTime}
+                      onChange={(event) => setEndTime(event.target.value)}
+                      min={startTime}
+                      required
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             <div>
               <label className="label">Share any goals or context (optional)</label>
@@ -173,8 +278,8 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
               <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
                 Cancel
               </button>
-        <button type="submit" className="btn btn-primary" disabled={submitting}>
-          {submitting ? 'Sending hire request…' : 'Confirm hire request'}
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? 'Sending hire request…' : 'Confirm hire request'}
               </button>
             </div>
           </form>

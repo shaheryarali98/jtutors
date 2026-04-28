@@ -28,7 +28,7 @@ export const completeClassSessionController = async (req: Request, res: Response
   try {
     const { id } = req.params;
     const { notes, actualHoursTaught } = req.body;
-    const userId = (req as any).userId;
+    const userId = req.user!.userId;
 
     // Get tutor profile
     const tutor = await prisma.tutor.findUnique({
@@ -55,7 +55,7 @@ export const approveClassSessionController = async (req: Request, res: Response)
   try {
     const { id } = req.params;
     const { notes } = req.body;
-    const adminId = (req as any).userId;
+    const adminId = req.user!.userId;
 
     const classSession = await approveClassSession(id, adminId, notes);
 
@@ -85,8 +85,8 @@ export const getClassSessionController = async (req: Request, res: Response) => 
 
 export const getMyClassSessionsController = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).userId;
-    const userRole = (req as any).role as 'STUDENT' | 'TUTOR';
+    const userId = req.user!.userId;
+    const userRole = req.user!.role as 'STUDENT' | 'TUTOR';
 
     if (userRole !== 'STUDENT' && userRole !== 'TUTOR') {
       return res.status(403).json({ error: 'Unauthorized' });

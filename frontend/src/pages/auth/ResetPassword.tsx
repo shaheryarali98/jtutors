@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Eye, EyeOff } from 'lucide-react'
 import api from '../../lib/api'
+import { withApiRetry } from '../../lib/apiRetry'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 
@@ -17,6 +18,7 @@ const ResetPassword = () => {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [invalidToken, setInvalidToken] = useState(false)
+  const [retryMsg, setRetryMsg] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const navigate = useNavigate()
@@ -27,7 +29,6 @@ const ResetPassword = () => {
   const password = watch('password')
 
   useEffect(() => {
-    // Validate that token and email are present
     if (!token || !email) {
       setInvalidToken(true)
       setError('Invalid or missing reset link. Please request a new password reset.')
@@ -44,22 +45,21 @@ const ResetPassword = () => {
       setLoading(true)
       setError('')
       setSuccess('')
-      const response = await api.post('/auth/reset-password', {
-        email: email,
-        token: token,
-        password: data.password
-      })
+      setRetryMsg('')
+      const response = await withApiRetry(
+        () => api.post('/auth/reset-password', { email, token, password: data.password }),
+        (attempt, total) => setRetryMsg(`Server is starting up\u2026 (attempt ${attempt + 1} of ${total})`)
+      )
+      setRetryMsg('')
       setSuccess(response.data.message || 'Password has been reset successfully')
-      
-      setTimeout(() => {
-        navigate('/login')
-      }, 2000)
+      setTimeout(() => navigate('/login'), 2000)
     } catch (err: any) {
+      setRetryMsg('')
       console.error('Reset password error:', err)
       if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        setError('The server is taking longer than usual to respond. Please try again in a few moments.')
+        setError('The server is taking longer than usual. Please try again in 30 seconds.')
       } else if (err.code === 'ERR_NETWORK' || !err.response) {
-        setError('Cannot connect to server. Please check your internet connection or contact support.')
+        setError('Server is temporarily unavailable. Please try again in 30 seconds.')
       } else if (err.response?.data?.error === 'Reset link has expired. Please request a new one.') {
         setError(err.response.data.error)
         setInvalidToken(true)
@@ -113,6 +113,13 @@ const ResetPassword = () => {
             <div className="bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-lg mt-6">
               <p className="font-medium">{success}</p>
               <p className="text-sm mt-1">Redirecting to login...</p>
+            </div>
+          )}
+
+          {retryMsg && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mt-6 flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+              {retryMsg}
             </div>
           )}
 
