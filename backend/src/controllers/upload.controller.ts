@@ -1,4 +1,11 @@
 import { Request, Response, Express } from 'express';
+import { v2 as cloudinary } from 'cloudinary';
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export const uploadProfileImage = async (req: Request, res: Response) => {
   try {
@@ -8,18 +15,21 @@ export const uploadProfileImage = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Get the backend base URL from environment or construct from request
-    const backendUrl = process.env.BACKEND_URL || 
-                      process.env.API_URL || 
-                      (req.protocol + '://' + req.get('host'));
-    
-    // Return full URL for the uploaded image
-    // Static files are served at /uploads, not /api/uploads
-    const filePath = `${backendUrl}/uploads/profile-images/${file.filename}`;
+    // Upload buffer to Cloudinary
+    const url = await new Promise<string>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'jtutors/profile-images', resource_type: 'image' },
+        (error, result) => {
+          if (error || !result) return reject(error);
+          resolve(result.secure_url);
+        }
+      );
+      stream.end(file.buffer);
+    });
 
     res.status(201).json({
       message: 'Profile image uploaded successfully',
-      url: filePath
+      url,
     });
   } catch (error) {
     console.error('Upload profile image error:', error);
