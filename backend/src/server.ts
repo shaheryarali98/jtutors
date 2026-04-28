@@ -21,8 +21,25 @@ import courseRoutes from './routes/course.routes';
 import enrollmentRoutes from './routes/enrollment.routes';
 import { handleStripeWebhook } from './controllers/stripe.webhook.controller';
 import { initializeDefaultTemplates } from './services/emailTemplate.service';
+import { PrismaClient } from '@prisma/client';
 
 dotenv.config();
+
+const _patchPrisma = new PrismaClient();
+async function ensureProductionColumns() {
+  const dbUrl = process.env.DATABASE_URL || '';
+  if (dbUrl.startsWith('file:')) return; // skip SQLite (local dev)
+  try {
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Tutor" ADD COLUMN IF NOT EXISTS "jtutorsEmail" TEXT`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "studentFeePercentage" DOUBLE PRECISION NOT NULL DEFAULT 4.5`);
+    console.log('✅ DB columns verified/patched');
+  } catch (err: any) {
+    console.error('⚠️ Column patch error (non-fatal):', err.message);
+  } finally {
+    await _patchPrisma.$disconnect();
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -113,6 +130,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 app.listen(PORT, async () => {
   console.log(`🚀 Server is running on port ${PORT}`);
+  // Patch any missing DB columns (idempotent, PostgreSQL only)
+  await ensureProductionColumns();
   // Ensure email templates are seeded on startup
   try {
     await initializeDefaultTemplates();
