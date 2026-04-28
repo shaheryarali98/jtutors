@@ -128,16 +128,17 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  // Patch any missing DB columns (idempotent, PostgreSQL only)
-  await ensureProductionColumns();
-  // Ensure email templates are seeded on startup
-  try {
-    await initializeDefaultTemplates();
-    console.log('Email templates initialized');
-  } catch (err) {
-    console.warn('Failed to initialize email templates:', err);
-  }
+// Patch missing DB columns and start server
+ensureProductionColumns().then(() => {
+  app.listen(PORT, async () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+    // Ensure email templates are seeded on startup
+    try {
+      await initializeDefaultTemplates();
+      console.log('Email templates initialized');
+    } catch (err) {
+      console.warn('Failed to initialize email templates:', err);
+    }
+  });
 });
 
