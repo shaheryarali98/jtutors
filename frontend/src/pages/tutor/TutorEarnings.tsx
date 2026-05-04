@@ -14,8 +14,8 @@ interface EarningsSummary {
 
 interface PaymentRow {
   id: string
-  amount: number
-  tutorAmount: number
+  amount: number          // base price
+  tutorAmount: number     // tutor payout after deductions
   currency: string
   paymentStatus: string
   paidAt?: string | null
@@ -23,6 +23,9 @@ interface PaymentRow {
   bookingId: string
   studentName: string
   studentEmail: string
+  studentChargeAmount?: number | null  // what student actually paid
+  tutorDeductionAmount?: number | null // deduction from tutor
+  adminCommissionAmount?: number | null
 }
 
 interface WithdrawalRow {
@@ -299,8 +302,9 @@ const TutorEarnings = () => {
                   <thead className="bg-slate-50">
                     <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       <th className="px-4 py-3">Student</th>
-                      <th className="px-4 py-3">Gross</th>
-                      <th className="px-4 py-3">Your share</th>
+                      <th className="px-4 py-3">Student Paid</th>
+                      <th className="px-4 py-3">Tutor Deduction</th>
+                      <th className="px-4 py-3">Your Payout</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Paid at</th>
                     </tr>
@@ -313,9 +317,14 @@ const TutorEarnings = () => {
                           <div className="text-xs text-slate-500">{payment.studentEmail}</div>
                         </td>
                         <td className="px-4 py-3 text-slate-700">
-                          ${payment.amount.toFixed(2)} {payment.currency}
+                          ${(payment.studentChargeAmount ?? payment.amount).toFixed(2)} {payment.currency}
                         </td>
-                        <td className="px-4 py-3 text-slate-900 font-medium">
+                        <td className="px-4 py-3 text-red-600">
+                          {payment.tutorDeductionAmount != null
+                            ? `-$${payment.tutorDeductionAmount.toFixed(2)}`
+                            : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-slate-900 font-semibold">
                           ${payment.tutorAmount.toFixed(2)} {payment.currency}
                         </td>
                         <td className="px-4 py-3 text-slate-600">{payment.paymentStatus}</td>
@@ -326,7 +335,7 @@ const TutorEarnings = () => {
                     ))}
                     {data.payments.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-4 py-4 text-center text-slate-500">
+                        <td colSpan={6} className="px-4 py-4 text-center text-slate-500">
                           No payments yet.
                         </td>
                       </tr>

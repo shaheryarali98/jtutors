@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { createPayment, confirmPayment, getPayment, getPaymentsByUser, calculateCommission } from '../services/payment.service';
-import { createBookingCheckoutSession } from '../services/stripe.service';
+import { createBookingCheckoutSession, calculatePaymentBreakdown } from '../services/stripe.service';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -159,28 +159,30 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
       0.25,
       (new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / (1000 * 60 * 60)
     );
-    const amount = booking.payment?.amount
+    const basePriceDollars = booking.payment?.amount
       ?? Math.max(1, Math.round(durationHours * (booking.tutor.hourlyFee || 0) * 100) / 100);
-    if (amount <= 0) return res.status(400).json({ error: 'Invalid booking amount' });
+    if (basePriceDollars <= 0) return res.status(400).json({ error: 'Invalid booking amount' });
 
-    const commission = await calculateCommission(amount);
-    const adminCommissionAmount = commission.adminCommissionAmount;
-    const tutorAmount = commission.tutorAmount;
-    const studentChargeAmount = commission.studentChargeAmount;
+    // Calculate full 3-tier breakdown in cents
+    const basePriceCents = Math.round(basePriceDollars * 100);
+    const bd = await calculatePaymentBreakdown(basePriceCents);
 
-    // Upsert pending payment
+    // Upsert pending payment — store studentChargeAmount as the amount, with full breakdown
     let payment = booking.payment;
     if (!payment) {
       payment = await prisma.payment.create({
         data: {
-          booking: { connect: { id: booking.id } },
-          student: { connect: { id: student.id } },
-          tutor: { connect: { id: booking.tutorId } },
-          amount,
-          currency: 'USD',
-          paymentStatus: 'PENDING',
-          adminCommissionAmount,
-          tutorAmount,
+          booking:  { connect: { id: booking.id } },
+          student:  { connect: { id: student.id } },
+          tutor:    { connect: { id: booking.tutorId } },
+          amount:                basePriceDollars,           // base price
+          currency:              'USD',
+          paymentStatus:         'PENDING',
+          adminCommissionAmount: bd.platformFeeCents / 100,  // total platform gross
+          tutorAmount:           bd.tutorPayoutCents / 100,
+          studentFeeAmount:      bd.studentFeeCents  / 100,
+          tutorDeductionAmount:  bd.tutorDeductionCents / 100,
+          studentChargeAmount:   bd.studentPaysCents / 100,
         },
       });
     }
@@ -191,25 +193,50 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
     if (devBypass) {
       const tutorName = `${booking.tutor.firstName ?? 'Tutor'} ${booking.tutor.lastName ?? ''}`.trim();
       return res.json({
-        url: `${frontendUrl}/dev/mock-checkout?type=payment&id=${payment.id}&title=${encodeURIComponent(`Session with ${tutorName}`)}&amount=${amount}&returnUrl=${encodeURIComponent('/student/bookings?paid=1')}`,
+        url: `${frontendUrl}/dev/mock-checkout?type=payment&id=${payment.id}&title=${encodeURIComponent(`Session with ${tutorName}`)}&amount=${bd.studentPaysCents / 100}&returnUrl=${encodeURIComponent('/student/bookings?paid=1')}`,
         sessionId: 'dev_bypass',
+        breakdown: {
+          basePriceDollars,
+          studentFeeDollars:      bd.studentFeeCents / 100,
+          adminCommissionDollars: bd.adminCommissionCents / 100,
+          tutorDeductionDollars:  bd.tutorDeductionCents / 100,
+          totalDueDollars:        bd.studentPaysCents / 100,
+          tutorPayoutDollars:     bd.tutorPayoutCents / 100,
+        },
       });
     }
 
     const session = await createBookingCheckoutSession({
       bookingTitle: `Tutoring session with ${booking.tutor.firstName ?? 'Tutor'} ${booking.tutor.lastName ?? ''}`.trim(),
       bookingDescription: `Booking #${booking.id.slice(0, 8)} — ${durationHours.toFixed(2)} hour(s)`,
-      priceInCents: Math.round(studentChargeAmount * 100),
-      platformFeeAmountCents: Math.round(commission.adminCommissionAmount * 100),
+      breakdown: bd,
       tutorStripeAccountId: booking.tutor.stripeAccountId!,
       paymentId: payment.id,
       bookingId: booking.id,
       studentId: student.id,
+      tutorId: booking.tutorId,
       successUrl: `${frontendUrl}/student/bookings?paid=1&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${frontendUrl}/student/bookings?cancelled=1`,
     });
 
-    return res.json({ url: session.url, sessionId: session.id });
+    // Save the checkout session ID on the payment record
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { stripeCheckoutSessionId: session.id },
+    });
+
+    return res.json({
+      url: session.url,
+      sessionId: session.id,
+      breakdown: {
+        basePriceDollars,
+        studentFeeDollars:      bd.studentFeeCents / 100,
+        adminCommissionDollars: bd.adminCommissionCents / 100,
+        tutorDeductionDollars:  bd.tutorDeductionCents / 100,
+        totalDueDollars:        bd.studentPaysCents / 100,
+        tutorPayoutDollars:     bd.tutorPayoutCents / 100,
+      },
+    });
   } catch (error: any) {
     console.error('Create booking checkout error:', error);
     return res.status(500).json({ error: error.message || 'Error starting checkout' });

@@ -470,6 +470,13 @@ export const getPaymentsAdmin = async (req: Request, res: Response) => {
         bookingId: payment.bookingId,
         studentEmail: payment.booking?.student?.user.email || null,
         tutorEmail: payment.booking?.tutor?.user.email || null,
+        // breakdown fields
+        tutorAmount:          payment.tutorAmount,
+        studentFeeAmount:     (payment as any).studentFeeAmount    ?? null,
+        tutorDeductionAmount: (payment as any).tutorDeductionAmount ?? null,
+        adminCommissionAmount: payment.adminCommissionAmount,
+        studentChargeAmount:  (payment as any).studentChargeAmount  ?? payment.amount,
+        stripeCheckoutSessionId: (payment as any).stripeCheckoutSessionId ?? null,
       })),
     });
   } catch (error) {

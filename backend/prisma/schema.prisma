@@ -295,11 +295,17 @@ model Payment {
   adminCommissionAmount     Float // Calculated commission
   tutorAmount               Float // Amount tutor receives
   
+  // Fee breakdown (all stored as dollar amounts for audit)
+  studentFeeAmount        Float @default(0)  // 4.5% of base, charged to student
+  tutorDeductionAmount    Float @default(0)  // 9.25% of base, deducted from tutor
+  studentChargeAmount     Float @default(0)  // base + studentFee = what student pays total
+
   // Stripe
-  stripePaymentIntentId String?
-  stripeChargeId        String?
-  paymentStatus         String   @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
-  
+  stripePaymentIntentId   String?
+  stripeCheckoutSessionId String?
+  stripeChargeId          String?
+  paymentStatus           String   @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+
   paidAt      DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -356,9 +362,10 @@ model AdminSettings {
   autoApproveUsers            Boolean  @default(true)
   
   // Commission Settings
-  adminCommissionPercentage   Float    @default(9.25)   // Tutor-side deduction
+  adminCommissionPercentage   Float    @default(9.25)   // Tutor-side deduction %
   adminCommissionFixed        Float    @default(0.0)
-  studentFeePercentage        Float    @default(4.5)    // Added on top of session price
+  studentFeePercentage        Float    @default(4.5)    // Added on top of session price for student
+  platformCommissionPercent   Float    @default(10.0)   // Admin platform commission % taken from base price
   
   // Withdrawal Settings
   withdrawalAutoApproveDays   Int?     // null = manual, number = auto-approve after N days (default 2 for sandbox)
@@ -502,12 +509,20 @@ model Enrollment {
   status                String   @default("PENDING")
 
   // Stripe Checkout
-  stripeSessionId       String?
-  stripePaymentIntentId String?
+  stripeSessionId         String?
+  stripePaymentIntentId   String?
 
-  amount                Float    // total charged
-  tutorAmount           Float    // 90 %
-  platformAmount        Float    // 10 %
+  // Amounts (dollar values)
+  amount                Float    // studentChargeAmount = base + student fee (what Stripe charges)
+  tutorAmount           Float    // tutor payout = base - adminCommission - tutorDeduction
+  platformAmount        Float    // total platform fee = studentFee + adminCommission + tutorDeduction
+
+  // Detailed fee breakdown
+  basePriceAmount       Float?   // base course price
+  studentFeeAmount      Float?   // 4.5% added to student charge
+  adminCommissionAmount Float?   // 10% admin platform commission
+  tutorDeductionAmount  Float?   // 9.25% tutor-side deduction
+  studentChargeAmount   Float?   // = amount (kept for clarity)
 
   paidAt                DateTime?
   createdAt             DateTime @default(now())

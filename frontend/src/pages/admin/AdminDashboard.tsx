@@ -52,9 +52,10 @@ interface AdminSettings {
   sendSignupConfirmation: boolean
   sendProfileCompletionEmail: boolean
   autoApproveUsers: boolean
-  adminCommissionPercentage: number
+  adminCommissionPercentage: number   // tutor deduction %
   adminCommissionFixed: number
-  studentFeePercentage?: number
+  platformCommissionPercent?: number  // admin platform commission %
+  studentFeePercentage?: number       // student service fee %
   withdrawalAutoApproveDays: number | null
   withdrawMethods: string[]
   withdrawFixedCharge?: number
@@ -249,6 +250,13 @@ interface AdminPayment {
   createdAt: string
   studentEmail: string | null
   tutorEmail: string | null
+  // breakdown fields
+  tutorAmount?: number | null
+  studentFeeAmount?: number | null
+  tutorDeductionAmount?: number | null
+  adminCommissionAmount?: number | null
+  studentChargeAmount?: number | null
+  stripeCheckoutSessionId?: string | null
 }
 
 interface SubjectItem {
@@ -995,7 +1003,11 @@ const AdminDashboard = () => {
                         <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                           <th className="px-4 py-3">Student</th>
                           <th className="px-4 py-3">Tutor</th>
-                          <th className="px-4 py-3">Amount</th>
+                          <th className="px-4 py-3">Base</th>
+                          <th className="px-4 py-3">Student Fee</th>
+                          <th className="px-4 py-3">Student Pays</th>
+                          <th className="px-4 py-3">Tutor Deduction</th>
+                          <th className="px-4 py-3">Tutor Payout</th>
                           <th className="px-4 py-3">Status</th>
                           <th className="px-4 py-3">Updated</th>
                           <th className="px-4 py-3 text-right">Actions</th>
@@ -1007,7 +1019,21 @@ const AdminDashboard = () => {
                             <td className="px-4 py-3 text-slate-600">{payment.studentEmail || '—'}</td>
                             <td className="px-4 py-3 text-slate-600">{payment.tutorEmail || '—'}</td>
                             <td className="px-4 py-3 font-semibold text-slate-900">
-                              ${payment.amount.toFixed(2)} {payment.currency}
+                              ${payment.amount.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {payment.studentFeeAmount != null ? `$${payment.studentFeeAmount.toFixed(2)}` : '—'}
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-slate-900">
+                              {payment.studentChargeAmount != null
+                                ? `$${payment.studentChargeAmount.toFixed(2)}`
+                                : `$${payment.amount.toFixed(2)}`} {payment.currency}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {payment.tutorDeductionAmount != null ? `$${payment.tutorDeductionAmount.toFixed(2)}` : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {payment.tutorAmount != null ? `$${payment.tutorAmount.toFixed(2)}` : '—'}
                             </td>
                             <td className="px-4 py-3 text-slate-600">{payment.paymentStatus}</td>
                             <td className="px-4 py-3 text-slate-500">
@@ -1037,7 +1063,7 @@ const AdminDashboard = () => {
                         ))}
                         {payments.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="px-4 py-6 text-center text-slate-500 text-sm">
+                            <td colSpan={10} className="px-4 py-6 text-center text-slate-500 text-sm">
                               No payments found.
                             </td>
                           </tr>
@@ -1573,7 +1599,30 @@ const AdminDashboard = () => {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Tutor Commission Percentage
+                          Admin Platform Commission %
+                        </label>
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={settings.platformCommissionPercent ?? 10}
+                            onChange={(event) =>
+                              handleUpdateSettings({ platformCommissionPercent: parseFloat(event.target.value) })
+                            }
+                            disabled={savingSettings}
+                            className="input w-32"
+                          />
+                          <span className="text-sm text-slate-500">%</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Admin keeps this % of the base price (e.g., 10%)
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Tutor Deduction %
                         </label>
                         <div className="flex items-center gap-4">
                           <input
@@ -1591,12 +1640,12 @@ const AdminDashboard = () => {
                           <span className="text-sm text-slate-500">%</span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          Percentage deducted from tutor payout (e.g., 9.25%)
+                          Deducted from tutor payout in addition to admin commission (e.g., 9.25%)
                         </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Student Fee Percentage
+                          Student Service Fee %
                         </label>
                         <div className="flex items-center gap-4">
                           <input
@@ -1614,7 +1663,7 @@ const AdminDashboard = () => {
                           <span className="text-sm text-slate-500">%</span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          Percentage added on top of session price charged to students (e.g., 4.5%)
+                          Added on top of session price, charged to students (e.g., 4.5%)
                         </p>
                       </div>
                       <div>
@@ -1636,19 +1685,14 @@ const AdminDashboard = () => {
                           />
                         </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          Fixed fee amount added to commission (e.g., $0.00)
+                          Fixed fee added to commission (e.g., $0.00)
                         </p>
                       </div>
-                      <div className="bg-slate-50 p-4 rounded-lg">
-                        <p className="text-sm text-slate-700">
-                          <strong>Tutor Commission:</strong> {settings.adminCommissionPercentage}% deducted from tutor payout
-                        </p>
-                        <p className="text-sm text-slate-700 mt-1">
-                          <strong>Student Fee:</strong> {settings.studentFeePercentage ?? 4.5}% added to session price
-                        </p>
-                        <p className="text-sm text-slate-700 mt-1">
-                          <strong>Fixed Fee:</strong> ${settings.adminCommissionFixed.toFixed(2)}
-                        </p>
+                      <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 space-y-1">
+                        <p><strong>Example for $100 base price:</strong></p>
+                        <p>Student pays: ${(100 * (1 + (settings.studentFeePercentage ?? 4.5) / 100)).toFixed(2)} (base + {settings.studentFeePercentage ?? 4.5}% service fee)</p>
+                        <p>Admin keeps: ${(100 * ((settings.platformCommissionPercent ?? 10) + (settings.adminCommissionPercentage ?? 9.25) + (settings.studentFeePercentage ?? 4.5)) / 100).toFixed(2)} ({(settings.platformCommissionPercent ?? 10) + (settings.adminCommissionPercentage ?? 9.25) + (settings.studentFeePercentage ?? 4.5)}% total)</p>
+                        <p>Tutor receives: ${(100 - (100 * ((settings.platformCommissionPercent ?? 10) + (settings.adminCommissionPercentage ?? 9.25)) / 100)).toFixed(2)}</p>
                       </div>
                     </div>
                   </div>

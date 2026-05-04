@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { createPaymentIntent, confirmPaymentIntent } from './stripe.service';
+import { createPaymentIntent, confirmPaymentIntent, calculatePaymentBreakdown } from './stripe.service';
 import { getAdminSettings } from './settings.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
 
@@ -13,37 +13,33 @@ export interface CreatePaymentData {
   currency?: string;
 }
 
-// Calculate commission based on admin settings
+// Legacy calculateCommission — delegates to the canonical cents-based helper.
+// Returns dollar amounts for backwards compatibility with existing callers.
 export const calculateCommission = async (
-  amount: number
+  amount: number  // base price in dollars
 ): Promise<{
-  adminCommissionPercentage: number;
+  adminCommissionPercentage: number;  // tutor deduction %
   adminCommissionFixed: number;
-  adminCommissionAmount: number;
-  tutorAmount: number;
+  adminCommissionAmount: number;      // total platform gross (studentFee + adminComm + tutorDeduction)
+  tutorAmount: number;                // tutor payout in dollars
   studentFeePercentage: number;
   studentFeeAmount: number;
-  studentChargeAmount: number;
+  studentChargeAmount: number;        // what student pays = base + studentFee
+  tutorDeductionAmount: number;       // 9.25% tutor deduction in dollars
 }> => {
+  const basePriceCents = Math.round(amount * 100);
+  const bd = await calculatePaymentBreakdown(basePriceCents);
   const settings = await getAdminSettings();
-  const tutorCommissionPct = settings.adminCommissionPercentage || 9.25;
-  const studentFeePct = (settings as any).studentFeePercentage ?? 4.5;
-  const fixed = settings.adminCommissionFixed || 0.0;
-
-  const studentFeeAmount = (amount * studentFeePct) / 100;
-  const tutorCommissionAmount = (amount * tutorCommissionPct) / 100;
-  const adminCommissionAmount = studentFeeAmount + tutorCommissionAmount + fixed;
-  const tutorAmount = amount - tutorCommissionAmount - fixed;
-  const studentChargeAmount = amount + studentFeeAmount;
 
   return {
-    adminCommissionPercentage: tutorCommissionPct,
-    adminCommissionFixed: fixed,
-    adminCommissionAmount: Math.round(adminCommissionAmount * 100) / 100,
-    tutorAmount: Math.round(tutorAmount * 100) / 100,
-    studentFeePercentage: studentFeePct,
-    studentFeeAmount: Math.round(studentFeeAmount * 100) / 100,
-    studentChargeAmount: Math.round(studentChargeAmount * 100) / 100,
+    adminCommissionPercentage: settings.adminCommissionPercentage ?? 9.25,
+    adminCommissionFixed: settings.adminCommissionFixed ?? 0,
+    adminCommissionAmount: bd.platformFeeCents / 100,
+    tutorAmount: bd.tutorPayoutCents / 100,
+    studentFeePercentage: settings.studentFeePercentage ?? 4.5,
+    studentFeeAmount: bd.studentFeeCents / 100,
+    studentChargeAmount: bd.studentPaysCents / 100,
+    tutorDeductionAmount: bd.tutorDeductionCents / 100,
   };
 };
 
@@ -66,6 +62,9 @@ export const createPayment = async (data: CreatePaymentData) => {
       adminCommissionFixed: commission.adminCommissionFixed,
       adminCommissionAmount: commission.adminCommissionAmount,
       tutorAmount: commission.tutorAmount,
+      studentFeeAmount: commission.studentFeeAmount,
+      tutorDeductionAmount: commission.tutorDeductionAmount,
+      studentChargeAmount: commission.studentChargeAmount,
       paymentStatus: 'PENDING',
     },
     include: {

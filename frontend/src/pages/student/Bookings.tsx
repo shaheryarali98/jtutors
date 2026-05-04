@@ -4,6 +4,7 @@ import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
+import { usePlatformSettings } from '../../store/settingsStore'
 
 interface Booking {
   id: string
@@ -55,6 +56,8 @@ const StudentBookings = () => {
   const [payingId, setPayingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
+  const { settings: platformSettings, fetchSettings } = usePlatformSettings()
+  const studentFeePct = platformSettings?.studentFeePercentage ?? 4.5
 
   const fetchBookings = async () => {
     try {
@@ -72,6 +75,7 @@ const StudentBookings = () => {
 
   useEffect(() => {
     fetchBookings()
+    fetchSettings()
     if (searchParams.get('paid') === '1') {
       setInfo('Payment successful! Your booking is confirmed.')
       searchParams.delete('paid'); searchParams.delete('session_id')
@@ -310,14 +314,30 @@ const StudentBookings = () => {
 
                   <div className="mt-6 flex flex-col md:flex-row gap-3">
                     {needsPayment && (
-                      <button
-                        type="button"
-                        className="btn btn-primary inline-flex items-center justify-center gap-2 md:w-auto disabled:opacity-60"
-                        onClick={() => handlePayNow(booking)}
-                        disabled={payingId === booking.id}
-                      >
-                        {payingId === booking.id ? 'Redirecting…' : 'Pay with Stripe'}
-                      </button>
+                      <>
+                        <div className="bg-slate-50 rounded-xl p-3 text-sm text-slate-700 space-y-1 md:self-center">
+                          <div className="flex justify-between gap-6">
+                            <span>Session price</span>
+                            <span className="font-medium">${amountDue.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between gap-6 text-slate-500">
+                            <span>Service fee ({studentFeePct}%)</span>
+                            <span>+${(amountDue * studentFeePct / 100).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between gap-6 font-semibold border-t border-slate-200 pt-1 mt-1">
+                            <span>Total due</span>
+                            <span>${(amountDue * (1 + studentFeePct / 100)).toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-primary inline-flex items-center justify-center gap-2 md:w-auto disabled:opacity-60"
+                          onClick={() => handlePayNow(booking)}
+                          disabled={payingId === booking.id}
+                        >
+                          {payingId === booking.id ? 'Redirecting…' : 'Pay with Stripe'}
+                        </button>
+                      </>
                     )}
                     {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
                       <button

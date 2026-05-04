@@ -59,6 +59,14 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         await handleAccountUpdated(event.data.object as Stripe.Account);
         break;
 
+      case 'charge.refunded':
+        await handleChargeRefunded(event.data.object as Stripe.Charge);
+        break;
+
+      case 'charge.dispute.created':
+        await handleDisputeCreated(event.data.object as Stripe.Dispute);
+        break;
+
       default:
         console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
     }
@@ -80,7 +88,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   // Course enrollment checkout
   if (meta.enrollmentId) {
     try {
-      await confirmEnrollmentPayment(session.id, paymentIntentId);
+      await confirmEnrollmentPayment(session.id, paymentIntentId, meta);
       console.log(`[Stripe Webhook] Enrollment confirmed: ${meta.enrollmentId}`);
     } catch (error: any) {
       console.error(`[Stripe Webhook] Error confirming enrollment ${meta.enrollmentId}:`, error);
@@ -89,9 +97,23 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     return;
   }
 
-  // Legacy booking checkout
+  // Booking checkout — save breakdown fields from session metadata
   if (meta.paymentId) {
     try {
+      // Save breakdown fields on Payment record before confirming
+      if (meta.basePriceCents) {
+        await prisma.payment.update({
+          where: { id: meta.paymentId },
+          data: {
+            studentFeeAmount:      meta.studentFeeCents      ? Number(meta.studentFeeCents)      / 100 : undefined,
+            tutorDeductionAmount:  meta.tutorDeductionCents  ? Number(meta.tutorDeductionCents)  / 100 : undefined,
+            studentChargeAmount:   meta.studentPaysCents     ? Number(meta.studentPaysCents)     / 100 : undefined,
+            adminCommissionAmount: meta.platformFeeCents     ? Number(meta.platformFeeCents)     / 100 : undefined,
+            tutorAmount:           meta.tutorPayoutCents     ? Number(meta.tutorPayoutCents)     / 100 : undefined,
+            stripeCheckoutSessionId: session.id,
+          },
+        });
+      }
       await confirmPayment(meta.paymentId, paymentIntentId);
       console.log(`[Stripe Webhook] Booking payment confirmed: ${meta.paymentId}`);
     } catch (error: any) {
@@ -207,3 +229,59 @@ async function handleAccountUpdated(account: Stripe.Account) {
   }
 }
 
+// Handle charge refunds — mark matching Payment as REFUNDED
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const paymentIntentId = typeof charge.payment_intent === 'string'
+    ? charge.payment_intent
+    : charge.payment_intent?.id;
+
+  if (!paymentIntentId) {
+    console.warn('[Stripe Webhook] charge.refunded missing paymentIntentId');
+    return;
+  }
+
+  try {
+    const updated = await prisma.payment.updateMany({
+      where: { stripePaymentIntentId: paymentIntentId },
+      data: { paymentStatus: 'REFUNDED' },
+    });
+    if (updated.count > 0) {
+      console.log(`[Stripe Webhook] Payment refunded for intent: ${paymentIntentId}`);
+    } else {
+      // May be an enrollment — mark enrollment refunded if stored
+      const enrollment = await prisma.enrollment.findFirst({
+        where: { stripePaymentIntentId: paymentIntentId },
+      });
+      if (enrollment) {
+        await prisma.enrollment.update({
+          where: { id: enrollment.id },
+          data: { status: 'REFUNDED' as any },
+        });
+        console.log(`[Stripe Webhook] Enrollment refunded: ${enrollment.id}`);
+      }
+    }
+  } catch (error: any) {
+    console.error(`[Stripe Webhook] Error handling refund for intent ${paymentIntentId}:`, error);
+  }
+}
+
+// Handle disputes — log for admin review
+async function handleDisputeCreated(dispute: Stripe.Dispute) {
+  const paymentIntentId = typeof dispute.payment_intent === 'string'
+    ? dispute.payment_intent
+    : dispute.payment_intent?.id;
+
+  console.warn(`[Stripe Webhook] DISPUTE created — paymentIntent: ${paymentIntentId}, amount: ${dispute.amount}, reason: ${dispute.reason}`);
+
+  if (!paymentIntentId) return;
+
+  try {
+    // Mark payment as DISPUTED so admins can see it
+    await prisma.payment.updateMany({
+      where: { stripePaymentIntentId: paymentIntentId },
+      data: { paymentStatus: 'DISPUTED' as any },
+    });
+  } catch (error: any) {
+    console.error(`[Stripe Webhook] Error marking dispute for intent ${paymentIntentId}:`, error);
+  }
+}

@@ -1,9 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-import { createEnrollmentCheckoutSession } from './stripe.service';
+import { createEnrollmentCheckoutSession, calculatePaymentBreakdown } from './stripe.service';
 
 const prisma = new PrismaClient();
-
-const PLATFORM_FEE_PERCENT = 0.10; // 10%
 
 // ── Student initiates checkout ────────────────────────────────────────────────
 export const createEnrollmentCheckout = async (
@@ -42,8 +40,9 @@ export const createEnrollmentCheckout = async (
     throw new Error('Already enrolled in this course');
   }
 
-  const platformAmount = course.price * PLATFORM_FEE_PERCENT;
-  const tutorAmount = course.price - platformAmount;
+  // Calculate fee breakdown in cents
+  const basePriceCents = Math.round(course.price * 100);
+  const bd = await calculatePaymentBreakdown(basePriceCents);
 
   let enrollment = existing;
   if (!enrollment) {
@@ -52,9 +51,15 @@ export const createEnrollmentCheckout = async (
         courseId,
         studentId,
         status: 'PENDING',
-        amount: course.price,
-        tutorAmount,
-        platformAmount,
+        // amount = what student pays; tutorAmount = tutor payout; platformAmount = platform gross
+        amount:               bd.studentPaysCents / 100,
+        tutorAmount:          bd.tutorPayoutCents / 100,
+        platformAmount:       bd.platformFeeCents / 100,
+        basePriceAmount:      bd.basePriceCents   / 100,
+        studentFeeAmount:     bd.studentFeeCents  / 100,
+        adminCommissionAmount:bd.adminCommissionCents / 100,
+        tutorDeductionAmount: bd.tutorDeductionCents  / 100,
+        studentChargeAmount:  bd.studentPaysCents / 100,
       },
     });
   }
@@ -62,7 +67,7 @@ export const createEnrollmentCheckout = async (
   // ── Dev bypass: skip Stripe, return a local mock-checkout URL ──────────────
   if (devBypass) {
     return {
-      url: `${frontendUrl}/dev/mock-checkout?type=enrollment&id=${enrollment.id}&title=${encodeURIComponent(course.title)}&amount=${course.price}`,
+      url: `${frontendUrl}/dev/mock-checkout?type=enrollment&id=${enrollment.id}&title=${encodeURIComponent(course.title)}&amount=${bd.studentPaysCents / 100}`,
       sessionId: 'dev_bypass',
     };
   }
@@ -70,11 +75,12 @@ export const createEnrollmentCheckout = async (
   const session = await createEnrollmentCheckoutSession({
     courseTitle: course.title,
     courseDescription: course.description,
-    priceInCents: Math.round(course.price * 100),
-    tutorStripeAccountId: course.tutor.stripeAccountId,
+    breakdown: bd,
+    tutorStripeAccountId: course.tutor.stripeAccountId!,
     enrollmentId: enrollment.id,
     courseId: course.id,
     studentId,
+    tutorId: course.tutor.id,
     successUrl: `${frontendUrl}/student/enrollment-success?session_id={CHECKOUT_SESSION_ID}`,
     cancelUrl: `${frontendUrl}/student/courses`,
   });
@@ -91,7 +97,8 @@ export const createEnrollmentCheckout = async (
 // ── Webhook: confirm payment ──────────────────────────────────────────────────
 export const confirmEnrollmentPayment = async (
   sessionId: string,
-  paymentIntentId: string
+  paymentIntentId: string,
+  meta?: Record<string, string>  // checkout.session metadata from Stripe webhook
 ) => {
   const enrollment = await prisma.enrollment.findFirst({
     where: { stripeSessionId: sessionId },
@@ -101,12 +108,25 @@ export const confirmEnrollmentPayment = async (
   }
   if (enrollment.status === 'PAID') return enrollment; // idempotent
 
+  // Parse breakdown from webhook metadata (all values are stored as cents strings)
+  const breakdownUpdate = meta ? {
+    basePriceAmount:       meta.basePriceCents       ? Number(meta.basePriceCents)       / 100 : undefined,
+    studentFeeAmount:      meta.studentFeeCents       ? Number(meta.studentFeeCents)       / 100 : undefined,
+    adminCommissionAmount: meta.adminCommissionCents  ? Number(meta.adminCommissionCents)  / 100 : undefined,
+    tutorDeductionAmount:  meta.tutorDeductionCents   ? Number(meta.tutorDeductionCents)   / 100 : undefined,
+    studentChargeAmount:   meta.studentPaysCents      ? Number(meta.studentPaysCents)      / 100 : undefined,
+    amount:                meta.studentPaysCents      ? Number(meta.studentPaysCents)      / 100 : undefined,
+    tutorAmount:           meta.tutorPayoutCents      ? Number(meta.tutorPayoutCents)      / 100 : undefined,
+    platformAmount:        meta.platformFeeCents      ? Number(meta.platformFeeCents)      / 100 : undefined,
+  } : {};
+
   return prisma.enrollment.update({
     where: { id: enrollment.id },
     data: {
       status: 'PAID',
       stripePaymentIntentId: paymentIntentId,
       paidAt: new Date(),
+      ...breakdownUpdate,
     },
   });
 };

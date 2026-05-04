@@ -11,6 +11,8 @@ export const getPublicSettings = async (_req: Request, res: Response) => {
         autoApproveUsers: settings.autoApproveUsers,
         adminCommissionPercentage: settings.adminCommissionPercentage,
         adminCommissionFixed: settings.adminCommissionFixed,
+        platformCommissionPercent: settings.platformCommissionPercent,
+        studentFeePercentage: settings.studentFeePercentage,
         withdrawalAutoApproveDays: settings.withdrawalAutoApproveDays,
         withdrawMethods: settings.withdrawMethods,
         withdrawFixedCharge: settings.withdrawFixedCharge,

@@ -5,8 +5,10 @@ export interface PlatformSettings {
   sendSignupConfirmation: boolean
   sendProfileCompletionEmail: boolean
   autoApproveUsers: boolean
-  adminCommissionPercentage: number
+  adminCommissionPercentage: number   // tutor deduction % (9.25)
   adminCommissionFixed: number
+  platformCommissionPercent?: number  // admin platform commission % (10)
+  studentFeePercentage?: number       // student service fee % (4.5)
   withdrawalAutoApproveDays: number | null
   withdrawMethods: string[]
   withdrawFixedCharge?: number

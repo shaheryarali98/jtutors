@@ -30,10 +30,22 @@ async function ensureProductionColumns() {
   const dbUrl = process.env.DATABASE_URL || '';
   if (dbUrl.startsWith('file:')) return; // skip SQLite (local dev)
   try {
+    // Original columns
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Tutor" ADD COLUMN IF NOT EXISTS "jtutorsEmail" TEXT`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "studentFeePercentage" DOUBLE PRECISION NOT NULL DEFAULT 4.5`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "adminPaymentInfo" TEXT`);
+    // Payment flow v2 — 3-tier fee structure
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "platformCommissionPercent" DOUBLE PRECISION NOT NULL DEFAULT 10.0`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "studentFeeAmount" DOUBLE PRECISION`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "tutorDeductionAmount" DOUBLE PRECISION`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "studentChargeAmount" DOUBLE PRECISION`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "stripeCheckoutSessionId" TEXT`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "basePriceAmount" DOUBLE PRECISION`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "studentFeeAmount" DOUBLE PRECISION`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "adminCommissionAmount" DOUBLE PRECISION`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "tutorDeductionAmount" DOUBLE PRECISION`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "studentChargeAmount" DOUBLE PRECISION`);
     console.log('✅ DB columns verified/patched');
   } catch (err: any) {
     console.error('⚠️ Column patch error (non-fatal):', err.message);

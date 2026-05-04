@@ -163,14 +163,16 @@ const HomePage = () => {
                   Become a Tutor
                   <ChevronRight className="h-6 w-6" />
                 </Link>
-                <Link
-                  to={browseTutorsUrl}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-5 font-bold text-white shadow-2xl hover:scale-105 transition-all text-lg"
-                  style={{ backgroundColor: '#012c54' }}
-                >
-                  Find a Tutor
-                  <ChevronRight className="h-6 w-6" />
-                </Link>
+                {user?.role === 'STUDENT' || !user ? (
+                  <Link
+                    to={browseTutorsUrl}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-5 font-bold text-white shadow-2xl hover:scale-105 transition-all text-lg"
+                    style={{ backgroundColor: '#012c54' }}
+                  >
+                    Find a Tutor
+                    <ChevronRight className="h-6 w-6" />
+                  </Link>
+                ) : null}
                 <Link
                   to="/how-it-works-for-tutors"
                   className="inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-5 font-bold text-white bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all text-lg"
@@ -215,14 +217,16 @@ const HomePage = () => {
                   Verified educators ready to help you succeed in your academic journey.
                 </p>
               </div>
-              <Link
-                to={browseTutorsUrl}
-                className="inline-flex items-center gap-2 rounded-full border-2 px-6 py-3 text-sm font-bold transition-all hover:scale-105"
-                style={{ borderColor: '#012c54', color: '#012c54' }}
-              >
-                Browse All Tutors
-                <ChevronRight className="h-4 w-4" />
-              </Link>
+              {(user?.role === 'STUDENT' || !user) && (
+                <Link
+                  to={browseTutorsUrl}
+                  className="inline-flex items-center gap-2 rounded-full border-2 px-6 py-3 text-sm font-bold transition-all hover:scale-105"
+                  style={{ borderColor: '#012c54', color: '#012c54' }}
+                >
+                  Browse All Tutors
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              )}
             </div>
 
             {loadingTutors ? (
@@ -318,7 +322,7 @@ const HomePage = () => {
                     {/* CTA */}
                     <div className="border-t border-slate-100 px-6 py-3">
                       <Link
-                        to={user?.role === 'STUDENT' ? `/student/tutor/${tutor.id}` : '/register?role=student'}
+                        to={user?.role === 'STUDENT' ? `/student/tutor/${tutor.id}` : `/register?role=student`}
                         className="block text-center text-sm font-bold transition-colors"
                         style={{ color: '#012c54' }}
                       >
