@@ -22,8 +22,6 @@ interface TutorSession {
     paymentReleased: boolean
     studentConfirmed: boolean
     autoReleaseAt?: string | null
-    googleClassroomLink?: string | null
-    googleMeetLink?: string | null
     pencilSpaceId?: string | null
     pencilSpaceUrl?: string | null
   } | null
@@ -175,27 +173,15 @@ const TutorSessions = () => {
           </div>
         </div>
         {/* Join links — only shown for confirmed/active sessions */}
-        {session.status !== 'PENDING' && (
+        {session.status !== 'PENDING' && session.classSession?.pencilSpaceUrl && (
           <div className="flex flex-col gap-2 text-sm text-slate-600">
-            {session.classSession?.pencilSpaceUrl && (
-              <button
-                type="button"
-                onClick={() => handleJoinSpace(session.classSession!.pencilSpaceUrl!)}
-                className="inline-flex items-center gap-1.5 bg-[#5046e5] hover:bg-[#4338ca] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-              >
-                🖊 Join Space
-              </button>
-            )}
-            {!session.classSession?.pencilSpaceUrl && session.classSession?.googleClassroomLink && (
-              <a href={session.classSession.googleClassroomLink} target="_blank" rel="noopener noreferrer" className="text-primary-600 font-medium hover:text-primary-700">
-                Classroom link →
-              </a>
-            )}
-            {!session.classSession?.pencilSpaceUrl && session.classSession?.googleMeetLink && (
-              <a href={session.classSession.googleMeetLink} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700">
-                Meet link →
-              </a>
-            )}
+            <button
+              type="button"
+              onClick={() => handleJoinSpace(session.classSession!.pencilSpaceUrl!)}
+              className="inline-flex items-center gap-1.5 bg-[#5046e5] hover:bg-[#4338ca] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              🖊 Join Space
+            </button>
           </div>
         )}
       </div>

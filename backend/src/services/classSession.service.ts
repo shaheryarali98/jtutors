@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { createCourse, createMeetLink, addStudentToCourse, addTeacherToCourse } from './googleClassroom.service';
 import { createOrGetPencilUser, createPencilSpace, isPencilSpacesEnabled } from './pencilSpaces.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
 
@@ -10,7 +9,7 @@ export interface CreateClassSessionData {
   className?: string;
 }
 
-// Create class session with Google Classroom integration
+// Create class session with Pencil Spaces only.
 export const createClassSession = async (data: CreateClassSessionData) => {
   const { bookingId, className } = data;
 
@@ -26,14 +25,9 @@ export const createClassSession = async (data: CreateClassSessionData) => {
     throw new Error('Booking not found');
   }
 
-  // Create Google Classroom course
-  let googleClassroomId: string | null = null;
-  let googleClassroomLink: string | null = null;
-  let googleMeetLink: string | null = null;
   let pencilSpaceId: string | null = null;
   let pencilSpaceUrl: string | null = null;
 
-  // Prefer Pencil Spaces when configured; fall back to Google Classroom
   if (isPencilSpacesEnabled()) {
     try {
       const spaceName = className || `Session: ${booking.tutor.user.email} & ${booking.student.user.email}`;
@@ -59,36 +53,7 @@ export const createClassSession = async (data: CreateClassSessionData) => {
       ]);
     } catch (error) {
       console.error('Error creating Pencil Space:', error);
-      // Fall through — session still created, join will be unavailable until resolved
-    }
-  } else {
-    try {
-      const courseName = className || `Class with ${booking.tutor.user.email}`;
-      const course = await createCourse(
-        courseName,
-        `Session on ${booking.startTime.toLocaleDateString()}`,
-        `Tutoring session between ${booking.student.user.email} and ${booking.tutor.user.email}`
-      );
-
-      if (course) {
-        googleClassroomId = course.id;
-        googleClassroomLink = course.alternateLink;
-
-        // Create Meet link with booking times
-        googleMeetLink = await createMeetLink(
-          course.id,
-          booking.startTime,
-          booking.endTime,
-          courseName
-        );
-
-        // Add student and tutor to course
-        await addStudentToCourse(course.id, booking.student.user.email);
-        await addTeacherToCourse(course.id, booking.tutor.user.email);
-      }
-    } catch (error) {
-      console.error('Error creating Google Classroom course:', error);
-      // Continue without Google Classroom if it fails
+      // Session still gets created; join will be unavailable until Pencil Spaces is configured.
     }
   }
 
@@ -96,9 +61,6 @@ export const createClassSession = async (data: CreateClassSessionData) => {
   const classSession = await prisma.classSession.create({
     data: {
       bookingId,
-      googleClassroomId,
-      googleClassroomLink,
-      googleMeetLink,
       pencilSpaceId,
       pencilSpaceUrl,
       status: 'SCHEDULED',
@@ -440,75 +402,13 @@ export const ensureGoogleClassroomForBooking = async (bookingId: string, classNa
     throw new Error('Tutor or student email is missing.');
   }
 
-  // If no class session exists yet, defer to createClassSession which already provisions Classroom resources.
+  // If no class session exists yet, create it using the current Pencil Spaces-only flow.
   if (!booking.classSession) {
     return await createClassSession({ bookingId, className });
   }
 
-  const existingSession = booking.classSession;
-
-  // If Google resources already exist, return the current session as-is.
-  if (existingSession.googleClassroomLink && existingSession.googleClassroomId && existingSession.googleMeetLink) {
-    return await prisma.classSession.findUnique({
-      where: { id: existingSession.id },
-      include: {
-        booking: {
-          include: {
-            student: { include: { user: true } },
-            tutor: { include: { user: true } },
-          },
-        },
-      },
-    });
-  }
-
-  let googleClassroomId = existingSession.googleClassroomId;
-  let googleClassroomLink = existingSession.googleClassroomLink;
-  let googleMeetLink = existingSession.googleMeetLink;
-
-  try {
-    const courseName = className || `Class with ${booking.tutor.user.email}`;
-    const course = await createCourse(
-      courseName,
-      `Session on ${booking.startTime.toLocaleDateString()}`,
-      `Tutoring session between ${booking.student.user.email} and ${booking.tutor.user.email}`
-    );
-
-    if (course) {
-      googleClassroomId = course.id;
-      googleClassroomLink = course.alternateLink;
-
-      await addStudentToCourse(course.id, booking.student.user.email);
-      await addTeacherToCourse(course.id, booking.tutor.user.email);
-
-      if (!googleMeetLink) {
-        googleMeetLink = await createMeetLink(
-          course.id,
-          booking.startTime,
-          booking.endTime,
-          courseName
-        );
-      }
-    }
-  } catch (error: any) {
-    console.error('Error provisioning Google Classroom resources:', error);
-    // If Google Classroom is not configured, continue without it (graceful degradation)
-    if (error.message === 'Google Classroom is not configured') {
-      console.warn('Google Classroom is not configured. Continuing without Google Classroom integration.');
-      // Don't throw error - allow the session to be updated without Google Classroom
-    } else {
-      // For other errors, still throw to allow caller to handle
-      throw error;
-    }
-  }
-
-  const updatedSession = await prisma.classSession.update({
-    where: { id: existingSession.id },
-    data: {
-      googleClassroomId,
-      googleClassroomLink,
-      googleMeetLink,
-    },
+  return await prisma.classSession.findUnique({
+    where: { id: booking.classSession.id },
     include: {
       booking: {
         include: {
@@ -518,7 +418,5 @@ export const ensureGoogleClassroomForBooking = async (bookingId: string, classNa
       },
     },
   });
-
-  return updatedSession;
 };
 

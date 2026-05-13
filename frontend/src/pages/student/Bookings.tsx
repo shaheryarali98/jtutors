@@ -27,8 +27,6 @@ interface Booking {
     status: string
     tutorApproved: boolean
     adminApproved: boolean
-    googleClassroomLink?: string | null
-    googleMeetLink?: string | null
     pencilSpaceId?: string | null
     pencilSpaceUrl?: string | null
     paymentReleased?: boolean
@@ -281,42 +279,17 @@ const StudentBookings = () => {
                   </div>
 
                   {/* Session space link */}
-                  {booking.classSession && (
+                  {booking.classSession?.pencilSpaceUrl && (
                     <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
                       <p className="text-sm font-semibold text-indigo-900 mb-3">Join Your Session</p>
                       <div className="flex flex-col sm:flex-row gap-3">
-                        {booking.classSession.pencilSpaceUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => handleJoinSpace(booking.classSession!.pencilSpaceUrl!)}
-                            className="btn btn-primary inline-flex items-center justify-center gap-2"
-                          >
-                            🖊 Join Space
-                          </button>
-                        ) : (
-                          <>
-                            {booking.classSession.googleClassroomLink && (
-                              <a
-                                href={booking.classSession.googleClassroomLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-primary inline-flex items-center justify-center gap-2"
-                              >
-                                Open Google Classroom
-                              </a>
-                            )}
-                            {booking.classSession.googleMeetLink && (
-                              <a
-                                href={booking.classSession.googleMeetLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-outline inline-flex items-center justify-center gap-2"
-                              >
-                                Join Google Meet
-                              </a>
-                            )}
-                          </>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleJoinSpace(booking.classSession!.pencilSpaceUrl!)}
+                          className="btn btn-primary inline-flex items-center justify-center gap-2"
+                        >
+                          🖊 Join Space
+                        </button>
                       </div>
                     </div>
                   )}
