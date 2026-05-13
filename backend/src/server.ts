@@ -31,6 +31,7 @@ async function ensureProductionColumns() {
   const dbUrl = process.env.DATABASE_URL || '';
   if (dbUrl.startsWith('file:')) return; // skip SQLite (local dev)
   try {
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isSuspended" BOOLEAN NOT NULL DEFAULT false`);
     // Original columns
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Tutor" ADD COLUMN IF NOT EXISTS "jtutorsEmail" TEXT`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT`);
