@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export type UserRole = 'STUDENT' | 'TUTOR' | 'ADMIN';
 
@@ -16,7 +19,7 @@ declare global {
   }
 }
 
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     
@@ -26,6 +29,19 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
     const role = typeof decoded.role === 'string' ? (decoded.role.toUpperCase() as UserRole) : 'STUDENT';
+
+    // Check if account is suspended
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { isSuspended: true },
+    });
+    if (!user) {
+      return res.status(401).json({ error: 'Account not found' });
+    }
+    if (user.isSuspended) {
+      return res.status(403).json({ error: 'Your account has been suspended. Please contact support.' });
+    }
+
     req.user = { userId: decoded.userId, role };
     next();
   } catch (error) {

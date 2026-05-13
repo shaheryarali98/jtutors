@@ -16,6 +16,7 @@ model User {
   password  String
   role      String   @default("STUDENT")
   emailConfirmed Boolean @default(false)
+  isSuspended Boolean @default(false)
   resetToken String?
   resetTokenExpiry DateTime?
   createdAt DateTime @default(now())
@@ -25,6 +26,7 @@ model User {
   tutor   Tutor?
   student Student?
   withdrawals Withdrawal[]
+  loginAudits LoginAudit[]
 }
 
 model Student {
@@ -260,6 +262,10 @@ model ClassSession {
   googleClassroomId String? // Google Classroom course/class ID
   googleClassroomLink String?
   googleMeetLink     String?
+
+  // Pencil Spaces
+  pencilSpaceId  String?
+  pencilSpaceUrl String?
   
   status      String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
   completedAt DateTime?
@@ -267,6 +273,9 @@ model ClassSession {
   tutorApproved Boolean @default(false)
   adminApproved Boolean @default(false)
   adminApprovedAt DateTime?
+  studentConfirmed   Boolean   @default(false)
+  studentConfirmedAt DateTime?
+  autoReleaseAt      DateTime?  // 24h after tutor marks complete; cron auto-releases if student silent
   paymentReleased Boolean @default(false) // Whether payment has been released to tutor
   paymentReleasedAt DateTime?
   
@@ -353,6 +362,15 @@ model Withdrawal {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model LoginAudit {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
 }
 
 model AdminSettings {

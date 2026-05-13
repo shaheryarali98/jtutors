@@ -29,7 +29,11 @@ interface Booking {
     adminApproved: boolean
     googleClassroomLink?: string | null
     googleMeetLink?: string | null
+    pencilSpaceId?: string | null
+    pencilSpaceUrl?: string | null
     paymentReleased?: boolean
+    studentConfirmed?: boolean
+    autoReleaseAt?: string | null
   } | null
   payment?: {
     id: string
@@ -103,6 +107,10 @@ const StudentBookings = () => {
     } finally {
       setPayingId(null)
     }
+  }
+
+  const handleJoinSpace = (pencilSpaceUrl: string) => {
+    window.open(pencilSpaceUrl, '_blank', 'noopener,noreferrer')
   }
 
   const handleCancelBooking = async (bookingId: string) => {
@@ -183,7 +191,7 @@ const StudentBookings = () => {
               const tutor = booking.tutor
               const start = new Date(booking.startTime)
               const end = new Date(booking.endTime)
-              const needsPayment = !booking.payment || booking.payment.paymentStatus !== 'PAID'
+              const needsPayment = booking.status === 'CONFIRMED' && (!booking.payment || booking.payment.paymentStatus !== 'PAID')
               const amountDue =
                 booking.payment?.amount ??
                 Math.max(1, Math.round((booking.durationHours || 1) * tutor.hourlyFee * 100) / 100)
@@ -254,8 +262,7 @@ const StudentBookings = () => {
                         {booking.classSession?.status ?? 'NOT SCHEDULED'}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">
-                        Tutor approval: {booking.classSession?.tutorApproved ? '✅' : '⌛'} | Admin approval:{' '}
-                        {booking.classSession?.adminApproved ? '✅' : '⌛'}
+                        Session {booking.classSession?.status === 'COMPLETED' ? '✅ Completed' : booking.classSession?.tutorApproved ? '✅ Done' : '⌛ Scheduled'}
                       </p>
                     </div>
                     <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
@@ -273,46 +280,82 @@ const StudentBookings = () => {
                     </div>
                   </div>
 
-                  {(booking.classSession?.googleClassroomLink || booking.classSession?.googleMeetLink) && (
-                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                      <p className="text-sm font-semibold text-blue-900 mb-3">Join Your Class</p>
+                  {/* Session space link */}
+                  {booking.classSession && (
+                    <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                      <p className="text-sm font-semibold text-indigo-900 mb-3">Join Your Session</p>
                       <div className="flex flex-col sm:flex-row gap-3">
-                        {booking.classSession.googleClassroomLink && (
-                          <a
-                            href={booking.classSession.googleClassroomLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        {booking.classSession.pencilSpaceUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => handleJoinSpace(booking.classSession!.pencilSpaceUrl!)}
                             className="btn btn-primary inline-flex items-center justify-center gap-2"
                           >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                            </svg>
-                            Open Google Classroom
-                          </a>
-                        )}
-                        {booking.classSession.googleMeetLink && (
-                          <a
-                            href={booking.classSession.googleMeetLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-outline inline-flex items-center justify-center gap-2"
-                          >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M19.36 9.18c.04.32.07.64.07.97 0 1.11-.16 2.18-.46 3.16-.62 1.73-1.54 3.24-2.67 4.5-.28.31-.58.6-.89.87l-.01-.01-.02.01c-1.28 1.1-2.78 1.94-4.38 2.48-.18.06-.37.12-.56.17-.4.11-.81.2-1.23.26h-.02c-.21.03-.42.05-.64.07-.11.01-.22.02-.33.02-.44 0-.88-.04-1.31-.1-.18-.03-.35-.06-.52-.1-.33-.07-.66-.16-.98-.26-.1-.03-.2-.07-.3-.1-1.6-.54-3.1-1.38-4.38-2.48l-.02-.01-.01.01c-.31-.27-.61-.56-.89-.87-1.13-1.26-2.05-2.77-2.67-4.5-.3-.98-.46-2.05-.46-3.16 0-.33.03-.65.07-.97H0c0 1.52.36 2.98 1.02 4.3 1.22 2.52 3.18 4.61 5.56 6.11.47.3.96.58 1.47.82.1.05.2.09.3.13.4.16.81.3 1.23.41.1.03.2.06.3.09.33.1.67.18 1.01.25.18.04.36.07.54.09.36.05.73.08 1.1.1.19.01.38.02.57.02.19 0 .38-.01.57-.02.37-.02.74-.05 1.1-.1.18-.02.36-.05.54-.09.34-.07.68-.15 1.01-.25.1-.03.2-.06.3-.09.42-.11.83-.25 1.23-.41.1-.04.2-.08.3-.13.51-.24 1-.52 1.47-.82 2.38-1.5 4.34-3.59 5.56-6.11.66-1.32 1.02-2.78 1.02-4.3h-1.64z"/>
-                              <path d="M12 0C8.12 0 4.6 1.64 2.35 4.29l1.45 1.45C5.78 3.48 8.75 2.14 12 2.14s6.22 1.34 8.2 3.6l1.45-1.45C19.4 1.64 15.88 0 12 0z"/>
-                              <path d="M12 4.29c-2.34 0-4.45.9-6.04 2.37l1.45 1.45C8.27 6.98 10.05 6.14 12 6.14s3.73.84 4.59 1.97l1.45-1.45C16.45 5.19 14.34 4.29 12 4.29z"/>
-                            </svg>
-                            Join Google Meet
-                          </a>
+                            🖊 Join Space
+                          </button>
+                        ) : (
+                          <>
+                            {booking.classSession.googleClassroomLink && (
+                              <a
+                                href={booking.classSession.googleClassroomLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-primary inline-flex items-center justify-center gap-2"
+                              >
+                                Open Google Classroom
+                              </a>
+                            )}
+                            {booking.classSession.googleMeetLink && (
+                              <a
+                                href={booking.classSession.googleMeetLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-outline inline-flex items-center justify-center gap-2"
+                              >
+                                Join Google Meet
+                              </a>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
                   )}
 
+                  {/* Dispute window — shown while payment is held after tutor marks complete */}
+                  {booking.classSession?.tutorApproved &&
+                    !booking.classSession.paymentReleased && (
+                    <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                      <p className="font-semibold text-amber-900">Payment pending release</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Your tutor marked this session complete.
+                        {booking.classSession.autoReleaseAt ? (
+                          <> Payment will be automatically released on{' '}
+                            <strong>{new Date(booking.classSession.autoReleaseAt).toLocaleString()}</strong>.
+                          </>
+                        ) : (
+                          <> Payment will be automatically released within 48 hours.</>
+                        )}
+                      </p>
+                      <p className="text-sm text-amber-700 mt-2">
+                        If the session did <strong>not</strong> happen, dispute before the release date.
+                      </p>
+                      <div className="mt-3">
+                        <a
+                          href="mailto:support@jtutors.com?subject=Session%20Dispute"
+                          className="btn btn-outline text-sm border-rose-300 text-rose-600 hover:bg-rose-50"
+                        >
+                          File a dispute
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-6 flex flex-col md:flex-row gap-3">
+                    {booking.status === 'PENDING' && (!booking.payment || booking.payment.paymentStatus !== 'PAID') && (
+                      <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
+                        ⌛ Awaiting tutor confirmation — you'll be able to pay once the tutor confirms.
+                      </div>
+                    )}
                     {needsPayment && (
                       <>
                         <div className="bg-slate-50 rounded-xl p-3 text-sm text-slate-700 space-y-1 md:self-center">

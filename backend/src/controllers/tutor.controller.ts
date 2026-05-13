@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { formatTutor, parseStoredArray, stringifyArray } from '../utils/formatters';
 import { getAdminSettings } from '../services/settings.service';
 import { sendEmail } from '../services/email.service';
+import { sendTemplatedEmail } from '../services/emailTemplate.service';
 import { getWalletSummary } from '../services/wallet.service';
 import { stripe } from '../services/stripe.service';
 
@@ -185,7 +186,8 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
         address,
         zipcode,
         languagesSpoken: stringifyArray(languagesSpoken),
-        profileImage
+        // Only overwrite profileImage if a non-empty value is explicitly provided
+        ...(profileImage ? { profileImage } : {}),
       }
     });
 
@@ -985,6 +987,10 @@ export const getTutorSessions = async (req: Request, res: Response) => {
               paymentReleased: booking.classSession.paymentReleased,
               googleClassroomLink: booking.classSession.googleClassroomLink,
               googleMeetLink: booking.classSession.googleMeetLink,
+              pencilSpaceId: booking.classSession.pencilSpaceId,
+              pencilSpaceUrl: booking.classSession.pencilSpaceUrl,
+              studentConfirmed: booking.classSession.studentConfirmed,
+              autoReleaseAt: booking.classSession.autoReleaseAt,
             }
           : null,
       };
@@ -1098,6 +1104,114 @@ export const getJTutorsEmail = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get JTutors email error:', error);
     res.status(500).json({ error: 'Error fetching JTutors email' });
+  }
+};
+
+export const confirmBooking = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    const tutor = await prisma.tutor.findUnique({ where: { userId } });
+    if (!tutor) return res.status(404).json({ error: 'Tutor profile not found' });
+
+    const booking = await prisma.booking.findFirst({
+      where: { id, tutorId: tutor.id },
+      include: {
+        student: { include: { user: true } },
+      },
+    });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (booking.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Only PENDING bookings can be confirmed.' });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id },
+      data: { status: 'CONFIRMED' },
+    });
+
+    // Notify student
+    try {
+      const studentEmail = booking.student?.user.email;
+      const studentName = [booking.student?.firstName, booking.student?.lastName].filter(Boolean).join(' ') || studentEmail || 'Student';
+      if (studentEmail) {
+        await sendTemplatedEmail('BOOKING_CONFIRMED_STUDENT', studentEmail, {
+          studentName,
+          tutorName: `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim() || 'Your tutor',
+          startTime: booking.startTime.toLocaleString(),
+          endTime: booking.endTime.toLocaleString(),
+        }).catch((err: unknown) => console.error('Confirm booking email error:', err));
+      }
+    } catch (emailError) {
+      console.error('Error sending confirmation email:', emailError);
+    }
+
+    res.json({ message: 'Booking confirmed successfully.', booking: updated });
+  } catch (error) {
+    console.error('Confirm booking error:', error);
+    res.status(500).json({ error: 'Error confirming booking' });
+  }
+};
+
+export const declineBooking = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    const tutor = await prisma.tutor.findUnique({ where: { userId } });
+    if (!tutor) return res.status(404).json({ error: 'Tutor profile not found' });
+
+    const booking = await prisma.booking.findFirst({
+      where: { id, tutorId: tutor.id },
+      include: {
+        payment: true,
+        student: { include: { user: true } },
+      },
+    });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
+      return res.status(400).json({ error: 'This booking cannot be declined.' });
+    }
+
+    const devBypass = process.env.DEV_BYPASS_STRIPE === 'true';
+
+    if (booking.payment && booking.payment.paymentStatus === 'PAID') {
+      if (!devBypass && booking.payment.stripePaymentIntentId) {
+        const { stripe } = await import('../services/stripe.service');
+        await stripe!.refunds.create({ payment_intent: booking.payment.stripePaymentIntentId });
+      }
+      await prisma.payment.update({
+        where: { id: booking.payment.id },
+        data: { paymentStatus: 'REFUNDED' },
+      });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id },
+      data: { status: 'CANCELLED' },
+    });
+
+    // Notify student
+    try {
+      const studentEmail = booking.student?.user.email;
+      const studentName = [booking.student?.firstName, booking.student?.lastName].filter(Boolean).join(' ') || studentEmail || 'Student';
+      if (studentEmail) {
+        await sendEmail({
+          to: studentEmail,
+          subject: 'Your booking request was not accepted',
+          html: `<p>Hi ${studentName},</p><p>Unfortunately, the tutor was unable to accept your booking request for ${booking.startTime.toLocaleString()}. Please try booking another available time slot.</p><p>The JTutors Team</p>`,
+          text: `Hi ${studentName}, Unfortunately the tutor was unable to accept your booking for ${booking.startTime.toLocaleString()}. Please try another time slot.`,
+        }).catch((err: unknown) => console.error('Decline booking email error:', err));
+      }
+    } catch (emailError) {
+      console.error('Error sending decline email:', emailError);
+    }
+
+    res.json({ message: 'Booking declined.' + (booking.payment?.paymentStatus === 'PAID' ? ' The student has been refunded.' : ''), booking: updated });
+  } catch (error) {
+    console.error('Decline booking error:', error);
+    res.status(500).json({ error: 'Error declining booking' });
   }
 };
 

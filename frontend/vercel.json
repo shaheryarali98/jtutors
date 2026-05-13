@@ -5,11 +5,7 @@
   "env": {
     "VITE_API_URL": "https://jtutors.onrender.com/api"
   },
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html",
-      "status": 200
-    }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

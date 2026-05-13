@@ -7,6 +7,8 @@ import {
   updateSettingsController,
   updateUser,
   deleteUser,
+  suspendUser,
+  getLoginHistory,
   getBookingsAdmin,
   updateBookingStatusAdmin,
   createGoogleClassroomForBookingAdmin,
@@ -29,6 +31,8 @@ router.use(requireRole('ADMIN'));
 router.get('/analytics', getAnalytics);
 router.get('/users', listUsers);
 router.patch('/users/:id', updateUser);
+router.patch('/users/:id/suspend', suspendUser);
+router.get('/users/:id/login-history', getLoginHistory);
 router.delete('/users/:id', deleteUser);
 router.get('/settings', getSettings);
 router.patch('/settings', updateSettingsController);

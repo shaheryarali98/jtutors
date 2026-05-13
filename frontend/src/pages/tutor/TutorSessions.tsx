@@ -20,8 +20,12 @@ interface TutorSession {
     tutorApproved: boolean
     adminApproved: boolean
     paymentReleased: boolean
+    studentConfirmed: boolean
+    autoReleaseAt?: string | null
     googleClassroomLink?: string | null
     googleMeetLink?: string | null
+    pencilSpaceId?: string | null
+    pencilSpaceUrl?: string | null
   } | null
 }
 
@@ -38,6 +42,8 @@ const TutorSessions = () => {
   const [error, setError] = useState('')
   const [completing, setCompleting] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [decliningId, setDecliningId] = useState<string | null>(null)
   const [actionMsg, setActionMsg] = useState('')
 
   const fetchSessions = async () => {
@@ -56,17 +62,48 @@ const TutorSessions = () => {
 
   useEffect(() => { fetchSessions() }, [])
 
+  const handleConfirmBooking = async (bookingId: string) => {
+    setConfirmingId(bookingId); setActionMsg(''); setError('')
+    try {
+      await api.patch(`/tutor/bookings/${bookingId}/confirm`)
+      setActionMsg('Booking confirmed! The student has been notified.')
+      await fetchSessions()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to confirm booking.')
+    } finally {
+      setConfirmingId(null)
+    }
+  }
+
+  const handleDeclineBooking = async (bookingId: string) => {
+    if (!window.confirm('Decline this booking request?')) return
+    setDecliningId(bookingId); setActionMsg(''); setError('')
+    try {
+      await api.patch(`/tutor/bookings/${bookingId}/decline`)
+      setActionMsg('Booking declined. The student has been notified.')
+      await fetchSessions()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to decline booking.')
+    } finally {
+      setDecliningId(null)
+    }
+  }
+
   const handleMarkComplete = async (classSessionId: string) => {
-    setCompleting(classSessionId); setActionMsg('')
+    setCompleting(classSessionId); setActionMsg(''); setError('')
     try {
       await api.post(`/class-sessions/${classSessionId}/complete`, {})
-      setActionMsg('Session marked as complete. Payment will be released automatically.')
+      setActionMsg('Session marked complete. Payment will be released to you in 48 hours unless the student files a dispute.')
       await fetchSessions()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to mark session as complete.')
     } finally {
       setCompleting(null)
     }
+  }
+
+  const handleJoinSpace = (pencilSpaceUrl: string) => {
+    window.open(pencilSpaceUrl, '_blank', 'noopener,noreferrer')
   }
 
   const handleCancelSession = async (bookingId: string) => {
@@ -83,18 +120,146 @@ const TutorSessions = () => {
     }
   }
 
-  const upcomingSessions = useMemo(
-    () =>
-      sessions.filter((session) => {
-        const start = new Date(session.startTime).getTime()
-        return start > Date.now() && ['PENDING', 'CONFIRMED'].includes(session.status)
-      }),
+  const pendingRequests = useMemo(
+    () => sessions.filter((s) => s.status === 'PENDING'),
+    [sessions]
+  )
+
+  const activeSessions = useMemo(
+    () => sessions.filter((s) => s.status === 'CONFIRMED' || s.status === 'COMPLETED'),
+    [sessions]
+  )
+
+  const upcomingCount = useMemo(
+    () => sessions.filter((s) => ['PENDING', 'CONFIRMED'].includes(s.status)).length,
     [sessions]
   )
 
   const completedSessions = useMemo(
-    () => sessions.filter((session) => session.status === 'COMPLETED'),
+    () => sessions.filter((s) => s.status === 'COMPLETED'),
     [sessions]
+  )
+
+  const SessionCard = ({ session }: { session: TutorSession }) => (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 md:p-5 flex flex-col gap-3">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">{session.studentName || 'Student'}</p>
+          <p className="text-xs text-slate-500">{session.studentEmail}</p>
+          <p className="text-sm text-slate-600 mt-2">
+            {new Date(session.startTime).toLocaleString()} • {session.durationHours.toFixed(1)} hrs
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusColors[session.status] || 'bg-slate-200 text-slate-700'}`}>
+              {session.status}
+            </span>
+            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+              session.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700'
+              : session.paymentStatus === 'REFUNDED' ? 'bg-red-100 text-red-700'
+              : 'bg-amber-100 text-amber-700'
+            }`}>
+              {session.paymentStatus} · {session.currency} {session.paymentAmount.toFixed(2)}
+            </span>
+            {session.classSession?.paymentReleased && (
+              <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-700">
+                Payment released ✓
+              </span>
+            )}
+            {session.classSession?.tutorApproved && !session.classSession.studentConfirmed && !session.classSession.paymentReleased && (
+              <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-amber-100 text-amber-700">
+                ⏳ Payment releasing{session.classSession.autoReleaseAt
+                  ? ` on ${new Date(session.classSession.autoReleaseAt).toLocaleDateString()}`
+                  : ' in 48h'}
+              </span>
+            )}
+          </div>
+        </div>
+        {/* Join links — only shown for confirmed/active sessions */}
+        {session.status !== 'PENDING' && (
+          <div className="flex flex-col gap-2 text-sm text-slate-600">
+            {session.classSession?.pencilSpaceUrl && (
+              <button
+                type="button"
+                onClick={() => handleJoinSpace(session.classSession!.pencilSpaceUrl!)}
+                className="inline-flex items-center gap-1.5 bg-[#5046e5] hover:bg-[#4338ca] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                🖊 Join Space
+              </button>
+            )}
+            {!session.classSession?.pencilSpaceUrl && session.classSession?.googleClassroomLink && (
+              <a href={session.classSession.googleClassroomLink} target="_blank" rel="noopener noreferrer" className="text-primary-600 font-medium hover:text-primary-700">
+                Classroom link →
+              </a>
+            )}
+            {!session.classSession?.pencilSpaceUrl && session.classSession?.googleMeetLink && (
+              <a href={session.classSession.googleMeetLink} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700">
+                Meet link →
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Pending: Confirm / Decline */}
+      {session.status === 'PENDING' && (
+        <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-3 items-center">
+          <button
+            type="button"
+            disabled={confirmingId === session.id}
+            onClick={() => handleConfirmBooking(session.id)}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
+          >
+            {confirmingId === session.id ? 'Confirming…' : '✓ Confirm Booking'}
+          </button>
+          <button
+            type="button"
+            disabled={decliningId === session.id}
+            onClick={() => handleDeclineBooking(session.id)}
+            className="inline-flex items-center gap-2 border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
+          >
+            {decliningId === session.id ? 'Declining…' : '✕ Decline'}
+          </button>
+          <p className="text-xs text-slate-500">Confirm to let the student proceed with payment.</p>
+        </div>
+      )}
+
+      {/* Confirmed: Mark complete */}
+      {session.classSession &&
+        session.classSession.status !== 'COMPLETED' &&
+        !session.classSession.tutorApproved &&
+        session.status === 'CONFIRMED' && (
+          <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-3 items-start">
+            <div>
+              <button
+                type="button"
+                disabled={completing === session.classSession.id}
+                onClick={() => handleMarkComplete(session.classSession!.id)}
+                className="inline-flex items-center gap-2 bg-[#012c54] hover:bg-[#023a70] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {completing === session.classSession.id ? 'Processing…' : 'Mark Session as Complete'}
+              </button>
+              <p className="text-xs text-slate-500 mt-1">Marks the session as done and releases payment to you.</p>
+            </div>
+            <button
+              type="button"
+              disabled={cancellingId === session.id}
+              onClick={() => handleCancelSession(session.id)}
+              className="inline-flex items-center gap-2 border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
+            >
+              {cancellingId === session.id ? 'Cancelling…' : 'Cancel session'}
+            </button>
+          </div>
+        )}
+
+      {session.classSession?.paymentReleased && (
+        <p className="text-xs text-emerald-600 pt-1">✓ Payment released to your account.</p>
+      )}
+      {session.classSession?.tutorApproved && !session.classSession.studentConfirmed && !session.classSession.paymentReleased && (
+        <p className="text-xs text-amber-600 pt-1">
+          ⏳ Payment releases{session.classSession.autoReleaseAt ? ` on ${new Date(session.classSession.autoReleaseAt).toLocaleString()}` : ' within 48h'} unless student files a dispute.
+        </p>
+      )}
+    </div>
   )
 
   return (
@@ -104,168 +269,72 @@ const TutorSessions = () => {
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">My Sessions</h1>
           <p className="text-slate-600 mt-2">
-            Track upcoming lessons, completed sessions, and session logistics all in one place.
+            Manage booking requests, deliver sessions, and track your earnings.
           </p>
         </header>
 
         <section className="grid gap-4 md:grid-cols-3 mb-8">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Pending Requests</p>
+            <p className="text-3xl font-bold text-slate-900 mt-2">{pendingRequests.length}</p>
+            <p className="text-sm text-slate-500 mt-1">Awaiting your confirmation</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-slate-500">Upcoming</p>
-            <p className="text-3xl font-bold text-slate-900 mt-2">{upcomingSessions.length}</p>
-            <p className="text-sm text-slate-500 mt-1">Sessions scheduled</p>
+            <p className="text-3xl font-bold text-slate-900 mt-2">{upcomingCount}</p>
+            <p className="text-sm text-slate-500 mt-1">Confirmed sessions</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-slate-500">Completed</p>
             <p className="text-3xl font-bold text-slate-900 mt-2">{completedSessions.length}</p>
             <p className="text-sm text-slate-500 mt-1">Sessions delivered</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Total sessions</p>
-            <p className="text-3xl font-bold text-slate-900 mt-2">{sessions.length}</p>
-            <p className="text-sm text-slate-500 mt-1">Across all students</p>
-          </div>
         </section>
 
-        <section className="bg-white rounded-3xl shadow p-6">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">Session timeline</h2>
-              <p className="text-sm text-slate-500">Most recent sessions appear first.</p>
-            </div>
-          </div>
+        {actionMsg && (
+          <div className="mb-6 bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-lg text-sm">{actionMsg}</div>
+        )}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
+        )}
 
-          {actionMsg && (
-            <div className="mb-4 bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-lg text-sm">{actionMsg}</div>
-          )}
-
-          {loading ? (
-            <div className="text-center text-slate-500 py-10">Loading sessions…</div>
-          ) : error ? (
-            <div className="text-center text-red-600 py-10">{error}</div>
-          ) : sessions.length === 0 ? (
-            <div className="text-center text-slate-500 py-10">No sessions yet. New bookings will appear here.</div>
-          ) : (
-            <div className="space-y-4">
-              {sessions.map((session) => (
-                <div
-                  key={session.id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 md:p-5 flex flex-col gap-3"
-                >
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{session.studentName || 'Student'}</p>
-                      <p className="text-xs text-slate-500">{session.studentEmail}</p>
-                      <p className="text-sm text-slate-600 mt-2">
-                        {new Date(session.startTime).toLocaleString()} • {session.durationHours.toFixed(1)} hrs
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            statusColors[session.status] || 'bg-slate-200 text-slate-700'
-                          }`}
-                        >
-                          {session.status}
-                        </span>
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                            session.paymentStatus === 'PAID'
-                              ? 'bg-green-100 text-green-700'
-                              : session.paymentStatus === 'REFUNDED'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}
-                        >
-                          {session.paymentStatus} · {session.currency} {session.paymentAmount.toFixed(2)}
-                        </span>
-                        {session.classSession?.paymentReleased && (
-                          <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-700">
-                            Payment released ✓
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 text-sm text-slate-600">
-                      {session.classSession?.googleClassroomLink && (
-                        <a
-                          href={session.classSession.googleClassroomLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary-600 font-medium hover:text-primary-700"
-                        >
-                          Classroom link →
-                        </a>
-                      )}
-                      {session.classSession?.googleMeetLink && (
-                        <a
-                          href={session.classSession.googleMeetLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:text-primary-700"
-                        >
-                          Meet link →
-                        </a>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Action: mark class as complete */}
-                  {session.classSession &&
-                    session.classSession.status !== 'COMPLETED' &&
-                    !session.classSession.tutorApproved && (
-                      <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-3 items-start">
-                        <div>
-                          <button
-                            type="button"
-                            disabled={completing === session.classSession.id}
-                            onClick={() => handleMarkComplete(session.classSession!.id)}
-                            className="inline-flex items-center gap-2 bg-[#012c54] hover:bg-[#023a70] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
-                          >
-                            {completing === session.classSession.id ? 'Processing…' : 'Mark Session as Complete'}
-                          </button>
-                          <p className="text-xs text-slate-500 mt-1">
-                            This confirms the session happened and triggers payment release.
-                          </p>
-                        </div>
-                        {(session.status === 'PENDING' || session.status === 'CONFIRMED') && (
-                          <button
-                            type="button"
-                            disabled={cancellingId === session.id}
-                            onClick={() => handleCancelSession(session.id)}
-                            className="inline-flex items-center gap-2 border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
-                          >
-                            {cancellingId === session.id ? 'Cancelling…' : 'Cancel session'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                  {session.classSession?.tutorApproved && !session.classSession.adminApproved && (
-                    <div className="flex flex-wrap gap-3 items-center pt-1">
-                      <p className="text-xs text-amber-600">
-                        ⏳ Waiting for admin approval before payment is released.
-                      </p>
-                      {(session.status === 'PENDING' || session.status === 'CONFIRMED') && (
-                        <button
-                          type="button"
-                          disabled={cancellingId === session.id}
-                          onClick={() => handleCancelSession(session.id)}
-                          className="inline-flex items-center gap-2 border border-rose-300 text-rose-600 hover:bg-rose-50 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
-                        >
-                          {cancellingId === session.id ? 'Cancelling…' : 'Cancel session'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {session.classSession?.paymentReleased && (
-                    <p className="text-xs text-emerald-600 pt-1">
-                      ✓ Payment released to your account (90% of session fee, minus 10% platform fee).
-                    </p>
-                  )}
+        {loading ? (
+          <div className="bg-white rounded-3xl shadow p-10 text-center text-slate-500">Loading sessions…</div>
+        ) : sessions.length === 0 ? (
+          <div className="bg-white rounded-3xl shadow p-10 text-center text-slate-500">No sessions yet. New bookings will appear here.</div>
+        ) : (
+          <div className="space-y-8">
+            {/* Booking Requests — need tutor action */}
+            {pendingRequests.length > 0 && (
+              <section className="bg-white rounded-3xl shadow p-6">
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold text-slate-900">Booking Requests</h2>
+                  <p className="text-sm text-slate-500">Review and confirm or decline these requests.</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
+                <div className="space-y-4">
+                  {pendingRequests.map((session) => (
+                    <SessionCard key={session.id} session={session} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Confirmed + Completed sessions */}
+            {activeSessions.length > 0 && (
+              <section className="bg-white rounded-3xl shadow p-6">
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold text-slate-900">Your Sessions</h2>
+                  <p className="text-sm text-slate-500">Confirmed and completed sessions.</p>
+                </div>
+                <div className="space-y-4">
+                  {activeSessions.map((session) => (
+                    <SessionCard key={session.id} session={session} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
       </main>
       <Footer />
     </div>

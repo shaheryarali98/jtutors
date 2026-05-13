@@ -25,7 +25,6 @@ const genderOptions = [
   { value: '', label: 'Choose gender' },
   { value: 'FEMALE', label: 'Female' },
   { value: 'MALE', label: 'Male' },
-  { value: 'NON_BINARY', label: 'Non-binary' },
   { value: 'PREFER_NOT_TO_SAY', label: 'Prefer not to say' },
 ]
 
@@ -208,11 +207,35 @@ const StudentProfile = () => {
         return
       }
 
-      if (!profileImage && !settings?.defaultStudentImage) {
-        setValidationError('Please upload a profile picture before saving.')
+      // Validate all required fields are non-empty
+      const missingFields = []
+      if (!data.firstName?.trim()) missingFields.push('First name')
+      if (!data.lastName?.trim()) missingFields.push('Last name')
+      if (!data.gender) missingFields.push('Gender')
+      if (!data.grade) missingFields.push('Grade')
+      if (!data.bio?.trim()) missingFields.push('Educational goals')
+      if (!data.country) missingFields.push('Country')
+      if (!data.city?.trim()) missingFields.push('City')
+      if (!data.zipcode?.trim()) missingFields.push('Zipcode')
+
+      if (missingFields.length > 0) {
+        setValidationError(`Missing required fields: ${missingFields.join(', ')}`)
         setLoading(false)
         return
       }
+
+      console.log('✅ Profile validation passed. Submitting with:', {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        gender: data.gender,
+        grade: data.grade,
+        bio: data.bio,
+        country: data.country,
+        city: data.city,
+        zipcode: data.zipcode,
+        languagesCount: sanitizedLanguages.length,
+        preferencesCount: learningPreferences.length,
+      })
 
       const response = await api.put('/student/profile', {
         ...data,
@@ -443,10 +466,13 @@ const StudentProfile = () => {
 
               <section className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Languages</h3>
-                  <p className="text-sm text-slate-500 mb-4">
-                    Select every language you are comfortable learning in.
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Languages *</h3>
+                  <p className="text-sm text-slate-500 mb-2">
+                    Select every language you are comfortable learning in. (Required: at least 1)
                   </p>
+                  {languages.length === 0 && (
+                    <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded mb-4">⚠️ Please select at least one language</p>
+                  )}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                     {LANGUAGE_OPTIONS.map((language) => {
                       const isSelected = languages.includes(language)
@@ -507,6 +533,9 @@ const StudentProfile = () => {
                   <p className="text-sm text-slate-500 mb-4">
                     Choose how you prefer to connect with your tutor. Select all that apply.
                   </p>
+                  {learningPreferences.length === 0 && (
+                    <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded mb-4">⚠️ Please select at least one location preference</p>
+                  )}
                   <div className="flex flex-wrap gap-3">
                     {learningLocationOptions.map((option) => {
                       const isSelected = learningPreferences.includes(option)
@@ -546,7 +575,26 @@ const StudentProfile = () => {
                   </div>
                 </div>
               </section>
-
+              <div className={`rounded-2xl border-2 p-4 ${
+                languages.length > 0 && 
+                learningPreferences.length > 0 && 
+                profileImage 
+                  ? 'border-green-200 bg-green-50'
+                  : 'border-amber-200 bg-amber-50'
+              }`}>
+                <h3 className="text-sm font-semibold text-slate-900 mb-2">Profile completeness:</h3>
+                <ul className="text-sm space-y-1">
+                  <li className={languages.length > 0 ? 'text-green-700' : 'text-amber-700'}>
+                    {languages.length > 0 ? '✅' : '❌'} Languages: {languages.length > 0 ? `${languages.length} selected` : 'Select at least 1'}
+                  </li>
+                  <li className={learningPreferences.length > 0 ? 'text-green-700' : 'text-amber-700'}>
+                    {learningPreferences.length > 0 ? '✅' : '❌'} Learning locations: {learningPreferences.length > 0 ? `${learningPreferences.length} selected` : 'Select at least 1'}
+                  </li>
+                  <li className={profileImage ? 'text-green-700' : 'text-slate-500'}>
+                    {profileImage ? '✅' : '⭕'} Profile photo: {profileImage ? 'Added' : 'Optional'}
+                  </li>
+                </ul>
+              </div>
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-5">
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">Why complete your profile?</h3>
                 <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">

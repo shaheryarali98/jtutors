@@ -23,6 +23,8 @@ import {
   Calendar,
   Search,
   Filter,
+  Ban,
+  History,
 } from 'lucide-react'
 
 interface AnalyticsPayload {
@@ -82,6 +84,7 @@ interface AdminUser {
   role: UserRole
   createdAt: string
   emailConfirmed?: boolean
+  isSuspended?: boolean
   tutor?: {
     id: string | null
     firstName?: string | null
@@ -196,6 +199,8 @@ interface ClassSession {
   bookingId: string
   googleClassroomLink?: string | null
   googleMeetLink?: string | null
+  pencilSpaceId?: string | null
+  pencilSpaceUrl?: string | null
   status: string
   tutorApproved: boolean
   adminApproved: boolean
@@ -326,6 +331,9 @@ const AdminDashboard = () => {
   const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL')
   const [jtutorsEmailDrafts, setJtutorsEmailDrafts] = useState<Record<string, string>>({})
   const [jtutorsEmailEditing, setJtutorsEmailEditing] = useState<string | null>(null)
+  const [loginHistoryUser, setLoginHistoryUser] = useState<AdminUser | null>(null)
+  const [loginHistory, setLoginHistory] = useState<Array<{ id: string; ipAddress: string | null; userAgent: string | null; createdAt: string }> | null>(null)
+  const [loadingLoginHistory, setLoadingLoginHistory] = useState(false)
 
   useEffect(() => {
     const loadCore = async () => {
@@ -527,6 +535,34 @@ const AdminDashboard = () => {
     }
   }
 
+  const handleSuspendUser = async (userId: string, suspended: boolean) => {
+    try {
+      setUpdatingUserId(userId)
+      const response = await api.patch<{ user: AdminUser }>(`/admin/users/${userId}/suspend`, { suspended })
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isSuspended: response.data.user.isSuspended } : u)))
+    } catch (err) {
+      console.error('Error suspending user:', err)
+      setError('Unable to update user suspension status.')
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
+
+  const handleViewLoginHistory = async (user: AdminUser) => {
+    setLoginHistoryUser(user)
+    setLoginHistory(null)
+    setLoadingLoginHistory(true)
+    try {
+      const res = await api.get<{ logins: Array<{ id: string; ipAddress: string | null; userAgent: string | null; createdAt: string }> }>(`/admin/users/${user.id}/login-history`)
+      setLoginHistory(res.data.logins)
+    } catch (err) {
+      console.error('Error fetching login history:', err)
+      setLoginHistory([])
+    } finally {
+      setLoadingLoginHistory(false)
+    }
+  }
+
   const handleUpdateBackgroundCheckStatus = async (userId: string, status: string) => {
     try {
       setUpdatingUserId(userId)
@@ -630,15 +666,6 @@ const AdminDashboard = () => {
     }
   }
 
-  const handleApproveClass = async (id: string) => {
-    try {
-      await api.post(`/class-sessions/${id}/approve`, {})
-      await loadClassSessions()
-    } catch (err) {
-      console.error('Error approving class:', err)
-      setError('Failed to approve class session.')
-    }
-  }
 
   const handleSaveEmailTemplate = async (template: Partial<EmailTemplate>) => {
     try {
@@ -757,7 +784,7 @@ const AdminDashboard = () => {
     { id: 'courses', label: 'Courses', description: 'Tutor-published courses and enrollments' },
     { id: 'settings', label: 'Platform Settings', description: 'Email, commission, and withdrawal rules' },
     { id: 'withdrawals', label: 'Withdrawals', description: 'Approve tutor and admin payouts' },
-    { id: 'classes', label: 'Class Sessions', description: 'Monitor class approvals and Google links' },
+    { id: 'classes', label: 'Class Sessions', description: 'Monitor class approvals and session links' },
     { id: 'emails', label: 'Email Templates', description: 'Automated communication templates' },
     { id: 'integrations', label: 'Integrations', description: 'Google Classroom connection status' },
     { id: 'earnings', label: 'My Earnings', description: 'Platform commission and admin payouts' },
@@ -1284,6 +1311,25 @@ const AdminDashboard = () => {
                                 title="View full profile"
                               >
                                 <Eye className="h-4 w-4" /> View
+                              </button>
+                              <button
+                                onClick={() => handleViewLoginHistory(user)}
+                                className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-700"
+                                title="View login history"
+                              >
+                                <History className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleSuspendUser(user.id, !user.isSuspended)}
+                                className={`inline-flex items-center gap-1 text-sm font-semibold ${
+                                  user.isSuspended
+                                    ? 'text-amber-600 hover:text-amber-700'
+                                    : 'text-rose-500 hover:text-rose-600'
+                                }`}
+                                disabled={updatingUserId === user.id}
+                                title={user.isSuspended ? 'Unsuspend user' : 'Suspend user'}
+                              >
+                                <Ban className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
@@ -2007,23 +2053,24 @@ const AdminDashboard = () => {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            {session.tutorApproved && !session.adminApproved && (
-                              <button
-                                onClick={() => handleApproveClass(session.id)}
-                                className="text-sm font-semibold text-green-600 hover:text-green-700"
-                              >
-                                Approve
-                              </button>
-                            )}
                             {session.adminApproved && !session.paymentReleased && (
                               <button
                                 onClick={() => handleReleasePayment(session.id)}
-                                className="ml-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                                className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                               >
                                 Release Payment
                               </button>
                             )}
-                            {session.googleClassroomLink && (
+                            {session.pencilSpaceUrl ? (
+                              <a
+                                href={session.pencilSpaceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-3 inline-flex items-center gap-1 text-sm text-[#5046e5] hover:text-[#4338ca]"
+                              >
+                                🖊 Space <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : session.googleClassroomLink ? (
                               <a
                                 href={session.googleClassroomLink}
                                 target="_blank"
@@ -2032,7 +2079,7 @@ const AdminDashboard = () => {
                               >
                                 Classroom <ExternalLink className="h-3 w-3" />
                               </a>
-                            )}
+                            ) : null}
                           </td>
                         </tr>
                       ))}
@@ -2290,6 +2337,61 @@ const AdminDashboard = () => {
                 onSetJTutorsEmail={(tutorId, email) => handleSetJTutorsEmail(selectedUserDetail!.id, tutorId, email)}
               />
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Login History Modal */}
+      {loginHistoryUser && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 pb-10 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setLoginHistoryUser(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl mx-4 z-10 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Login History</h2>
+                <p className="text-sm text-slate-500">{loginHistoryUser.email}</p>
+              </div>
+              <button onClick={() => setLoginHistoryUser(null)} className="p-1 rounded-lg hover:bg-slate-100">
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            {loadingLoginHistory ? (
+              <div className="py-8 text-center text-slate-500 text-sm">Loading login history…</div>
+            ) : !loginHistory || loginHistory.length === 0 ? (
+              <div className="py-8 text-center text-slate-500 text-sm">
+                No login records found.
+                {loginHistory !== null && loginHistory.length === 0 && (
+                  <p className="mt-1 text-xs text-slate-400">Login auditing was enabled recently — records only appear for logins after that point.</p>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      <th className="pb-2 pr-4">Date &amp; Time</th>
+                      <th className="pb-2 pr-4">IP Address</th>
+                      <th className="pb-2">Browser / Device</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {loginHistory.map((entry) => (
+                      <tr key={entry.id}>
+                        <td className="py-2 pr-4 text-slate-700 whitespace-nowrap">
+                          {new Date(entry.createdAt).toLocaleString()}
+                        </td>
+                        <td className="py-2 pr-4 font-mono text-slate-600 whitespace-nowrap">
+                          {entry.ipAddress || '—'}
+                        </td>
+                        <td className="py-2 text-slate-500 text-xs break-all">
+                          {entry.userAgent || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -26,11 +26,11 @@ const Register = () => {
   )
   const defaultRole = requestedRole && ['TUTOR', 'STUDENT', 'ADMIN'].includes(requestedRole) 
     ? requestedRole
-    : 'TUTOR'
+    : 'STUDENT'
   
   const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterForm>({
     defaultValues: {
-      role: defaultRole || 'TUTOR'
+      role: defaultRole || 'STUDENT'
     }
   })
   const [error, setError] = useState('')

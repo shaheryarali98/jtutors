@@ -27,15 +27,14 @@ export const calculatePaymentBreakdown = async (
 ): Promise<PaymentBreakdown> => {
   const settings = await getAdminSettings();
   const studentFeePct        = settings.studentFeePercentage       ?? 4.5;
-  const adminCommissionPct   = settings.platformCommissionPercent ?? 10.0;
-  const tutorDeductionPct    = settings.adminCommissionPercentage   ?? 9.25;
+  const adminCommissionPct   = settings.platformCommissionPercent ?? 9.25;
 
   const studentFeeCents      = Math.round(basePriceCents * studentFeePct      / 100);
   const adminCommissionCents = Math.round(basePriceCents * adminCommissionPct / 100);
-  const tutorDeductionCents  = Math.round(basePriceCents * tutorDeductionPct  / 100);
+  const tutorDeductionCents  = 0;  // service fee now goes to admin; no separate tutor-side deduction
   const studentPaysCents     = basePriceCents + studentFeeCents;
-  const tutorPayoutCents     = Math.max(0, basePriceCents - adminCommissionCents - tutorDeductionCents);
-  const platformFeeCents     = studentFeeCents + adminCommissionCents + tutorDeductionCents;
+  const tutorPayoutCents     = Math.max(0, basePriceCents - adminCommissionCents);
+  const platformFeeCents     = studentFeeCents + adminCommissionCents;  // 4.5% service fee + 9.25% commission
 
   return {
     basePriceCents,
@@ -154,8 +153,8 @@ export const createAccountLink = async (
 
 // Create Stripe Checkout Session for course enrollment.
 // Student pays: base price + student service fee.
-// Platform application_fee = studentFee + adminCommission + tutorDeduction.
-// Tutor receives: base - adminCommission - tutorDeduction (via transfer_data).
+// Platform application_fee = studentFee + adminCommission (service fee goes to admin).
+// Tutor receives: base - adminCommission = 90.75% of base (via transfer_data).
 export const createEnrollmentCheckoutSession = async (options: {
   courseTitle: string;
   courseDescription: string;

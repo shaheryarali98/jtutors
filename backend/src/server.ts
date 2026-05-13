@@ -21,6 +21,7 @@ import courseRoutes from './routes/course.routes';
 import enrollmentRoutes from './routes/enrollment.routes';
 import { handleStripeWebhook } from './controllers/stripe.webhook.controller';
 import { initializeDefaultTemplates } from './services/emailTemplate.service';
+import { startCronJobs } from './services/cron.service';
 import { PrismaClient } from '@prisma/client';
 
 dotenv.config();
@@ -36,7 +37,8 @@ async function ensureProductionColumns() {
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "studentFeePercentage" DOUBLE PRECISION NOT NULL DEFAULT 4.5`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "adminPaymentInfo" TEXT`);
     // Payment flow v2 — 3-tier fee structure
-    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "platformCommissionPercent" DOUBLE PRECISION NOT NULL DEFAULT 10.0`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "platformCommissionPercent" DOUBLE PRECISION NOT NULL DEFAULT 9.25`);
+    await _patchPrisma.$executeRawUnsafe(`UPDATE "AdminSettings" SET "platformCommissionPercent" = 9.25 WHERE "platformCommissionPercent" = 10.0`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "studentFeeAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "tutorDeductionAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "studentChargeAmount" DOUBLE PRECISION`);
@@ -152,6 +154,7 @@ ensureProductionColumns().then(() => {
     } catch (err) {
       console.warn('Failed to initialize email templates:', err);
     }
+    startCronJobs();
   });
 });
 

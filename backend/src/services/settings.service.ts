@@ -14,10 +14,10 @@ const defaultSettingsPayload: Omit<AdminSettings, 'id' | 'createdAt' | 'updatedA
   sendSignupConfirmation: true,
   sendProfileCompletionEmail: true,
   autoApproveUsers: true,
-  adminCommissionPercentage: 9.25,   // tutor-side deduction %
+  adminCommissionPercentage: 0,       // legacy field — tutor-side deduction; service fee now routes to admin instead
   adminCommissionFixed: 0.0,
   studentFeePercentage: 4.5,
-  platformCommissionPercent: 10.0,   // admin platform commission %
+  platformCommissionPercent: 9.25,   // admin platform commission %
   withdrawalAutoApproveDays: 2,
   withdrawMethods: JSON.stringify(DEFAULT_WITHDRAW_METHODS),
   withdrawFixedCharge: 0,

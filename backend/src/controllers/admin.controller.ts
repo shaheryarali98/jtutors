@@ -9,6 +9,43 @@ import { stripe } from '../services/stripe.service';
 
 const prisma = new PrismaClient();
 
+const parseStringArray = (value: string | null | undefined): string[] => {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((entry) => typeof entry === 'string' && entry.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+};
+
+const calculateStudentProfileCompleted = (student: {
+  firstName: string | null;
+  lastName: string | null;
+  gender: string | null;
+  grade: string | null;
+  bio: string | null;
+  country: string | null;
+  city: string | null;
+  zipcode: string | null;
+  languagesSpoken: string | null;
+  learningPreferences: string | null;
+}) => {
+  return Boolean(
+    student.firstName?.trim() &&
+    student.lastName?.trim() &&
+    student.gender?.trim() &&
+    student.grade?.trim() &&
+    student.bio?.trim() &&
+    student.country?.trim() &&
+    student.city?.trim() &&
+    student.zipcode?.trim() &&
+    parseStringArray(student.languagesSpoken).length > 0 &&
+    parseStringArray(student.learningPreferences).length > 0
+  );
+};
+
 export const getAnalytics = async (req: Request, res: Response) => {
   try {
     const [totalUsers, totalTutors, totalStudents, totalBookings, tutorCompletion, newSignups] = await Promise.all([
@@ -109,6 +146,14 @@ export const listUsers = async (req: Request, res: Response) => {
             id: true,
             firstName: true,
             lastName: true,
+            gender: true,
+            grade: true,
+            bio: true,
+            country: true,
+            city: true,
+            zipcode: true,
+            languagesSpoken: true,
+            learningPreferences: true,
             profileCompleted: true,
           }
         }
@@ -140,7 +185,15 @@ export const listUsers = async (req: Request, res: Response) => {
     }
 
     res.json({
-      users: users.map(({ password, ...user }) => user)
+      users: users.map(({ password, ...user }) => ({
+        ...user,
+        student: user.student
+          ? {
+              ...user.student,
+              profileCompleted: calculateStudentProfileCompleted(user.student),
+            }
+          : user.student,
+      }))
     });
   } catch (error) {
     console.error('List users error:', error);
@@ -849,3 +902,51 @@ export const getAdminEarnings = async (req: Request, res: Response) => {
   }
 };
 
+export const suspendUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { suspended } = req.body as { suspended: boolean };
+
+    if (typeof suspended !== 'boolean') {
+      return res.status(400).json({ error: 'suspended field must be a boolean' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { isSuspended: suspended },
+      select: { id: true, email: true, role: true, isSuspended: true },
+    });
+
+    res.json({
+      message: suspended ? 'User suspended successfully' : 'User unsuspended successfully',
+      user: updated,
+    });
+  } catch (error) {
+    console.error('Suspend user error:', error);
+    res.status(500).json({ error: 'Error updating user suspension status' });
+  }
+};
+
+export const getLoginHistory = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const audits = await prisma.loginAudit.findMany({
+      where: { userId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      select: { id: true, ipAddress: true, userAgent: true, createdAt: true },
+    });
+
+    res.json({ logins: audits });
+  } catch (error) {
+    console.error('Get login history error:', error);
+    res.status(500).json({ error: 'Error fetching login history' });
+  }
+};

@@ -3,6 +3,13 @@ import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { usePlatformSettings } from '../../store/settingsStore'
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import { loadStripe } from '@stripe/stripe-js'
+
+const stripePromise = (() => {
+  const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ''
+  return key ? loadStripe(key) : null
+})()
 
 interface WalletSummary {
   availableBalance: number
@@ -46,6 +53,10 @@ const StudentWallet = () => {
   const [withdrawing, setWithdrawing] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [savedCards, setSavedCards] = useState<SavedCard[]>([])
+  const [showAddCard, setShowAddCard] = useState(false)
+  const [setupClientSecret, setSetupClientSecret] = useState<string | null>(null)
+  const [cardFeedback, setCardFeedback] = useState('')
+  const [removingCardId, setRemovingCardId] = useState<string | null>(null)
   const { settings, fetchSettings } = usePlatformSettings()
 
   useEffect(() => {
@@ -115,6 +126,38 @@ const StudentWallet = () => {
     } finally {
       setWithdrawing(false)
       setTimeout(() => setFeedback(''), 4000)
+    }
+  }
+
+  const handleAddCardClick = async () => {
+    try {
+      setCardFeedback('')
+      const res = await api.post<{ clientSecret: string }>('/student/payment-methods/setup-intent')
+      const secret = res.data.clientSecret
+      if (!secret) {
+        setCardFeedback('Unable to start card setup. Please try again.')
+        return
+      }
+      setSetupClientSecret(secret)
+      setShowAddCard(true)
+    } catch (err: any) {
+      setCardFeedback(err.response?.data?.error || 'Unable to start card setup. Please try again.')
+    }
+  }
+
+  const handleRemoveCard = async (cardId: string) => {
+    if (!window.confirm('Remove this card from your account?')) return
+    setRemovingCardId(cardId)
+    setCardFeedback('')
+    try {
+      await api.delete(`/student/payment-methods/${cardId}`)
+      setSavedCards((prev) => prev.filter((c) => c.id !== cardId))
+      setCardFeedback('Card removed successfully.')
+    } catch {
+      setCardFeedback('Failed to remove card. Please try again.')
+    } finally {
+      setRemovingCardId(null)
+      setTimeout(() => setCardFeedback(''), 3000)
     }
   }
 
@@ -287,10 +330,33 @@ const StudentWallet = () => {
               </div>
             </section>
 
-            {savedCards.length > 0 && (
-              <section className="bg-white rounded-3xl shadow p-6">
-                <h2 className="text-xl font-semibold text-slate-900 mb-4">Saved payment methods</h2>
-                <ul className="space-y-3">
+            <section className="bg-white rounded-3xl shadow p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">Saved payment methods</h2>
+                  <p className="text-sm text-slate-500">Cards saved securely by Stripe for faster checkout.</p>
+                </div>
+                {stripePromise && (
+                  <button
+                    type="button"
+                    className="btn btn-primary text-sm"
+                    onClick={handleAddCardClick}
+                  >
+                    + Add card
+                  </button>
+                )}
+              </div>
+
+              {cardFeedback && (
+                <p className="text-sm text-slate-600 mb-3">{cardFeedback}</p>
+              )}
+
+              {savedCards.length === 0 && !showAddCard && (
+                <p className="text-sm text-slate-500">No saved cards yet. Add one for faster checkout.</p>
+              )}
+
+              {savedCards.length > 0 && (
+                <ul className="space-y-3 mb-4">
                   {savedCards.map((card) => (
                     <li key={card.id} className="flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                       <div className="flex-1">
@@ -301,19 +367,85 @@ const StudentWallet = () => {
                           Expires {card.expMonth.toString().padStart(2, '0')}/{card.expYear}
                         </p>
                       </div>
+                      <button
+                        type="button"
+                        disabled={removingCardId === card.id}
+                        onClick={() => handleRemoveCard(card.id)}
+                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                      >
+                        {removingCardId === card.id ? 'Removing…' : 'Remove'}
+                      </button>
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-slate-400 mt-3">
-                  Cards are saved securely by Stripe and used for faster checkout.
-                </p>
-              </section>
-            )}
+              )}
+
+              {showAddCard && setupClientSecret && stripePromise && (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Add a new card</h3>
+                  <Elements stripe={stripePromise} options={{ clientSecret: setupClientSecret, appearance: { theme: 'stripe' } }}>
+                    <AddCardForm
+                      onSuccess={() => {
+                        setShowAddCard(false)
+                        setSetupClientSecret(null)
+                        setCardFeedback('Card saved successfully!')
+                        loadWithdrawals()
+                        setTimeout(() => setCardFeedback(''), 3000)
+                      }}
+                      onCancel={() => {
+                        setShowAddCard(false)
+                        setSetupClientSecret(null)
+                      }}
+                    />
+                  </Elements>
+                </div>
+              )}
+            </section>
           </div>
         )}
       </main>
       <Footer />
     </div>
+  )
+}
+
+const AddCardForm = ({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) => {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!stripe || !elements) return
+    setSaving(true)
+    setErr('')
+    const { error } = await stripe.confirmSetup({
+      elements,
+      confirmParams: { return_url: window.location.href },
+      redirect: 'if_required',
+    })
+    if (error) {
+      setErr(error.message || 'Failed to save card.')
+      setSaving(false)
+    } else {
+      onSuccess()
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement />
+      {err && <p className="text-sm text-red-600">{err}</p>}
+      <div className="flex gap-3 justify-end">
+        <button type="button" className="btn btn-secondary text-sm" onClick={onCancel} disabled={saving}>
+          Cancel
+        </button>
+        <button type="submit" className="btn btn-primary text-sm" disabled={saving}>
+          {saving ? 'Saving…' : 'Save card'}
+        </button>
+      </div>
+    </form>
   )
 }
 

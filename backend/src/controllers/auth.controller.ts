@@ -190,6 +190,14 @@ export const login = async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
+    // Record login audit (fire-and-forget)
+    const rawIp = req.headers['x-forwarded-for'];
+    const ipAddress = (Array.isArray(rawIp) ? rawIp[0] : rawIp?.split(',')[0]) || req.socket.remoteAddress || req.ip || null;
+    const userAgent = req.headers['user-agent'] || null;
+    prisma.loginAudit.create({
+      data: { userId: user.id, ipAddress, userAgent },
+    }).catch((err) => console.error('Login audit write failed:', err));
+
     const profileImage = user.tutor?.profileImage || user.student?.profileImage || null;
 
     res.json({

@@ -210,6 +210,48 @@ export const initializeDefaultTemplates = async () => {
       textBody: `Withdrawal Rejected\n\nHi {{userName}},\n\nYour withdrawal has been rejected. Reason: {{reason}}\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['userName', 'email', 'amount', 'currency', 'withdrawalId', 'reason']),
     },
+    {
+      name: 'SESSION_BOOKED_TUTOR',
+      subject: 'New Session Booked - JTutors',
+      htmlBody: `
+        <h2>New Session Booked</h2>
+        <p>Hi {{tutorName}},</p>
+        <p>A student has booked a session with you!</p>
+        <p><strong>Student:</strong> {{studentName}} ({{studentEmail}})</p>
+        <p><strong>Date &amp; Time:</strong> {{startTime}} – {{endTime}}</p>
+        <p>Log in to your JTutors dashboard to view the details and prepare for your upcoming session.</p>
+        <p>Best regards,<br/>The JTutors Team</p>
+      `,
+      textBody: `New Session Booked\n\nHi {{tutorName}},\n\nA student has booked a session with you!\n\nStudent: {{studentName}} ({{studentEmail}})\nDate & Time: {{startTime}} – {{endTime}}\n\nLog in to your JTutors dashboard to view details.\n\nBest,\nJTutors Team`,
+      variables: JSON.stringify(['tutorName', 'studentName', 'studentEmail', 'startTime', 'endTime']),
+    },
+    {
+      name: 'SESSION_COMPLETE_STUDENT_CONFIRM',
+      subject: 'Your session is complete — payment releases in 48 hours unless disputed',
+      htmlBody: `
+        <h2>Session Marked Complete</h2>
+        <p>Hi {{studentName}},</p>
+        <p>Your tutor <strong>{{tutorName}}</strong> has marked your session on <strong>{{sessionDate}}</strong> as complete.</p>
+        <p>Payment will be automatically released to your tutor on <strong>{{autoReleaseDate}}</strong>.</p>
+        <p><strong>Did something go wrong?</strong> If the session did not happen or there was an issue, please email us at <a href="mailto:support@jtutors.com">support@jtutors.com</a> before <strong>{{autoReleaseDate}}</strong> to open a dispute. Once released, payments cannot be reversed.</p>
+        <p>Best regards,<br/>The JTutors Team</p>
+      `,
+      textBody: `Hi {{studentName}},\n\nYour tutor {{tutorName}} has marked your session on {{sessionDate}} as complete.\n\nPayment releases automatically on {{autoReleaseDate}}.\n\nIf the session did NOT happen, email support@jtutors.com BEFORE {{autoReleaseDate}} to dispute.\n\nBest,\nJTutors Team`,
+      variables: JSON.stringify(['studentName', 'tutorName', 'sessionDate', 'autoReleaseDate']),
+    },
+    {
+      name: 'SESSION_PAYMENT_RELEASED',
+      subject: 'Payment Released — JTutors',
+      htmlBody: `
+        <h2>Payment Released</h2>
+        <p>Hi {{tutorName}},</p>
+        <p>The dispute window for your session with <strong>{{studentName}}</strong> on <strong>{{sessionDate}}</strong> has closed.</p>
+        <p>Payment of <strong>{{amount}}</strong> has been released to your account.</p>
+        <p>Best regards,<br/>The JTutors Team</p>
+      `,
+      textBody: `Hi {{tutorName}},\n\nThe dispute window for your session with {{studentName}} on {{sessionDate}} has closed.\n\nPayment of {{amount}} has been released to your account.\n\nBest,\nJTutors Team`,
+      variables: JSON.stringify(['tutorName', 'studentName', 'sessionDate', 'amount']),
+    },
   ];
 
   for (const template of defaultTemplates) {

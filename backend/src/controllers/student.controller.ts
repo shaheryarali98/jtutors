@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { formatStudent, formatTutor, formatTutorArray } from '../utils/formatters';
 import { getAdminSettings } from '../services/settings.service';
 import { sendEmail } from '../services/email.service';
+import { sendTemplatedEmail } from '../services/emailTemplate.service';
 
 const prisma = new PrismaClient();
 
@@ -43,18 +44,14 @@ const calculateProfileCompletion = (payload: {
   return Boolean(
     payload.firstName &&
     payload.lastName &&
-    payload.profileImage &&
     payload.gender &&
     payload.grade &&
     payload.bio &&
     payload.country &&
     payload.city &&
-    payload.address &&
     payload.zipcode &&
     payload.languages.length > 0 &&
-    payload.learningPreferences.length > 0 &&
-    payload.introduction &&
-    payload.tagline
+    payload.learningPreferences.length > 0
   );
 };
 
@@ -135,6 +132,21 @@ export const updateProfile = async (req: Request, res: Response) => {
       languages: languageArray,
       learningPreferences: learningPreferenceArray,
       introduction,
+    });
+
+    console.log('📝 Student profile update:', {
+      userId,
+      firstName,
+      lastName,
+      gender,
+      grade,
+      country,
+      city,
+      zipcode,
+      languagesCount: languageArray.length,
+      preferencesCount: learningPreferenceArray.length,
+      bioLength: bio?.length || 0,
+      nowCompleted,
     });
 
     const updatedStudent = await prisma.student.update({
@@ -383,11 +395,11 @@ export const createBooking = async (req: Request, res: Response) => {
           },
         },
         student: {
-          include: {
+          select: {
+            firstName: true,
+            lastName: true,
             user: {
-              select: {
-                email: true,
-              },
+              select: { email: true },
             },
           },
         },
@@ -401,6 +413,23 @@ export const createBooking = async (req: Request, res: Response) => {
     } catch (error) {
       console.error('Error creating Google Classroom for booking:', error);
       // Don't fail the booking creation if Google Classroom fails
+    }
+
+    // Notify tutor about the new booking
+    try {
+      const tutorEmail = booking.tutor.user.email;
+      const studentEmail = booking.student.user.email;
+      const studentName = [booking.student.firstName, booking.student.lastName].filter(Boolean).join(' ') || studentEmail;
+      await sendTemplatedEmail('SESSION_BOOKED_TUTOR', tutorEmail, {
+        tutorName: tutor.firstName || tutorEmail,
+        studentName,
+        studentEmail,
+        startTime: start.toLocaleString(),
+        endTime: end.toLocaleString(),
+      });
+    } catch (emailError) {
+      console.error('Error sending booking notification to tutor:', emailError);
+      // Don't fail booking creation if email fails
     }
 
     res.status(201).json({
@@ -723,11 +752,6 @@ export const cancelBookingStudent = async (req: Request, res: Response) => {
 export const getStudentPaymentMethods = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const devBypass = process.env.DEV_BYPASS_STRIPE === 'true';
-
-    if (devBypass) {
-      return res.json({ paymentMethods: [] });
-    }
 
     const student = await prisma.student.findUnique({ where: { userId } });
     if (!student) return res.status(404).json({ error: 'Student profile not found' });
@@ -736,6 +760,7 @@ export const getStudentPaymentMethods = async (req: Request, res: Response) => {
     if (!stripeCustomerId) return res.json({ paymentMethods: [] });
 
     const { stripe } = await import('../services/stripe.service');
+    if (!stripe) return res.json({ paymentMethods: [] });
     const pms = await stripe!.paymentMethods.list({ customer: stripeCustomerId, type: 'card' });
 
     const cards = pms.data.map((pm) => ({
@@ -750,6 +775,76 @@ export const getStudentPaymentMethods = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get payment methods error:', error);
     res.status(500).json({ error: 'Error fetching payment methods' });
+  }
+};
+
+// Create a Stripe SetupIntent so students can save a card
+export const createSetupIntent = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+
+    const student = await prisma.student.findUnique({ where: { userId } });
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+
+    const { stripe } = await import('../services/stripe.service');
+    if (!stripe) return res.status(500).json({ error: 'Stripe is not configured' });
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    let stripeCustomerId = (student as any).stripeCustomerId as string | null;
+
+    // Create a Stripe customer if the student doesn't have one yet
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: user?.email,
+        metadata: { studentId: student.id, userId },
+      });
+      stripeCustomerId = customer.id;
+      await prisma.$executeRawUnsafe(
+        `UPDATE "Student" SET "stripeCustomerId" = $1 WHERE "id" = $2`,
+        stripeCustomerId,
+        student.id
+      );
+    }
+
+    const setupIntent = await stripe.setupIntents.create({
+      customer: stripeCustomerId,
+      payment_method_types: ['card'],
+    });
+
+    res.json({ clientSecret: setupIntent.client_secret });
+  } catch (error) {
+    console.error('Create setup intent error:', error);
+    res.status(500).json({ error: 'Error creating setup intent' });
+  }
+};
+
+// Remove a saved payment method
+export const deletePaymentMethod = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    const student = await prisma.student.findUnique({ where: { userId } });
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+
+    const { stripe } = await import('../services/stripe.service');
+    if (!stripe) return res.status(500).json({ error: 'Stripe is not configured' });
+
+    const stripeCustomerId = (student as any).stripeCustomerId as string | null;
+    if (!stripeCustomerId) return res.status(400).json({ error: 'No Stripe customer found' });
+
+    // Verify the payment method belongs to this customer before detaching
+    const pm = await stripe.paymentMethods.retrieve(id);
+    if (pm.customer !== stripeCustomerId) {
+      return res.status(403).json({ error: 'Payment method does not belong to this account' });
+    }
+
+    await stripe.paymentMethods.detach(id);
+    res.json({ message: 'Payment method removed successfully' });
+  } catch (error) {
+    console.error('Delete payment method error:', error);
+    res.status(500).json({ error: 'Error removing payment method' });
   }
 };
 

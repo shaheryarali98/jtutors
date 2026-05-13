@@ -34,6 +34,8 @@ router.patch('/bookings/:id/cancel', studentController.cancelBookingStudent);
 
 // Payment methods (saved cards)
 router.get('/payment-methods', studentController.getStudentPaymentMethods);
+router.post('/payment-methods/setup-intent', studentController.createSetupIntent);
+router.delete('/payment-methods/:id', studentController.deletePaymentMethod);
 
 export default router;
 
