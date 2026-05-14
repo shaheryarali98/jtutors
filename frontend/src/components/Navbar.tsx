@@ -28,6 +28,7 @@ const Navbar = () => {
 
   // Only two centered links
   const centerLinks = [
+    { to: '/our-team', label: 'Our Team' },
     { to: '/how-it-works-for-tutors', label: 'How it Works For Tutors' },
     { to: '/how-it-works-for-students', label: 'How it Works For Students' },
     ...(user?.role === 'STUDENT' ? [{ to: '/student/browse-tutors', label: 'Browse Tutors' }] : []),
