@@ -55,16 +55,6 @@ const OurTeam = () => {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-bold uppercase tracking-[0.28em] text-[#012c54]/70">Our Founders</p>
-            <h2 className="mt-4 text-3xl font-black text-slate-900 sm:text-4xl">
-              Leadership rooted in education, community, and long-term impact
-            </h2>
-            <p className="mt-4 text-lg leading-8 text-slate-600">
-              JTutors was shaped by leaders with deep experience in schools, arts education, communal life, and student development.
-            </p>
-          </div>
-
           <div className="mt-12 space-y-10">
             {founders.map((founder, index) => (
               <article
@@ -73,12 +63,12 @@ const OurTeam = () => {
               >
                 <div className={`grid gap-0 lg:grid-cols-[320px,1fr] ${index % 2 === 1 ? 'lg:grid-cols-[1fr,320px]' : ''}`}>
                   <div className={`border-slate-200 bg-[linear-gradient(180deg,#edf4fb_0%,#f8fbfe_100%)] p-6 sm:p-8 ${index % 2 === 1 ? 'lg:order-2 lg:border-l' : 'lg:border-r'}`}>
-                    <div className="flex h-full items-center justify-center rounded-[1.5rem] border border-white/80 bg-white p-4 shadow-inner sm:p-6">
-                      <div className="flex min-h-[360px] w-full items-center justify-center sm:min-h-[420px]">
+                    <div className="flex h-full items-center justify-center">
+                      <div className="relative h-80 w-80 overflow-hidden rounded-full border-4 border-white bg-white shadow-xl">
                         <img
                           src={founder.image}
                           alt={founder.imageAlt}
-                          className="max-h-[420px] w-full object-contain"
+                          className="h-full w-full object-cover"
                         />
                       </div>
                     </div>

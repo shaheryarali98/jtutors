@@ -213,29 +213,38 @@ const TutorSessions = () => {
       {session.classSession &&
         session.classSession.status !== 'COMPLETED' &&
         !session.classSession.tutorApproved &&
-        session.status === 'CONFIRMED' && (
-          <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-3 items-start">
-            <div>
+        session.status === 'CONFIRMED' && (() => {
+          const sessionEndTime = new Date(session.endTime)
+          const now = new Date()
+          const sessionEnded = now >= sessionEndTime
+          return (
+            <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-3 items-start">
+              <div>
+                <button
+                  type="button"
+                  disabled={completing === session.classSession.id || !sessionEnded}
+                  onClick={() => handleMarkComplete(session.classSession!.id)}
+                  className="inline-flex items-center gap-2 bg-[#012c54] hover:bg-[#023a70] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {completing === session.classSession.id ? 'Processing…' : 'Mark Session as Complete'}
+                </button>
+                <p className="text-xs text-slate-500 mt-1">
+                  {!sessionEnded 
+                    ? `Session must end before marking complete (ends ${sessionEndTime.toLocaleString()})` 
+                    : 'Marks the session as done and releases payment to you.'}
+                </p>
+              </div>
               <button
                 type="button"
-                disabled={completing === session.classSession.id}
-                onClick={() => handleMarkComplete(session.classSession!.id)}
-                className="inline-flex items-center gap-2 bg-[#012c54] hover:bg-[#023a70] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={cancellingId === session.id}
+                onClick={() => handleCancelSession(session.id)}
+                className="inline-flex items-center gap-2 border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
               >
-                {completing === session.classSession.id ? 'Processing…' : 'Mark Session as Complete'}
+                {cancellingId === session.id ? 'Cancelling…' : 'Cancel session'}
               </button>
-              <p className="text-xs text-slate-500 mt-1">Marks the session as done and releases payment to you.</p>
             </div>
-            <button
-              type="button"
-              disabled={cancellingId === session.id}
-              onClick={() => handleCancelSession(session.id)}
-              className="inline-flex items-center gap-2 border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
-            >
-              {cancellingId === session.id ? 'Cancelling…' : 'Cancel session'}
-            </button>
-          </div>
-        )}
+          )
+        })()}
 
       {session.classSession?.paymentReleased && (
         <p className="text-xs text-emerald-600 pt-1">✓ Payment released to your account.</p>
