@@ -42,12 +42,12 @@ const featureHighlights = [
   {
     title: 'Flexible Learning Options',
     description:
-      'Choose online via Zoom, in-person with local tutors, or a hybrid approach — lessons that fit your schedule.',
+      'Choose online via Pencil Spaces, in-person with local tutors, or a hybrid approach — lessons that fit your schedule.',
   },
   {
     title: 'Seamless Communication & Replay',
     description:
-      'Google Classroom integration keeps students and tutors aligned, while recorded sessions support ongoing review.',
+      'Pencil Spaces keeps students and tutors aligned, while recorded sessions support ongoing review.',
   },
   {
     title: 'All-in-One Scheduling',

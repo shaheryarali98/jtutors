@@ -51,7 +51,7 @@ const HowItWorksStudents = () => {
       step: "03",
       title: "Schedule & Learn—Online or In Person",
       list: [
-        "Online sessions hosted through Zoom integration directly in the platform—no extra setup required.",
+        "Online sessions hosted through Pencil Spaces directly in the platform—no extra setup required.",
         "Recorded lessons you can replay anytime to reinforce what you’ve learned.",
         "In-person sessions with tutors in your local area. Simply filter by location and availability to find tutors offering face-to-face learning."
       ],
@@ -65,8 +65,8 @@ const HowItWorksStudents = () => {
       title: "Track Your Progress & Stay Connected",
       list: [
         "After each session, you’ll get notes, feedback, and resources to keep moving forward.",
-        "Use Google Classroom integration to access assignments, shared files, and updates from your tutor.",
-        "Stay informed through Classroom updates that centralise resources, notes, and action items from your tutor."
+        "Use Pencil Spaces to access assignments, shared files, and updates from your tutor.",
+        "Stay informed through Pencil Spaces updates that centralise resources, notes, and action items from your tutor."
       ],
       icon: FileText,
       gradient: "from-[#f5a11a] to-[#c48115]",
@@ -87,8 +87,8 @@ const HowItWorksStudents = () => {
   const benefits = [
     "Learn from trusted, knowledgeable tutors.",
     "Flexible scheduling—online, in person, or both.",
-    "Zoom-powered live sessions plus recorded playback.",
-    "Google Classroom integration for smooth communication.",
+    "Pencil Spaces live sessions plus recorded playback.",
+    "Pencil Spaces for smooth communication.",
     "Safe, private, and Jewish learning environment."
   ];
 

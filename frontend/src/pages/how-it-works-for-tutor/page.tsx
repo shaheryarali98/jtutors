@@ -67,10 +67,10 @@ const HowItWorksTutors = () => {
       step: "04",
       title: "Teach Online, In Person, and Beyond",
       list: [
-        "Live online sessions with Zoom integration, fully embedded in JTutors.",
+        "Live online sessions with Pencil Spaces, fully embedded in JTutors.",
         "Recorded sessions that students can access anytime for review.",
         "In-person lessons for learners in your local area.",
-        "Google Classroom integration for sharing assignments, resources, and announcements with your students in one place."
+        "Pencil Spaces for sharing assignments, resources, and announcements with your students in one place."
       ],
       icon: Video,
       gradient: "from-[#f5a11a] to-[#c48115]",
@@ -91,8 +91,8 @@ const HowItWorksTutors = () => {
   const benefits = [
     "Access to motivated students.",
     "Flexibility to teach online, in person, or both.",
-    "Zoom + recorded video integration for flexible teaching.",
-    "Google Classroom tools for seamless communication.",
+    "Pencil Spaces with recorded video for flexible teaching.",
+    "Pencil Spaces for seamless communication.",
     "Reliable, transparent payment system.",
     "Professional dashboard to manage your profile, schedule, and earnings."
   ];
