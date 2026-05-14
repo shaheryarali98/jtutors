@@ -5,13 +5,21 @@
  * Safe to run multiple times — uses IF NOT EXISTS.
  */
 const { PrismaClient } = require('@prisma/client');
+const { execSync } = require('child_process');
 
 async function ensureColumns() {
   // Only run against PostgreSQL (skip SQLite in local dev)
   const dbUrl = process.env.DATABASE_URL || '';
-  if (dbUrl.startsWith('file:')) {
-    console.log('⚡ ensure-columns: SQLite detected, skipping.');
+  if (dbUrl.startsWith('file:') || !dbUrl) {
+    console.log('⚡ ensure-columns: SQLite/no DB detected, skipping.');
     return;
+  }
+
+  // Run pending migrations first (safe — idempotent)
+  try {
+    execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+  } catch (err) {
+    console.warn('⚠️  prisma migrate deploy failed (continuing with manual patches):', err.message);
   }
 
   const prisma = new PrismaClient();
