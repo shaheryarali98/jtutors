@@ -56,13 +56,13 @@ const OurTeam = () => {
 
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
           <div className="mt-12 space-y-10">
-            {founders.map((founder, index) => (
+            {founders.map((founder) => (
               <article
                 key={founder.name}
                 className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(1,44,84,0.08)]"
               >
-                <div className={`grid gap-0 lg:grid-cols-[320px,1fr] ${index % 2 === 1 ? 'lg:grid-cols-[1fr,320px]' : ''}`}>
-                  <div className={`border-slate-200 bg-[linear-gradient(180deg,#edf4fb_0%,#f8fbfe_100%)] p-6 sm:p-8 ${index % 2 === 1 ? 'lg:order-2 lg:border-l' : 'lg:border-r'}`}>
+                <div className="grid gap-0 lg:grid-cols-[320px,1fr]">
+                  <div className="border-slate-200 bg-[linear-gradient(180deg,#edf4fb_0%,#f8fbfe_100%)] p-6 sm:p-8 lg:border-r">
                     <div className="flex h-full items-center justify-center">
                       <div className="relative h-80 w-80 overflow-hidden rounded-full border-4 border-white bg-white shadow-xl">
                         <img
@@ -73,7 +73,7 @@ const OurTeam = () => {
                       </div>
                     </div>
                   </div>
-                  <div className={`p-8 sm:p-10 lg:p-12 ${index % 2 === 1 ? 'lg:order-1' : ''}`}>
+                  <div className="p-8 sm:p-10 lg:p-12">
                     <div className="inline-flex rounded-full bg-amber-100 px-4 py-1 text-xs font-bold uppercase tracking-[0.24em] text-amber-800">
                       {founder.title}
                     </div>
