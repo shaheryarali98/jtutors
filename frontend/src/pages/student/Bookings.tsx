@@ -56,7 +56,9 @@ const StudentBookings = () => {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [payingId, setPayingId] = useState<string | null>(null)
+  const [payErrors, setPayErrors] = useState<Record<string, string>>({})
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [searchParams, setSearchParams] = useSearchParams()
   const { settings: platformSettings, fetchSettings } = usePlatformSettings()
   const studentFeePct = platformSettings?.studentFeePercentage ?? 4.5
@@ -92,6 +94,7 @@ const StudentBookings = () => {
 
   const handlePayNow = async (booking: Booking) => {
     setError(''); setInfo('')
+    setPayErrors(prev => { const next = { ...prev }; delete next[booking.id]; return next })
     setPayingId(booking.id)
     try {
       const response = await api.post('/payments/checkout', { bookingId: booking.id })
@@ -99,12 +102,17 @@ const StudentBookings = () => {
         window.location.href = response.data.url
         return
       }
-      setError('Unable to start checkout.')
+      setPayErrors(prev => ({ ...prev, [booking.id]: 'Unable to start checkout. Please try again.' }))
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Unable to start payment. Please try again later.')
+      const msg = err.response?.data?.error || 'Unable to start payment. Please try again later.'
+      setPayErrors(prev => ({ ...prev, [booking.id]: msg }))
     } finally {
       setPayingId(null)
     }
+  }
+
+  const handleDismiss = (bookingId: string) => {
+    setDismissedIds(prev => new Set([...prev, bookingId]))
   }
 
   const handleJoinSpace = (pencilSpaceUrl: string) => {
@@ -144,10 +152,10 @@ const StudentBookings = () => {
 
   const sortedBookings = useMemo(
     () =>
-      [...bookings].sort(
-        (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-      ),
-    [bookings]
+      [...bookings]
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+        .filter(b => !dismissedIds.has(b.id)),
+    [bookings, dismissedIds]
   )
 
   return (
@@ -207,11 +215,21 @@ const StudentBookings = () => {
                         )}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h2 className="text-xl font-semibold text-slate-900">
                             {tutor.firstName} {tutor.lastName}
                           </h2>
                           {renderStatusBadge(booking.status)}
+                          {booking.status === 'CANCELLED' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDismiss(booking.id)}
+                              className="ml-1 text-xs text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full px-2 py-0.5 border border-slate-200 transition-colors"
+                              title="Remove from list"
+                            >
+                              ✕ Hide
+                            </button>
+                          )}
                         </div>
                         <p className="text-sm text-slate-500">
                           {tutor.city ? `${tutor.city}, ${tutor.state || tutor.country}` : tutor.country}
@@ -345,14 +363,21 @@ const StudentBookings = () => {
                             <span>${(amountDue * (1 + studentFeePct / 100)).toFixed(2)}</span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="btn btn-primary inline-flex items-center justify-center gap-2 md:w-auto disabled:opacity-60"
-                          onClick={() => handlePayNow(booking)}
-                          disabled={payingId === booking.id}
-                        >
-                          {payingId === booking.id ? 'Redirecting…' : 'Pay with Stripe'}
-                        </button>
+                        <div className="flex flex-col gap-2 md:self-center">
+                          <button
+                            type="button"
+                            className="btn btn-primary inline-flex items-center justify-center gap-2 md:w-auto disabled:opacity-60"
+                            onClick={() => handlePayNow(booking)}
+                            disabled={payingId === booking.id}
+                          >
+                            {payingId === booking.id ? 'Redirecting…' : 'Pay with Stripe'}
+                          </button>
+                          {payErrors[booking.id] && (
+                            <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 max-w-xs">
+                              ⚠️ {payErrors[booking.id]}
+                            </p>
+                          )}
+                        </div>
                       </>
                     )}
                     {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (

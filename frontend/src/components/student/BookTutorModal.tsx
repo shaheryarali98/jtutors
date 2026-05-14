@@ -228,34 +228,11 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
                 </select>
               </div>
             ) : (
-              <div className="space-y-4">
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  This tutor hasn’t set a schedule yet — pick any available time below.
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-center">
+                <p className="text-sm font-semibold text-amber-800">No available time slots</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  This tutor has not set their availability yet. Please check back later or contact them directly.
                 </p>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Start time *</label>
-                    <input
-                      type="datetime-local"
-                      className="input"
-                      value={startTime}
-                      onChange={(event) => setStartTime(event.target.value)}
-                      min={nowLocal()}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="label">End time *</label>
-                    <input
-                      type="datetime-local"
-                      className="input"
-                      value={endTime}
-                      onChange={(event) => setEndTime(event.target.value)}
-                      min={startTime}
-                      required
-                    />
-                  </div>
-                </div>
               </div>
             )}
 

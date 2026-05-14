@@ -43,6 +43,7 @@ const TutorSessions = () => {
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [decliningId, setDecliningId] = useState<string | null>(null)
   const [actionMsg, setActionMsg] = useState('')
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
 
   const fetchSessions = async () => {
     try {
@@ -118,14 +119,22 @@ const TutorSessions = () => {
     }
   }
 
+  const byNewest = (a: TutorSession, b: TutorSession) =>
+    new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+
   const pendingRequests = useMemo(
-    () => sessions.filter((s) => s.status === 'PENDING'),
+    () => sessions.filter((s) => s.status === 'PENDING').sort(byNewest),
     [sessions]
   )
 
   const activeSessions = useMemo(
-    () => sessions.filter((s) => s.status === 'CONFIRMED' || s.status === 'COMPLETED'),
+    () => sessions.filter((s) => s.status === 'CONFIRMED' || s.status === 'COMPLETED').sort(byNewest),
     [sessions]
+  )
+
+  const cancelledSessions = useMemo(
+    () => sessions.filter((s) => s.status === 'CANCELLED' && !dismissedIds.has(s.id)).sort(byNewest),
+    [sessions, dismissedIds]
   )
 
   const upcomingCount = useMemo(
@@ -137,6 +146,9 @@ const TutorSessions = () => {
     () => sessions.filter((s) => s.status === 'COMPLETED'),
     [sessions]
   )
+
+  const handleDismiss = (id: string) =>
+    setDismissedIds((prev) => new Set([...prev, id]))
 
   const SessionCard = ({ session }: { session: TutorSession }) => (
     <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 md:p-5 flex flex-col gap-3">
@@ -238,9 +250,9 @@ const TutorSessions = () => {
                 type="button"
                 disabled={cancellingId === session.id}
                 onClick={() => handleCancelSession(session.id)}
-                className="inline-flex items-center gap-2 border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-2 bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
               >
-                {cancellingId === session.id ? 'Cancelling…' : 'Cancel session'}
+                {cancellingId === session.id ? 'Cancelling…' : '✕ Cancel Session'}
               </button>
             </div>
           )
@@ -319,11 +331,59 @@ const TutorSessions = () => {
               <section className="bg-white rounded-3xl shadow p-6">
                 <div className="mb-4">
                   <h2 className="text-xl font-semibold text-slate-900">Your Sessions</h2>
-                  <p className="text-sm text-slate-500">Confirmed and completed sessions.</p>
+                  <p className="text-sm text-slate-500">Confirmed and completed sessions — newest first.</p>
                 </div>
                 <div className="space-y-4">
                   {activeSessions.map((session) => (
                     <SessionCard key={session.id} session={session} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Cancelled sessions */}
+            {cancelledSessions.length > 0 && (
+              <section className="bg-white rounded-3xl shadow p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-900">Cancelled Sessions</h2>
+                    <p className="text-sm text-slate-500">Sessions that were cancelled.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDismissedIds(new Set(cancelledSessions.map((s) => s.id)))}
+                    className="text-xs text-slate-500 hover:text-slate-700 underline"
+                  >
+                    Hide all
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {cancelledSessions.map((session) => (
+                    <div key={session.id} className="rounded-xl border border-rose-100 bg-rose-50/40 p-4 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">{session.studentName || 'Student'}</p>
+                        <p className="text-xs text-slate-500">{session.studentEmail}</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {new Date(session.startTime).toLocaleString()} · {session.durationHours.toFixed(1)} hrs
+                        </p>
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-700 mt-2">
+                          CANCELLED
+                        </span>
+                        {session.paymentStatus === 'REFUNDED' && (
+                          <span className="ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-slate-100 text-slate-600">
+                            Refunded
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDismiss(session.id)}
+                        className="text-slate-400 hover:text-slate-600 text-xs shrink-0"
+                        title="Hide"
+                      >
+                        ✕ Hide
+                      </button>
+                    </div>
                   ))}
                 </div>
               </section>

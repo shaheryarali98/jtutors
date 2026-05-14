@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Eye, EyeOff } from 'lucide-react'
 import api from '../../lib/api'
@@ -21,6 +21,7 @@ const Login = () => {
   const [retryMsg, setRetryMsg] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
   const setAuth = useAuthStore((state) => state.setAuth)
 
   const onSubmit = async (data: LoginForm) => {
@@ -37,8 +38,12 @@ const Login = () => {
       setAuth(response.data.user, response.data.token)
       setSuccess(response.data.message || 'Login successful')
 
+      // Redirect to original page if coming from a protected route
+      const fromPath = (location?.state as any)?.from
       let destination: string
-      if (response.data.user.role === 'ADMIN') {
+      if (fromPath && fromPath !== '/login' && fromPath !== '/register') {
+        destination = fromPath
+      } else if (response.data.user.role === 'ADMIN') {
         destination = '/admin/dashboard'
       } else if (response.data.user.role === 'TUTOR') {
         destination = '/tutor/dashboard'
