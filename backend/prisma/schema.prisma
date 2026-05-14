@@ -86,6 +86,7 @@ model Tutor {
   address      String?
   zipcode      String?
   languagesSpoken String? // Stored as JSON string of string[]
+  timezone        String?  // IANA timezone identifier e.g. "America/New_York"
   
   // Profile image
   profileImage String?

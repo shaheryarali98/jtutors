@@ -22,6 +22,7 @@ interface PersonalInfoForm {
   city: string;
   zipcode: string;
   languagesSpoken: string[];
+  timezone: string;
 }
 
 const grades = [
@@ -115,6 +116,7 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
           setValue("state", tutor.state || "");
           setValue("city", tutor.city || "");
           setValue("zipcode", tutor.zipcode || "");
+          setValue("timezone", tutor.timezone || "");
           setSelectedGrades(tutor.gradesCanTeach || []);
           setLanguages(
             tutor.languagesSpoken?.length ? tutor.languagesSpoken : []
@@ -228,6 +230,7 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
         gradesCanTeach: selectedGrades,
         languagesSpoken: languages,
         profileImage: imageToSave,
+        timezone: data.timezone || undefined,
       });
 
       onSaveSuccess();
@@ -556,6 +559,37 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
             <label className="label">Zipcode</label>
             <input type="text" className="input" {...register("zipcode")} />
           </div>
+        </div>
+
+        <div>
+          <label className="label">Timezone *</label>
+          <select className="input" {...register("timezone", { required: "Timezone is required" })}>
+            <option value="">Select your timezone…</option>
+            {(typeof Intl !== 'undefined' && (Intl as any).supportedValuesOf
+              ? (Intl as any).supportedValuesOf('timeZone')
+              : [
+                  'America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
+                  'America/Phoenix','America/Anchorage','Pacific/Honolulu',
+                  'America/Toronto','America/Vancouver','America/Montreal',
+                  'America/Sao_Paulo','America/Buenos_Aires','America/Mexico_City',
+                  'Europe/London','Europe/Paris','Europe/Berlin','Europe/Rome',
+                  'Europe/Madrid','Europe/Amsterdam','Europe/Zurich','Europe/Stockholm',
+                  'Europe/Warsaw','Europe/Istanbul','Europe/Athens','Europe/Kiev',
+                  'Europe/Moscow','Asia/Jerusalem','Asia/Dubai','Asia/Karachi',
+                  'Asia/Kolkata','Asia/Dhaka','Asia/Bangkok','Asia/Singapore',
+                  'Asia/Shanghai','Asia/Tokyo','Asia/Seoul','Australia/Sydney',
+                  'Australia/Melbourne','Pacific/Auckland','Africa/Cairo','Africa/Johannesburg',
+                ]
+            ).map((tz: string) => (
+              <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+          {errors.timezone && (
+            <p className="error-text">{errors.timezone.message}</p>
+          )}
+          <p className="text-sm text-slate-500 mt-1">
+            Students can see your timezone when browsing your profile.
+          </p>
         </div>
 
         <div>

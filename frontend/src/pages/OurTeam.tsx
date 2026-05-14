@@ -38,7 +38,7 @@ const OurTeam = () => {
                   Built by educators who understand what families and students need
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-white/88 sm:text-xl">
-                  JTutors was founded by experienced Jewish educators who saw a vital need to create a Jewish tutoring platform and marketplace. JTutors&apos; mission is to provide high-quality, affordable and trusted tutors to the entire community, allowing every student to have access to an excellent education.
+                  JTutors was founded by experienced Jewish educators who saw a vital need to create a Jewish tutoring platform and marketplace. JTutor&apos;s mission is to provide high-quality, affordable and trusted tutors to the entire community, allowing every student to have access to an excellent education.
                 </p>
               </div>
 

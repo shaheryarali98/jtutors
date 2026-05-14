@@ -119,7 +119,8 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
       address,
       zipcode,
       languagesSpoken,
-      profileImage
+      profileImage,
+      timezone
     } = req.body;
 
     // ******* this validation block is added *******
@@ -186,6 +187,7 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
         address,
         zipcode,
         languagesSpoken: stringifyArray(languagesSpoken),
+        timezone,
         // Only overwrite profileImage if a non-empty value is explicitly provided
         ...(profileImage ? { profileImage } : {}),
       }

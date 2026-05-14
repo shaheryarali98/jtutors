@@ -297,18 +297,22 @@ const StudentBookings = () => {
                   </div>
 
                   {/* Session space link */}
-                  {booking.classSession?.pencilSpaceUrl && (
+                  {booking.status === 'CONFIRMED' && booking.payment?.paymentStatus === 'PAID' && (
                     <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                      <p className="text-sm font-semibold text-indigo-900 mb-3">Join Your Session</p>
-                      <div className="flex flex-col sm:flex-row gap-3">
+                      <p className="text-sm font-semibold text-indigo-900 mb-3">Your Tutoring Session</p>
+                      {booking.classSession?.pencilSpaceUrl ? (
                         <button
                           type="button"
                           onClick={() => handleJoinSpace(booking.classSession!.pencilSpaceUrl!)}
                           className="btn btn-primary inline-flex items-center justify-center gap-2"
                         >
-                          🖊 Join Space
+                          🖊 Start Tutoring Session
                         </button>
-                      </div>
+                      ) : (
+                        <p className="text-sm text-indigo-700">
+                          ⏳ Your tutor will share the session link before your scheduled time. Check back closer to your start time.
+                        </p>
+                      )}
                     </div>
                   )}
 
