@@ -10,6 +10,7 @@ import {
   releasePaymentController,
   getJoinUrlController,
   studentConfirmSessionController,
+  createSpaceForSessionController,
 } from '../controllers/classSession.controller';
 
 const router = express.Router();
@@ -24,6 +25,7 @@ router.post('/:id/release-payment', requireRole('ADMIN'), releasePaymentControll
 router.get('/my', getMyClassSessionsController);
 router.get('/all', requireRole('ADMIN'), getAllClassSessionsController);
 router.get('/:id/join-url', getJoinUrlController);
+router.post('/:id/create-space', createSpaceForSessionController);
 router.get('/:id', getClassSessionController);
 
 export default router;

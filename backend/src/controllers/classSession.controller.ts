@@ -224,3 +224,54 @@ export const getJoinUrlController = async (req: Request, res: Response) => {
   }
 };
 
+// POST /class-sessions/:id/create-space — retroactively create a Pencil Space for a session
+export const createSpaceForSessionController = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.userId;
+    const userRole = req.user!.role;
+
+    const classSession = await prisma.classSession.findUnique({
+      where: { id },
+      include: {
+        booking: {
+          include: {
+            student: { include: { user: true } },
+            tutor: { include: { user: true } },
+          },
+        },
+      },
+    });
+
+    if (!classSession) return res.status(404).json({ error: 'Class session not found' });
+
+    const isTutor = userRole === 'TUTOR' && classSession.booking.tutor.userId === userId;
+    const isAdmin = userRole === 'ADMIN';
+    if (!isTutor && !isAdmin) return res.status(403).json({ error: 'Not authorised' });
+
+    if (classSession.pencilSpaceUrl) {
+      return res.json({ pencilSpaceUrl: classSession.pencilSpaceUrl, message: 'Space already exists' });
+    }
+
+    const { createPencilSpace, createOrGetPencilUser: regUser } = await import('../services/pencilSpaces.service');
+    const booking = classSession.booking;
+    const spaceName = `Session: ${booking.tutor.user.email} & ${booking.student.user.email}`;
+    const space = await createPencilSpace(spaceName);
+
+    await Promise.allSettled([
+      regUser(booking.tutor.user.email, booking.tutor.firstName || '', booking.tutor.lastName || '', 'teacher'),
+      regUser(booking.student.user.email, booking.student.firstName || '', booking.student.lastName || '', 'student'),
+    ]);
+
+    const updated = await prisma.classSession.update({
+      where: { id },
+      data: { pencilSpaceId: space.id, pencilSpaceUrl: space.url },
+    });
+
+    res.json({ pencilSpaceUrl: updated.pencilSpaceUrl, message: 'Pencil Space created' });
+  } catch (error: any) {
+    console.error('Create space for session error:', error);
+    res.status(500).json({ error: error.message || 'Error creating Pencil Space' });
+  }
+};
+

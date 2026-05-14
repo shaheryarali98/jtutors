@@ -44,6 +44,7 @@ const TutorSessions = () => {
   const [decliningId, setDecliningId] = useState<string | null>(null)
   const [actionMsg, setActionMsg] = useState('')
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  const [creatingSpaceId, setCreatingSpaceId] = useState<string | null>(null)
 
   const fetchSessions = async () => {
     try {
@@ -103,6 +104,19 @@ const TutorSessions = () => {
 
   const handleJoinSpace = (pencilSpaceUrl: string) => {
     window.open(pencilSpaceUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleCreateSpace = async (classSessionId: string) => {
+    setCreatingSpaceId(classSessionId); setActionMsg(''); setError('')
+    try {
+      await api.post(`/class-sessions/${classSessionId}/create-space`, {})
+      setActionMsg('Session link created! You can now join.')
+      await fetchSessions()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to create session link.')
+    } finally {
+      setCreatingSpaceId(null)
+    }
   }
 
   const handleCancelSession = async (bookingId: string) => {
@@ -185,15 +199,26 @@ const TutorSessions = () => {
           </div>
         </div>
         {/* Join links — only shown for confirmed/active sessions */}
-        {session.status !== 'PENDING' && session.classSession?.pencilSpaceUrl && (
-          <div className="flex flex-col gap-2 text-sm text-slate-600">
-            <button
-              type="button"
-              onClick={() => handleJoinSpace(session.classSession!.pencilSpaceUrl!)}
-              className="inline-flex items-center gap-1.5 bg-[#5046e5] hover:bg-[#4338ca] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-            >
-              🖊 Join Space
-            </button>
+        {session.status !== 'PENDING' && (
+          <div className="flex flex-col gap-2">
+            {session.classSession?.pencilSpaceUrl ? (
+              <button
+                type="button"
+                onClick={() => handleJoinSpace(session.classSession!.pencilSpaceUrl!)}
+                className="inline-flex items-center gap-1.5 bg-[#5046e5] hover:bg-[#4338ca] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                🖊 Join Space
+              </button>
+            ) : session.classSession ? (
+              <button
+                type="button"
+                disabled={creatingSpaceId === session.classSession.id}
+                onClick={() => handleCreateSpace(session.classSession!.id)}
+                className="inline-flex items-center gap-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
+              >
+                {creatingSpaceId === session.classSession.id ? '⏳ Creating…' : '🔗 Create Session Link'}
+              </button>
+            ) : null}
           </div>
         )}
       </div>
