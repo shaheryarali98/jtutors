@@ -1,11 +1,215 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { formatStudent, formatTutor, formatTutorArray } from '../utils/formatters';
+import { formatStudent, formatTutor, formatTutorArray, parseStoredArray } from '../utils/formatters';
 import { getAdminSettings } from '../services/settings.service';
 import { sendEmail } from '../services/email.service';
 import { sendTemplatedEmail } from '../services/emailTemplate.service';
 
 const prisma = new PrismaClient();
+
+type AvailabilityWindow = {
+  daysAvailable?: string | string[] | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  breakTime?: number | null;
+  sessionDuration?: number | null;
+  numberOfSlots?: number | null;
+};
+
+const isValidTimeZone = (value?: string | null) => {
+  if (!value) return false;
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const getSafeTimeZone = (value?: string | null) => (isValidTimeZone(value) ? value! : 'UTC');
+
+const parseTimeToMinutes = (value?: string | null) => {
+  if (!value) return null;
+  const [hourText, minuteText] = value.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+};
+
+const getZonedDateParts = (date: Date, timeZone: string) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    weekday: 'long',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const lookup = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+
+  return {
+    weekday: lookup('weekday'),
+    year: Number(lookup('year')),
+    month: Number(lookup('month')),
+    day: Number(lookup('day')),
+    hour: Number(lookup('hour')) % 24,
+    minute: Number(lookup('minute')),
+  };
+};
+
+const matchesAvailabilityBlock = (
+  availability: AvailabilityWindow,
+  start: Date,
+  end: Date,
+  timeZone: string
+) => {
+  const slotStart = getZonedDateParts(start, timeZone);
+  const slotEnd = getZonedDateParts(end, timeZone);
+  const daysAvailable = parseStoredArray(availability.daysAvailable);
+  const blockStart = parseTimeToMinutes(availability.startTime);
+  const blockEnd = parseTimeToMinutes(availability.endTime);
+  const sessionDuration = Number(availability.sessionDuration ?? 0);
+  const breakTime = Math.max(0, Number(availability.breakTime ?? 0));
+
+  if (
+    !daysAvailable.includes(slotStart.weekday) ||
+    blockStart === null ||
+    blockEnd === null ||
+    sessionDuration <= 0
+  ) {
+    return false;
+  }
+
+  if (
+    slotStart.year !== slotEnd.year ||
+    slotStart.month !== slotEnd.month ||
+    slotStart.day !== slotEnd.day
+  ) {
+    return false;
+  }
+
+  const slotStartMinutes = slotStart.hour * 60 + slotStart.minute;
+  const slotEndMinutes = slotEnd.hour * 60 + slotEnd.minute;
+
+  if (slotEndMinutes <= slotStartMinutes) {
+    return false;
+  }
+
+  if (slotEndMinutes - slotStartMinutes !== sessionDuration) {
+    return false;
+  }
+
+  if (slotStartMinutes < blockStart || slotEndMinutes > blockEnd) {
+    return false;
+  }
+
+  const slotInterval = sessionDuration + breakTime;
+  if (slotInterval <= 0) {
+    return false;
+  }
+
+  return (slotStartMinutes - blockStart) % slotInterval === 0;
+};
+
+const bookingMatchesAvailability = (
+  availabilities: AvailabilityWindow[],
+  start: Date,
+  end: Date,
+  timeZone: string
+) => availabilities.some((availability) => matchesAvailabilityBlock(availability, start, end, timeZone));
+
+// Convert a local calendar date + minutes-from-midnight to a UTC Date in a given timezone.
+const localToUtc = (
+  year: number,
+  month: number,
+  day: number,
+  minutesFromMidnight: number,
+  timeZone: string
+): Date => {
+  const h = Math.floor(minutesFromMidnight / 60);
+  const m = minutesFromMidnight % 60;
+  // Treat the local time as UTC as a first approximation
+  const roughUtc = new Date(Date.UTC(year, month - 1, day, h, m));
+  // Find what local time that UTC instant maps to in the target timezone
+  const localParts = getZonedDateParts(roughUtc, timeZone);
+  const localMinutes = localParts.hour * 60 + localParts.minute;
+  // Shift by the difference so the result reads as the intended local time
+  return new Date(roughUtc.getTime() + (minutesFromMidnight - localMinutes) * 60_000);
+};
+
+const generateBookableSlots = (
+  availabilities: AvailabilityWindow[],
+  existingBookings: Array<{ startTime: Date; endTime: Date }>,
+  tutorTimeZone: string
+) => {
+  const now = new Date();
+  const horizonDays = 14; // look 2 weeks ahead
+  const safeZone = getSafeTimeZone(tutorTimeZone);
+  const slots: Array<{ start: string; end: string }> = [];
+
+  for (const availability of availabilities) {
+    const sessionDuration = Number(availability.sessionDuration ?? 0);
+    const breakTime = Math.max(0, Number(availability.breakTime ?? 0));
+    const numberOfSlots = Math.max(1, Number(availability.numberOfSlots ?? 1));
+    const daysAvailable = parseStoredArray(availability.daysAvailable);
+    const blockStart = parseTimeToMinutes(availability.startTime);
+    const blockEnd = parseTimeToMinutes(availability.endTime);
+
+    if (sessionDuration <= 0 || blockStart === null || blockEnd === null || daysAvailable.length === 0) {
+      continue;
+    }
+
+    const slotInterval = sessionDuration + breakTime;
+    if (slotInterval <= 0) continue;
+
+    // Iterate day by day over the horizon
+    for (let dayOffset = 0; dayOffset <= horizonDays; dayOffset++) {
+      const probe = new Date(now.getTime() + dayOffset * 24 * 60 * 60_000);
+      const dateParts = getZonedDateParts(probe, safeZone);
+
+      if (!daysAvailable.includes(dateParts.weekday)) continue;
+
+      // Walk through each discrete slot in this availability window
+      let slotStartMinutes = blockStart;
+      while (slotStartMinutes + sessionDuration <= blockEnd) {
+        const slotStart = localToUtc(dateParts.year, dateParts.month, dateParts.day, slotStartMinutes, safeZone);
+        const slotEnd = new Date(slotStart.getTime() + sessionDuration * 60_000);
+
+        // Must be at least 5 minutes in the future
+        if (slotStart.getTime() > now.getTime() + 5 * 60_000) {
+          const overlapCount = existingBookings.filter(
+            (b) => slotStart < b.endTime && slotEnd > b.startTime
+          ).length;
+
+          if (overlapCount < numberOfSlots) {
+            slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
+          }
+        }
+
+        slotStartMinutes += slotInterval;
+      }
+    }
+  }
+
+  return slots
+    .sort((a, b) => a.start.localeCompare(b.start))
+    .slice(0, 30);
+};
 
 const sanitizeStringArray = (value: unknown): string[] => {
   if (Array.isArray(value)) {
@@ -35,6 +239,7 @@ const calculateProfileCompletion = (payload: {
   country?: string | null;
   state?: string | null;
   city?: string | null;
+  timezone?: string | null;
   address?: string | null;
   zipcode?: string | null;
   languages: string[];
@@ -49,6 +254,7 @@ const calculateProfileCompletion = (payload: {
     payload.bio &&
     payload.country &&
     payload.city &&
+    payload.timezone &&
     payload.zipcode &&
     payload.languages.length > 0 &&
     payload.learningPreferences.length > 0
@@ -95,6 +301,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       country,
       state,
       city,
+      timezone,
       address,
       zipcode,
       languagesSpoken,
@@ -116,6 +323,10 @@ export const updateProfile = async (req: Request, res: Response) => {
     const languageArray = sanitizeStringArray(languagesSpoken);
     const learningPreferenceArray = sanitizeStringArray(learningLocationPreferences);
 
+    if (timezone && !isValidTimeZone(timezone)) {
+      return res.status(400).json({ error: 'Please select a valid timezone.' });
+    }
+
     const nowCompleted = calculateProfileCompletion({
       firstName,
       lastName,
@@ -127,6 +338,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       country,
       state,
       city,
+      timezone,
       address,
       zipcode,
       languages: languageArray,
@@ -142,6 +354,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       grade,
       country,
       city,
+      timezone,
       zipcode,
       languagesCount: languageArray.length,
       preferencesCount: learningPreferenceArray.length,
@@ -162,6 +375,7 @@ export const updateProfile = async (req: Request, res: Response) => {
         country,
         state,
         city,
+        timezone,
         address,
         zipcode,
         languagesSpoken: languageArray.length ? JSON.stringify(languageArray) : null,
@@ -205,7 +419,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 export const searchTutors = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const { subject, minFee, maxFee, grade, city, state, country } = req.query;
+    const { subject, minFee, maxFee, grade, location } = req.query;
 
     const student = await prisma.student.findUnique({
       where: { userId },
@@ -231,9 +445,13 @@ export const searchTutors = async (req: Request, res: Response) => {
         ...(minFee && { hourlyFee: { gte: parseFloat(minFee as string) } }),
         ...(maxFee && { hourlyFee: { lte: parseFloat(maxFee as string) } }),
         ...(grade && { gradesCanTeach: { contains: `"${grade}"` } }),
-        ...(city && { city: city as string }),
-        ...(state && { state: state as string }),
-        ...(country && { country: country as string }),
+        ...(location && {
+          OR: [
+            { city: { contains: location as string } },
+            { state: { contains: location as string } },
+            { country: { contains: location as string } },
+          ],
+        }),
         ...(subject && {
           subjects: {
             some: {
@@ -316,7 +534,21 @@ export const getTutorDetails = async (req: Request, res: Response) => {
       select: { startTime: true, endTime: true },
     });
 
-    res.json({ tutor: { ...formatTutor(tutor as any), saved, existingBookings } });
+    const tutorTimeZone = getSafeTimeZone((tutor as any).timezone);
+    const bookableSlots = generateBookableSlots(
+      (tutor.availabilities as AvailabilityWindow[]) ?? [],
+      existingBookings,
+      tutorTimeZone
+    );
+
+    res.json({
+      tutor: {
+        ...formatTutor(tutor as any),
+        saved,
+        existingBookings,
+        bookableSlots,
+      },
+    });
   } catch (error) {
     console.error('Get tutor details error:', error);
     res.status(500).json({ error: 'Error fetching tutor details' });
@@ -357,10 +589,25 @@ export const createBooking = async (req: Request, res: Response) => {
 
     const tutor = await prisma.tutor.findUnique({
       where: { id: tutorId },
+      include: {
+        availabilities: true,
+      },
     });
 
     if (!tutor) {
       return res.status(404).json({ error: 'Tutor not found' });
+    }
+
+    if (!tutor.availabilities.length) {
+      return res.status(400).json({ error: 'This tutor has not opened any bookable time slots yet.' });
+    }
+
+    const tutorTimeZone = getSafeTimeZone(tutor.timezone);
+    const matchesAvailability = bookingMatchesAvailability(tutor.availabilities, start, end, tutorTimeZone);
+    if (!matchesAvailability) {
+      return res.status(400).json({
+        error: 'The selected slot is no longer available. Please choose another available time.',
+      });
     }
 
     // Overlap guard: reject if a PENDING/CONFIRMED booking already covers this window

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../lib/api";
 import { LANGUAGE_OPTIONS } from "../../constants/options";
 import { usePlatformSettings } from "../../store/settingsStore";
+import { resolveImageUrl } from "../../lib/media";
 
 interface PersonalInformationProps {
   onSaveSuccess: () => void;
@@ -86,10 +87,13 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
   const [customLanguageInput, setCustomLanguageInput] = useState("");
   const [profileImage, setProfileImage] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [coverImage, setCoverImage] = useState("");
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [profileCompletion, setProfileCompletion] = useState(0);
   const { settings, fetchSettings } = usePlatformSettings();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   // Watch the email field for real-time validation
   const emailValue = watch("email", "");
@@ -124,6 +128,9 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
           if (tutor.profileImage) {
             setProfileImage(tutor.profileImage);
           }
+          if (tutor.coverImage) {
+            setCoverImage(tutor.coverImage);
+          }
           if (tutor.profileCompletionPercentage) {
             setProfileCompletion(tutor.profileCompletionPercentage);
           }
@@ -135,9 +142,67 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
     fetchProfile();
   }, [setValue]);
 
-  const handleImageUpload = async (file: File) => {
+  const validateImageDimensions = (file: File, imageType: 'profile' | 'cover'): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          if (imageType === 'cover') {
+            // Cover photo: minimum 1200x400px, aspect ratio 3:1
+            const minWidth = 1200;
+            const minHeight = 400;
+            const aspectRatio = img.width / img.height;
+            const expectedAspectRatio = 3; // 3:1
+
+            if (img.width < minWidth || img.height < minHeight) {
+              setImageMessage(`Cover photo must be at least ${minWidth}x${minHeight} pixels. Your image is ${img.width}x${img.height}. Please re-upload a larger image.`);
+              setTimeout(() => setImageMessage(""), 5000);
+              resolve(false);
+              return;
+            }
+
+            // Allow ±0.5 tolerance on aspect ratio
+            if (Math.abs(aspectRatio - expectedAspectRatio) > 0.5) {
+              setImageMessage(`Cover photo should be close to a 3:1 ratio (recommended ${minWidth}x${minHeight}). Your image is ${img.width}x${img.height}. Please re-upload.`);
+              setTimeout(() => setImageMessage(""), 5000);
+              resolve(false);
+              return;
+            }
+
+            resolve(true);
+          } else {
+            // Profile photo: minimum 200x200px
+            if (img.width < 200 || img.height < 200) {
+              setImageMessage("Profile photo must be at least 200x200 pixels. Please re-upload.");
+              setTimeout(() => setImageMessage(""), 3000);
+              resolve(false);
+              return;
+            }
+            resolve(true);
+          }
+        };
+        img.onerror = () => {
+          setImageMessage("Invalid image file");
+          setTimeout(() => setImageMessage(""), 3000);
+          resolve(false);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageUpload = async (file: File, imageType: 'profile' | 'cover' = 'profile') => {
     try {
-      setUploadingImage(true);
+      const isValid = await validateImageDimensions(file, imageType);
+      if (!isValid) return;
+
+      if (imageType === 'cover') {
+        setUploadingCover(true);
+      } else {
+        setUploadingImage(true);
+      }
       setImageMessage("Uploading image...");
 
       const formData = new FormData();
@@ -145,7 +210,8 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
 
       console.log("Starting upload for file:", file.name, file.type, file.size);
 
-      const response = await api.post("/uploads/profile-image", formData, {
+      const endpoint = imageType === 'cover' ? '/uploads/cover-image' : '/uploads/profile-image';
+      const response = await api.post(endpoint, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -155,34 +221,39 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
       const newImageUrl = response.data.url;
       console.log("Upload successful. Image URL:", newImageUrl);
 
-      // DIRECT TEST: Try to access the image immediately
-      const testUrl = `http://localhost:5000${newImageUrl}`;
-      console.log("Testing image URL:", testUrl);
-
       // Set the image URL with cache busting to force reload
       const timestamp = Date.now();
       const imageUrlWithCache = `${newImageUrl}?v=${timestamp}`;
 
-      setProfileImage(imageUrlWithCache);
-
-      setImageMessage("Profile photo uploaded successfully!");
-
-      // Clear file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      if (imageType === 'cover') {
+        setCoverImage(imageUrlWithCache);
+        setImageMessage("Cover photo uploaded successfully!");
+        if (coverInputRef.current) {
+          coverInputRef.current.value = "";
+        }
+      } else {
+        setProfileImage(imageUrlWithCache);
+        setImageMessage("Profile photo uploaded successfully!");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       }
 
       // Dispatch event for other components
       window.dispatchEvent(new Event("tutor-profile-updated"));
     } catch (error: any) {
-      console.error("Error uploading profile image:", error);
+      console.error("Error uploading image:", error);
       setImageMessage(
         error.response?.data?.message ||
         "Failed to upload image. Please try again."
       );
       setTimeout(() => setImageMessage(""), 3000);
     } finally {
-      setUploadingImage(false);
+      if (imageType === 'cover') {
+        setUploadingCover(false);
+      } else {
+        setUploadingImage(false);
+      }
     }
   };
 
@@ -224,12 +295,14 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
 
       // Remove cache busting parameter before saving
       const imageToSave = profileImage.split("?")[0];
+      const coverToSave = coverImage.split("?")[0];
 
       const response = await api.put("/tutor/profile/personal", {
         ...data,
         gradesCanTeach: selectedGrades,
         languagesSpoken: languages,
         profileImage: imageToSave,
+        coverImage: coverToSave,
         timezone: data.timezone || undefined,
       });
 
@@ -385,6 +458,78 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
                 }
 
                 handleImageUpload(file);
+              }
+            }}
+          />
+        </label>
+      </div>
+
+      {/* Cover Photo Upload Section */}
+      <div className="mb-6 rounded-xl border border-slate-200 p-5 bg-slate-50 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="h-32 w-full max-w-2xl rounded-lg border-4 border-white shadow bg-gradient-to-r from-primary-600 to-primary-400 overflow-hidden flex items-center justify-center text-3xl text-white">
+            {coverImage ? (
+              <img
+                src={resolveImageUrl(coverImage)}
+                alt="Tutor cover"
+                className="h-full w-full object-contain bg-slate-100"
+                onLoad={() => {
+                  console.log("Cover image loaded successfully:", resolveImageUrl(coverImage));
+                }}
+                onError={(e) => {
+                  const url = resolveImageUrl(coverImage);
+                  console.error("Cover image failed to load:", url, e);
+                  console.error("Network response:", e);
+                }}
+              />
+            ) : (
+              <span>📸</span>
+            )}
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Cover Photo
+            </h3>
+            <p className="text-sm text-slate-600">
+              A professional banner to showcase your teaching style.
+            </p>
+          </div>
+        </div>
+
+        <label className="btn btn-outline cursor-pointer">
+          {uploadingCover
+            ? "Uploading..."
+            : coverImage
+              ? "Change Cover"
+              : "Upload Cover"}
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            className="hidden"
+            disabled={uploadingCover}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const allowedTypes = [
+                  "image/png",
+                  "image/jpeg",
+                  "image/jpg",
+                  "image/webp",
+                ];
+                if (!allowedTypes.includes(file.type)) {
+                  setImageMessage("Please select a PNG, JPG, or WEBP image");
+                  setTimeout(() => setImageMessage(""), 3000);
+                  return;
+                }
+
+                if (file.size > 5 * 1024 * 1024) {
+                  setImageMessage("Image must be less than 5MB");
+                  setTimeout(() => setImageMessage(""), 3000);
+                  return;
+                }
+
+                handleImageUpload(file, 'cover');
               }
             }}
           />

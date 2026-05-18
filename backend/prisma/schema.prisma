@@ -43,6 +43,7 @@ model Student {
   country   String?
   state     String?
   city      String?
+  timezone  String?
   address   String?
   zipcode   String?
   languagesSpoken String?
@@ -90,6 +91,9 @@ model Tutor {
   
   // Profile image
   profileImage String?
+  
+  // Cover image (banner)
+  coverImage String?
   
   // JTutors provisioned email (Google Workspace)
   jtutorsEmail String?

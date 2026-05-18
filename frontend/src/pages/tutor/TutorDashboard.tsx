@@ -58,7 +58,7 @@ const TutorDashboard = () => {
     { to: '/tutor/sessions', icon: '📚', label: 'My Sessions', desc: 'View booking requests and manage sessions', badge: stats.pendingRequests > 0 ? stats.pendingRequests : null },
     { to: '/tutor/profile', icon: '👤', label: 'My Profile', desc: 'Update your info, availability, and qualifications' },
     { to: '/tutor/earnings', icon: '💰', label: 'Earnings & Payouts', desc: 'Track your payment history and payouts' },
-    { to: '/tutor/courses', icon: '🎓', label: 'My Courses', desc: 'Manage your courses and enrolled students' },
+    { to: 'https://www.pencilspaces.com/post/getting-started-with-pencil-spaces-your-step-by-step-guide', icon: '🖊️', label: 'Pencil Spaces Guide', desc: 'Review the session classroom guide before meeting students', external: true },
   ]
 
   return (
@@ -113,10 +113,12 @@ const TutorDashboard = () => {
 
         {/* Quick links */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {quickLinks.map(({ to, icon, label, desc, badge }) => (
+          {quickLinks.map(({ to, icon, label, desc, badge, external }) => (
             <Link
               key={to}
               to={to}
+              target={external ? '_blank' : undefined}
+              rel={external ? 'noopener noreferrer' : undefined}
               className="group relative bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md hover:border-[#012c54]/30 transition-all duration-200"
             >
               {badge != null && (

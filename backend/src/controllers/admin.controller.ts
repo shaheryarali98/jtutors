@@ -262,6 +262,72 @@ export const updateUser = async (req: Request, res: Response) => {
   }
 };
 
+export const updateUserProfileImage = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { profileImage, profileType } = req.body as {
+      profileImage?: string;
+      profileType?: 'TUTOR' | 'STUDENT';
+    };
+
+    if (!profileImage || typeof profileImage !== 'string') {
+      return res.status(400).json({ error: 'A valid profileImage URL is required' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        tutor: { select: { id: true } },
+        student: { select: { id: true } },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const targetType: 'TUTOR' | 'STUDENT' =
+      profileType ?? (user.tutor ? 'TUTOR' : 'STUDENT');
+
+    if (targetType === 'TUTOR') {
+      if (!user.tutor) {
+        return res.status(400).json({ error: 'Tutor profile not found for this user' });
+      }
+
+      const updatedTutor = await prisma.tutor.update({
+        where: { id: user.tutor.id },
+        data: { profileImage },
+        select: { id: true, profileImage: true },
+      });
+
+      return res.json({
+        message: 'Tutor profile image updated successfully',
+        profileType: 'TUTOR',
+        profileImage: updatedTutor.profileImage,
+      });
+    }
+
+    if (!user.student) {
+      return res.status(400).json({ error: 'Student profile not found for this user' });
+    }
+
+    const updatedStudent = await prisma.student.update({
+      where: { id: user.student.id },
+      data: { profileImage },
+      select: { id: true, profileImage: true },
+    });
+
+    return res.json({
+      message: 'Student profile image updated successfully',
+      profileType: 'STUDENT',
+      profileImage: updatedStudent.profileImage,
+    });
+  } catch (error) {
+    console.error('Update user profile image error:', error);
+    res.status(500).json({ error: 'Error updating user profile image' });
+  }
+};
+
 export const deleteUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -698,6 +764,7 @@ export const getPublicTutors = async (req: Request, res: Response) => {
         firstName: tutor.firstName,
         lastName: tutor.lastName,
         profileImage: tutor.profileImage,
+        coverImage: tutor.coverImage,
         tagline: tutor.tagline,
         hourlyFee: tutor.hourlyFee,
         city: tutor.city,

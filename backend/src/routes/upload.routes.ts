@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { authenticate } from "../middleware/auth.middleware";
-import { uploadProfileImage } from "../controllers/upload.controller";
+import { uploadProfileImage, uploadCoverImage } from "../controllers/upload.controller";
 const router = express.Router();
 
 // Use memory storage — files go to Cloudinary, not disk
@@ -26,5 +26,6 @@ const upload = multer({
 router.use(authenticate);
 
 router.post("/profile-image", upload.single("image"), uploadProfileImage);
+router.post("/cover-image", upload.single("image"), uploadCoverImage);
 
 export default router;

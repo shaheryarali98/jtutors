@@ -48,8 +48,8 @@ const SavedInstructors = () => {
       const response = await api.get('/student/saved-instructors')
       setSavedTutors(response.data.savedTutors)
     } catch (err) {
-      console.error('Error fetching saved instructors:', err)
-      setError('Unable to load your saved instructors right now.')
+      console.error('Error fetching saved tutors:', err)
+      setError('Unable to load your saved tutors right now.')
     } finally {
       setLoading(false)
     }
@@ -59,11 +59,11 @@ const SavedInstructors = () => {
     try {
       await api.delete(`/student/saved-instructors/${tutorId}`)
       setSavedTutors((previous) => previous.filter((entry) => entry.tutorId !== tutorId))
-      setStatusMessage('Instructor removed from your saved list.')
+      setStatusMessage('Tutor removed from your saved list.')
       setTimeout(() => setStatusMessage(''), 3000)
     } catch (err) {
-      console.error('Error removing saved instructor:', err)
-      setError('Failed to remove instructor. Please try again.')
+      console.error('Error removing saved tutor:', err)
+      setError('Failed to remove tutor. Please try again.')
     }
   }
 
@@ -78,7 +78,7 @@ const SavedInstructors = () => {
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="bg-white rounded-3xl shadow p-6 mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">My Saved Instructors</h1>
+          <h1 className="text-3xl font-bold text-slate-900">My Saved Tutors</h1>
           <p className="text-slate-600 mt-2">
             Bookmark tutors you like and book them whenever you’re ready for a session.
           </p>
@@ -96,12 +96,12 @@ const SavedInstructors = () => {
 
         {loading ? (
           <div className="bg-white rounded-3xl shadow p-10 text-center text-slate-500">
-            Loading saved instructors…
+            Loading saved tutors…
           </div>
         ) : savedTutors.length === 0 ? (
           <div className="bg-white rounded-3xl shadow p-12 text-center">
             <div className="text-6xl mb-3">📚</div>
-            <h3 className="text-xl font-semibold text-slate-900">No saved instructors yet</h3>
+            <h3 className="text-xl font-semibold text-slate-900">No saved tutors yet</h3>
             <p className="text-slate-500 mt-2">
               Browse tutors on the dashboard and tap the bookmark icon to save your favourites.
             </p>

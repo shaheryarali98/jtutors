@@ -55,6 +55,13 @@ const StudentBookings = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [paymentFilter, setPaymentFilter] = useState('ALL')
+  const [timeFilter, setTimeFilter] = useState('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [showHidden, setShowHidden] = useState(false)
   const [payingId, setPayingId] = useState<string | null>(null)
   const [payErrors, setPayErrors] = useState<Record<string, string>>({})
   const [cancellingId, setCancellingId] = useState<string | null>(null)
@@ -150,23 +157,96 @@ const StudentBookings = () => {
     )
   }
 
-  const sortedBookings = useMemo(
-    () =>
-      [...bookings]
-        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
-        .filter(b => !dismissedIds.has(b.id)),
-    [bookings, dismissedIds]
+  const hasFilters = Boolean(
+    searchTerm ||
+    statusFilter !== 'ALL' ||
+    paymentFilter !== 'ALL' ||
+    timeFilter !== 'ALL' ||
+    dateFrom ||
+    dateTo ||
+    showHidden
   )
+
+  const filteredBookings = useMemo(() => {
+    const now = Date.now()
+    const searchLower = searchTerm.trim().toLowerCase()
+
+    return [...bookings]
+      .filter((booking) => {
+        if (!showHidden && dismissedIds.has(booking.id)) {
+          return false
+        }
+
+        const startMs = new Date(booking.startTime).getTime()
+        const paymentStatus = (booking.payment?.paymentStatus ?? 'PENDING').toUpperCase()
+        const tutorName = `${booking.tutor.firstName} ${booking.tutor.lastName}`.toLowerCase()
+        const tutorLocation = `${booking.tutor.city ?? ''} ${booking.tutor.state ?? ''} ${booking.tutor.country ?? ''}`.toLowerCase()
+
+        if (
+          searchLower &&
+          !tutorName.includes(searchLower) &&
+          !tutorLocation.includes(searchLower) &&
+          !booking.id.toLowerCase().includes(searchLower)
+        ) {
+          return false
+        }
+
+        if (statusFilter !== 'ALL' && booking.status !== statusFilter) {
+          return false
+        }
+
+        if (paymentFilter !== 'ALL' && paymentStatus !== paymentFilter) {
+          return false
+        }
+
+        if (timeFilter === 'UPCOMING' && startMs < now) {
+          return false
+        }
+
+        if (timeFilter === 'PAST' && startMs >= now) {
+          return false
+        }
+
+        if (dateFrom) {
+          const fromMs = new Date(`${dateFrom}T00:00:00`).getTime()
+          if (startMs < fromMs) {
+            return false
+          }
+        }
+
+        if (dateTo) {
+          const toMs = new Date(`${dateTo}T23:59:59`).getTime()
+          if (startMs > toMs) {
+            return false
+          }
+        }
+
+        return true
+      })
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+  }, [bookings, dateFrom, dateTo, dismissedIds, paymentFilter, searchTerm, showHidden, statusFilter, timeFilter])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-100">
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="bg-white rounded-3xl shadow p-6 mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">My Hires & Sessions</h1>
-          <p className="text-slate-600 mt-2">
-            Review upcoming and completed sessions, track approvals, and settle invoices using secure Stripe payments.
-          </p>
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">My Hires & Sessions</h1>
+              <p className="text-slate-600 mt-2">
+                Review upcoming and completed sessions, track approvals, and manage payment steps in one place.
+              </p>
+            </div>
+            <a
+              href="https://www.pencilspaces.com/post/getting-started-with-pencil-spaces-your-step-by-step-guide"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-[#012c54] hover:bg-slate-50"
+            >
+              Pencil Spaces Guide
+            </a>
+          </div>
         </div>
 
         {error && (
@@ -176,16 +256,96 @@ const StudentBookings = () => {
           <div className="bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-lg mb-4">{info}</div>
         )}
 
+        <div className="bg-white rounded-3xl shadow p-6 mb-8 space-y-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+            <div className="flex-1">
+              <label className="label">Search bookings</label>
+              <input
+                type="text"
+                className="input"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search by tutor name, location, or booking ID"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:flex-1">
+              <div>
+                <label className="label">Status</label>
+                <select className="input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                  <option value="ALL">All</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Payment</label>
+                <select className="input" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+                  <option value="ALL">All</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="PAID">Paid</option>
+                  <option value="REFUNDED">Refunded</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">When</label>
+                <select className="input" value={timeFilter} onChange={(event) => setTimeFilter(event.target.value)}>
+                  <option value="ALL">All</option>
+                  <option value="UPCOMING">Upcoming</option>
+                  <option value="PAST">Past</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">From</label>
+                <input type="date" className="input" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+              </div>
+              <div>
+                <label className="label">To</label>
+                <input type="date" className="input" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={showHidden} onChange={(event) => setShowHidden(event.target.checked)} />
+              Show hidden cancelled bookings
+            </label>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-slate-500">Showing {filteredBookings.length} of {bookings.length}</span>
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="font-semibold text-[#012c54] hover:underline"
+                  onClick={() => {
+                    setSearchTerm('')
+                    setStatusFilter('ALL')
+                    setPaymentFilter('ALL')
+                    setTimeFilter('ALL')
+                    setDateFrom('')
+                    setDateTo('')
+                    setShowHidden(false)
+                  }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {loading ? (
           <div className="bg-white rounded-3xl shadow p-10 text-center text-slate-500">
             Loading your bookings…
           </div>
-        ) : sortedBookings.length === 0 ? (
+        ) : filteredBookings.length === 0 ? (
           <div className="bg-white rounded-3xl shadow p-12 text-center">
             <div className="text-6xl mb-3">📅</div>
-            <h3 className="text-xl font-semibold text-slate-900">No hires yet</h3>
+            <h3 className="text-xl font-semibold text-slate-900">{bookings.length === 0 ? 'No hires yet' : 'No bookings match these filters'}</h3>
             <p className="text-slate-500 mt-2">
-              Once you hire a tutor, your sessions will appear here for easy tracking.
+              {bookings.length === 0
+                ? 'Once you hire a tutor, your sessions will appear here for easy tracking.'
+                : 'Try widening your search, date range, or status filters.'}
             </p>
             <Link to="/student/dashboard" className="btn btn-primary mt-6 inline-flex items-center justify-center">
               Find a tutor
@@ -193,7 +353,7 @@ const StudentBookings = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {sortedBookings.map((booking) => {
+            {filteredBookings.map((booking) => {
               const tutor = booking.tutor
               const start = new Date(booking.startTime)
               const end = new Date(booking.endTime)
@@ -395,10 +555,10 @@ const StudentBookings = () => {
                       </button>
                     )}
                     <Link
-                      to="/student/invoices"
+                      to="/student/wallet"
                       className="btn btn-outline inline-flex items-center justify-center md:w-auto"
                     >
-                      View invoices
+                      Open wallet
                     </Link>
                   </div>
                 </div>

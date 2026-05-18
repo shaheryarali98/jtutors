@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
+import { resolveImageUrl } from '../../lib/media'
 import { usePlatformSettings } from '../../store/settingsStore'
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
@@ -44,6 +45,25 @@ interface SavedCard {
   expYear: number
 }
 
+interface Invoice {
+  id: string
+  amount: number
+  currency: string
+  paymentStatus: string
+  paidAt?: string | null
+  createdAt: string
+  booking?: {
+    id: string
+    startTime: string
+    endTime: string
+    tutor?: {
+      firstName: string
+      lastName: string
+      profileImage?: string
+    } | null
+  } | null
+}
+
 const StudentWallet = () => {
   const [data, setData] = useState<WithdrawalResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -53,6 +73,7 @@ const StudentWallet = () => {
   const [withdrawing, setWithdrawing] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [savedCards, setSavedCards] = useState<SavedCard[]>([])
+  const [invoices, setInvoices] = useState<Invoice[]>([])
   const [showAddCard, setShowAddCard] = useState(false)
   const [setupClientSecret, setSetupClientSecret] = useState<string | null>(null)
   const [cardFeedback, setCardFeedback] = useState('')
@@ -77,12 +98,14 @@ const StudentWallet = () => {
     try {
       setLoading(true)
       setError('')
-      const [walletRes, cardsRes] = await Promise.all([
+      const [walletRes, cardsRes, invoicesRes] = await Promise.all([
         api.get<WithdrawalResponse>('/withdrawals/my'),
         api.get<{ paymentMethods: SavedCard[] }>('/student/payment-methods').catch(() => ({ data: { paymentMethods: [] } })),
+        api.get<{ payments: Invoice[] }>('/payments/my').catch(() => ({ data: { payments: [] } })),
       ])
       setData(walletRes.data)
       setSavedCards(cardsRes.data.paymentMethods ?? [])
+      setInvoices(Array.isArray(invoicesRes.data.payments) ? invoicesRes.data.payments : [])
     } catch (err) {
       console.error('Error loading wallet data:', err)
       setError('Unable to load wallet history right now.')
@@ -184,7 +207,7 @@ const StudentWallet = () => {
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">My Wallet</h1>
           <p className="text-slate-600 mt-2">
-            View your refundable credits and request payouts when you have available balance.
+            Review payments, invoices, saved cards, refunds, and wallet balances in one place.
           </p>
         </header>
 
@@ -270,6 +293,98 @@ const StudentWallet = () => {
                   </ul>
                 </div>
               </div>
+            </section>
+
+            <section className="bg-white rounded-3xl shadow p-6">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">Invoices &amp; bills</h2>
+                  <p className="text-sm text-slate-500">Your payment history for tutoring sessions.</p>
+                </div>
+              </div>
+
+              {invoices.length === 0 ? (
+                <p className="text-sm text-slate-500">No payment records yet. Completed session payments will appear here.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        <th className="px-4 py-3">Tutor</th>
+                        <th className="px-4 py-3">Session</th>
+                        <th className="px-4 py-3">Amount</th>
+                        <th className="px-4 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {invoices.map((invoice) => {
+                        const tutor = invoice.booking?.tutor ?? null
+                        const tutorFirst = tutor?.firstName ?? ''
+                        const tutorLast = tutor?.lastName ?? ''
+                        const avatar = resolveImageUrl(tutor?.profileImage || '')
+                        const status = (invoice.paymentStatus || 'PENDING').toUpperCase()
+
+                        return (
+                          <tr key={invoice.id}>
+                            <td className="px-4 py-3 text-slate-700">
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center text-xs font-semibold text-primary-600">
+                                  {avatar ? (
+                                    <img src={avatar} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    `${tutorFirst.charAt(0)}${tutorLast.charAt(0)}` || 'NA'
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-slate-900">
+                                    {tutorFirst || tutorLast ? `${tutorFirst} ${tutorLast}`.trim() : 'Tutor unavailable'}
+                                  </p>
+                                  <p className="text-xs text-slate-500">Invoice {invoice.id.slice(0, 10)}…</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {invoice.booking?.startTime ? (
+                                <div className="flex flex-col">
+                                  <span>{new Date(invoice.booking.startTime).toLocaleString()}</span>
+                                  {invoice.booking.endTime && (
+                                    <span className="text-xs text-slate-500">
+                                      Ends {new Date(invoice.booking.endTime).toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400 italic">No session linked</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-slate-900">
+                              {(invoice.currency || 'USD').toUpperCase()} {invoice.amount.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                  status === 'PAID'
+                                    ? 'bg-green-100 text-green-700'
+                                    : status === 'PENDING'
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {status}
+                              </span>
+                              {invoice.paidAt && (
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Paid {new Date(invoice.paidAt).toLocaleString()}
+                                </p>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
 
             <section className="bg-white rounded-3xl shadow p-6">

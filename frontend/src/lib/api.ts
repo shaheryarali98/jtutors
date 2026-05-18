@@ -22,9 +22,6 @@ if (import.meta.env.DEV) {
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
   timeout: 90000, // 90 second timeout (handles Render.com cold starts)
 })
 

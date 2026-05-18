@@ -17,7 +17,6 @@ import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
-import { usePlatformSettings } from '../../store/settingsStore'
 import BookTutorModal from '../../components/student/BookTutorModal'
 
 interface Tutor {
@@ -31,6 +30,7 @@ interface Tutor {
   country?: string
   gradesCanTeach?: string[]
   profileImage?: string
+  coverImage?: string
   subjects: Array<{
     subject: {
       name: string
@@ -56,15 +56,13 @@ const BrowseTutors = () => {
   const [errorMessage, setErrorMessage] = useState('')
   const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([])
   const [subjectsLoading, setSubjectsLoading] = useState(false)
-  const { settings, fetchSettings } = usePlatformSettings()
   const navigate = useNavigate()
 
   useEffect(() => {
-    fetchSettings()
     fetchTutors()
     // Load subjects asynchronously without blocking the page
     fetchSubjects()
-  }, [fetchSettings])
+  }, [])
 
   const fetchSubjects = async () => {
     try {
@@ -95,11 +93,7 @@ const BrowseTutors = () => {
       if (selectedGrade) queryParams.append('grade', selectedGrade)
       if (minFee) queryParams.append('minFee', minFee)
       if (maxFee) queryParams.append('maxFee', maxFee)
-      if (location) {
-        const parts = location.split(',').map((p) => p.trim())
-        if (parts[0]) queryParams.append('city', parts[0])
-        if (parts[1]) queryParams.append('state', parts[1])
-      }
+      if (location) queryParams.append('location', location.trim())
 
       const queryString = queryParams.toString()
       const url = `/student/tutors${queryString ? `?${queryString}` : ''}`
@@ -130,11 +124,11 @@ const BrowseTutors = () => {
         previous.map((item) => (item.id === tutor.id ? { ...item, saved: !tutor.saved } : item))
       )
       setStatusMessage(
-        tutor.saved ? 'Tutor removed from saved instructors.' : 'Tutor added to your saved instructors.'
+        tutor.saved ? 'Tutor removed from saved tutors.' : 'Tutor added to your saved tutors.'
       )
     } catch (error) {
       console.error('Error updating saved tutor:', error)
-      setErrorMessage('Unable to update saved instructors. Please try again.')
+      setErrorMessage('Unable to update saved tutors. Please try again.')
     } finally {
       setSavingTutorId(null)
       setTimeout(() => setStatusMessage(''), 3000)
@@ -233,9 +227,21 @@ const BrowseTutors = () => {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by name, subject, or location..."
+                placeholder="Search by name or subject..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-slate-200 focus:border-[#012c54] focus:outline-none transition-colors"
+              />
+            </div>
+
+            {/* Location Input */}
+            <div className="relative lg:w-64">
+              <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="City, state or country..."
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-slate-200 focus:border-[#012c54] focus:outline-none transition-colors"
               />
             </div>
@@ -251,9 +257,9 @@ const BrowseTutors = () => {
             >
               <Filter className="w-5 h-5" />
               Filters
-              {(selectedSubject || selectedGrade || minFee || maxFee || location) && (
+              {(selectedSubject || selectedGrade || minFee || maxFee) && (
                 <span className="bg-[#f5a11a] text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                  {[selectedSubject, selectedGrade, minFee, maxFee, location].filter(Boolean).length}
+                  {[selectedSubject, selectedGrade, minFee, maxFee].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -336,20 +342,6 @@ const BrowseTutors = () => {
                   />
                 </div>
 
-                {/* Location */}
-                <div className="md:col-span-2 lg:col-span-4">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    <MapPin className="w-4 h-4 inline mr-1" />
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="City, State or Country"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-[#012c54] focus:outline-none"
-                  />
-                </div>
               </div>
 
               {/* Clear Filters */}
@@ -415,7 +407,8 @@ const BrowseTutors = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             {filteredTutors.map((tutor, index) => {
-              const heroImage = resolveImageUrl(tutor.profileImage || settings?.defaultTutorImage || '')
+              const heroImage = resolveImageUrl(tutor.profileImage || '')
+              const coverImage = resolveImageUrl(tutor.coverImage || '')
               const initials = `${tutor.firstName?.charAt(0) ?? ''}${tutor.lastName?.charAt(0) ?? ''}` || 'JT'
               const isSaving = savingTutorId === tutor.id
 
@@ -428,32 +421,30 @@ const BrowseTutors = () => {
                   whileHover={{ y: -8, transition: { duration: 0.2 } }}
                   className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all overflow-hidden flex flex-col border border-slate-100"
                 >
-                  {/* Header Image */}
-                  <div className="relative h-40 bg-gradient-to-r from-[#012c54] via-[#014a7a] to-[#012c54]">
-                    {heroImage && (
-                      <img
-                        src={heroImage}
-                        alt={`${tutor.firstName} ${tutor.lastName}`}
-                        className="h-full w-full object-cover opacity-80"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  {/* Cover Banner Section */}
+                  <div className="h-40 bg-gradient-to-r from-[#012c54] via-indigo-700 to-slate-700 relative overflow-hidden">
+                    {coverImage ? (
+                      <img src={coverImage} alt="Cover" className="h-full w-full object-cover" />
+                    ) : null}
+                  </div>
 
+                  {/* Avatar Section */}
+                  <div className="relative -mt-16 pb-4 px-6 flex justify-center">
                     {/* Save Button */}
                     <button
                       onClick={() => handleSaveTutor(tutor)}
                       disabled={isSaving}
-                      className={`absolute top-4 right-4 rounded-full p-2.5 shadow-lg bg-white/90 backdrop-blur-sm transition-all hover:scale-110 ${tutor.saved ? 'text-[#f5a11a]' : 'text-slate-400 hover:text-[#f5a11a]'
+                      className={`absolute -top-8 right-4 rounded-full p-2.5 shadow-md bg-white transition-all hover:scale-110 ${tutor.saved ? 'text-[#f5a11a]' : 'text-slate-400 hover:text-[#f5a11a]'
                         }`}
                       aria-label={tutor.saved ? 'Remove from saved' : 'Save tutor'}
                     >
                       {tutor.saved ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
                     </button>
 
-                    {/* Profile Image/Avatar */}
-                    <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-2xl border-4 border-white shadow-xl bg-white overflow-hidden flex items-center justify-center text-2xl font-bold text-[#012c54]">
+                    {/* Circular Avatar */}
+                    <div className="h-28 w-28 rounded-full border-4 border-white shadow-xl overflow-hidden flex items-center justify-center text-2xl font-bold text-white bg-gradient-to-br from-[#012c54] to-[#014a7a]">
                       {heroImage ? (
-                        <img src={heroImage} alt={tutor.firstName} className="h-full w-full object-cover" />
+                        <img src={heroImage} alt={`${tutor.firstName} ${tutor.lastName}`} className="h-full w-full object-cover" />
                       ) : (
                         initials
                       )}
@@ -461,7 +452,7 @@ const BrowseTutors = () => {
                   </div>
 
                   {/* Content */}
-                  <div className="pt-14 px-6 pb-6 flex flex-col flex-1">
+                  <div className="pt-4 px-6 pb-6 flex flex-col flex-1">
                     {/* Name and Price */}
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex-1">

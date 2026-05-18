@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { faqs } from '../constants/faqs'
 import api from '../lib/api'
+import { resolveImageUrl } from '../lib/media'
 
 /*
 const categoryOptions = [
@@ -42,12 +43,12 @@ const featureHighlights = [
   {
     title: 'Flexible Learning Options',
     description:
-      'Choose online via Pencil Spaces, in-person with local tutors, or a hybrid approach — lessons that fit your schedule.',
+      'Choose online tutoring with our own virtual classroom, in-person with local tutors, or a hybrid approach, sessions that fit your schedule.',
   },
   {
-    title: 'Seamless Communication & Replay',
+    title: 'Virtual Classroom & Recorded Sessions',
     description:
-      'Pencil Spaces keeps students and tutors aligned, while recorded sessions support ongoing review.',
+      "Our virtual classroom offers online whiteboards, file sharing and records all sessions, supporting ongoing review and integration with the student's teacher.",
   },
   {
     title: 'All-in-One Scheduling',
@@ -96,6 +97,7 @@ interface PublicTutor {
   firstName: string | null
   lastName: string | null
   profileImage: string | null
+  coverImage: string | null
   tagline: string | null
   hourlyFee: number | null
   city: string | null
@@ -147,11 +149,13 @@ const HomePage = () => {
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 text-center">
             <div>
               <h1 className="mt-6 text-4xl sm:text-5xl lg:text-7xl font-black leading-tight">
-                Empowering Expert Tutors in the Jewish Community
+                JTutors: Connecting Jewish Tutors and Students
               </h1>
               <p className="mt-6 text-xl leading-relaxed text-white/90 max-w-3xl mx-auto">
-                Join our elite network of educators and professionals. JTutors provides the tools,
-                visibility, and support you need to build your tutoring practice effectively.
+                JTutors is an innovative tutoring platform that connects students with qualified tutors
+                for personalized learning, online or in person. Offering tutoring in all subjects with
+                interactive online classrooms, easy scheduling, and secure payments, JTutors makes
+                tutoring simple, flexible, and engaging.
               </p>
 
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -187,10 +191,7 @@ const HomePage = () => {
         {/* Platform Highlights */}
         <section className="bg-white py-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-black text-slate-900">Build Your Tutoring Career with JTutors</h2>
-            <p className="mt-4 text-lg text-slate-600">
-              The professional platform designed for high-impact educational growth.
-            </p>
+            <h2 className="text-3xl font-black text-slate-900">What makes JTutors so dynamic?</h2>
 
             <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
               {featureHighlights.map((feature) => (
@@ -241,17 +242,27 @@ const HomePage = () => {
               </div>
             ) : featuredTutors.length > 0 ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {featuredTutors.map((tutor) => (
+                {featuredTutors.map((tutor) => {
+                  const coverImage = resolveImageUrl(tutor.coverImage || '')
+                  const profileImage = resolveImageUrl(tutor.profileImage || '')
+                  return (
                   <div
                     key={tutor.id}
                     className="group rounded-3xl bg-white border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                   >
+                    {/* Cover Banner */}
+                    <div className="h-32 bg-gradient-to-r from-[#012c54] via-indigo-700 to-slate-700 relative overflow-hidden">
+                      {coverImage ? (
+                        <img src={coverImage} alt="Cover" className="h-full w-full object-cover" />
+                      ) : null}
+                    </div>
+
                     {/* Tutor Card */}
                     <div className="p-6 text-center">
                       {/* Avatar */}
-                      {tutor.profileImage ? (
+                      {profileImage ? (
                         <img
-                          src={tutor.profileImage}
+                          src={profileImage}
                           alt={`${tutor.firstName} ${tutor.lastName}`}
                           className="h-24 w-24 mx-auto rounded-full object-cover border-4 border-white shadow-lg group-hover:scale-105 transition-transform"
                         />
@@ -330,7 +341,8 @@ const HomePage = () => {
                       </Link>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div className="text-center py-12 rounded-3xl bg-white border border-slate-200">

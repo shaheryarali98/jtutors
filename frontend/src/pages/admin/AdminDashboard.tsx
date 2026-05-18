@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import api from '../../lib/api'
+import { resolveImageUrl } from '../../lib/media'
 import { UserRole } from '../../store/authStore'
 import {
   AlertTriangle,
@@ -628,6 +629,64 @@ const AdminDashboard = () => {
       setJtutorsEmailEditing(null)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update JTutors email.')
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
+
+  const handleUpdateProfileImage = async (
+    userId: string,
+    profileType: 'TUTOR' | 'STUDENT',
+    file: File
+  ) => {
+    try {
+      setUpdatingUserId(userId)
+      console.log('Uploading file:', file.name, file.size, file.type)
+
+      const formData = new FormData()
+      formData.append('image', file)
+      console.log('FormData created, sending to /uploads/profile-image')
+      const uploadRes = await api.post('/uploads/profile-image', formData)
+      console.log('Upload response:', uploadRes.data)
+
+      const imageUrl: string | undefined = uploadRes.data?.url
+      if (!imageUrl) {
+        throw new Error('Image upload did not return a URL')
+      }
+
+      await api.patch(`/admin/users/${userId}/profile-image`, {
+        profileType,
+        profileImage: imageUrl,
+      })
+
+      setSelectedUserDetail((prev) => {
+        if (!prev || prev.id !== userId) return prev
+
+        if (profileType === 'TUTOR' && prev.tutor) {
+          return {
+            ...prev,
+            tutor: {
+              ...prev.tutor,
+              profileImage: imageUrl,
+            },
+          }
+        }
+
+        if (profileType === 'STUDENT' && prev.student) {
+          return {
+            ...prev,
+            student: {
+              ...prev.student,
+              profileImage: imageUrl,
+            },
+          }
+        }
+
+        return prev
+      })
+    } catch (err: any) {
+      console.error('Error updating profile image:', err)
+      setError(err?.response?.data?.error || 'Failed to update profile image.')
     } finally {
       setUpdatingUserId(null)
     }
@@ -2335,6 +2394,9 @@ const AdminDashboard = () => {
                 onUpdateBgStatus={handleUpdateBackgroundCheckStatus}
                 updatingUserId={updatingUserId}
                 onSetJTutorsEmail={(tutorId, email) => handleSetJTutorsEmail(selectedUserDetail!.id, tutorId, email)}
+                onUpdateProfileImage={(profileType, file) =>
+                  handleUpdateProfileImage(selectedUserDetail!.id, profileType, file)
+                }
               />
             ) : null}
           </div>
@@ -2400,18 +2462,23 @@ const AdminDashboard = () => {
 }
 
 /* ── User Detail Panel ── */
-const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSetJTutorsEmail }: { user: DetailedUser; onClose: () => void; onUpdateBgStatus: (userId: string, status: string) => Promise<void>; updatingUserId: string | null; onSetJTutorsEmail: (tutorId: string, email: string) => Promise<void> }) => {
+const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSetJTutorsEmail, onUpdateProfileImage }: { user: DetailedUser; onClose: () => void; onUpdateBgStatus: (userId: string, status: string) => Promise<void>; updatingUserId: string | null; onSetJTutorsEmail: (tutorId: string, email: string) => Promise<void>; onUpdateProfileImage: (profileType: 'TUTOR' | 'STUDENT', file: File) => Promise<void> }) => {
   const tutor = user.tutor
   const student = user.student
   const bg = tutor?.backgroundCheck
+  const displayImage = resolveImageUrl(tutor?.profileImage || student?.profileImage || null)
+  const canUploadTutorImage = Boolean(tutor)
+  const canUploadStudentImage = Boolean(student)
+  const [selectedTutorPhoto, setSelectedTutorPhoto] = useState<File | null>(null)
+  const [selectedStudentPhoto, setSelectedStudentPhoto] = useState<File | null>(null)
 
   return (
     <div className="max-h-[85vh] overflow-y-auto">
       {/* Header */}
       <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 rounded-t-3xl flex items-center justify-between z-10">
         <div className="flex items-center gap-4">
-          {(tutor?.profileImage || student?.profileImage) ? (
-            <img src={tutor?.profileImage || student?.profileImage || ''} alt="" className="h-14 w-14 rounded-full object-cover border-2 border-slate-200" />
+          {displayImage ? (
+            <img src={displayImage} alt="" className="h-14 w-14 rounded-full object-cover border-2 border-slate-200" />
           ) : (
             <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xl">
               {(tutor?.firstName || student?.firstName || user.email)?.[0]?.toUpperCase() || '?'}
@@ -2429,6 +2496,69 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSe
                 user.role === 'TUTOR' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
               }`}>{user.role}</span>
               <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {canUploadTutorImage && (
+                <>
+                  <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
+                    Choose tutor photo
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null
+                        console.log('Tutor photo selected:', file?.name, file?.size, file?.type)
+                        setSelectedTutorPhoto(file)
+                        event.currentTarget.value = ''
+                      }}
+                      disabled={updatingUserId === user.id}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-[#012c54] text-white text-xs font-medium hover:bg-[#012c54]/90 disabled:opacity-50"
+                    disabled={updatingUserId === user.id || !selectedTutorPhoto}
+                    onClick={async () => {
+                      if (!selectedTutorPhoto) return
+                      await onUpdateProfileImage('TUTOR', selectedTutorPhoto)
+                      setSelectedTutorPhoto(null)
+                    }}
+                  >
+                    {updatingUserId === user.id ? 'Saving...' : 'Save tutor photo'}
+                  </button>
+                </>
+              )}
+              {canUploadStudentImage && (
+                <>
+                  <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
+                    Choose student photo
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null
+                        setSelectedStudentPhoto(file)
+                        event.currentTarget.value = ''
+                      }}
+                      disabled={updatingUserId === user.id}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-[#012c54] text-white text-xs font-medium hover:bg-[#012c54]/90 disabled:opacity-50"
+                    disabled={updatingUserId === user.id || !selectedStudentPhoto}
+                    onClick={async () => {
+                      if (!selectedStudentPhoto) return
+                      await onUpdateProfileImage('STUDENT', selectedStudentPhoto)
+                      setSelectedStudentPhoto(null)
+                    }}
+                  >
+                    {updatingUserId === user.id ? 'Saving...' : 'Save student photo'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

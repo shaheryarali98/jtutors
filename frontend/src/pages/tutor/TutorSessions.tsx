@@ -38,6 +38,13 @@ const TutorSessions = () => {
   const [sessions, setSessions] = useState<TutorSession[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [paymentFilter, setPaymentFilter] = useState('ALL')
+  const [timeFilter, setTimeFilter] = useState('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [showHidden, setShowHidden] = useState(false)
   const [completing, setCompleting] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
@@ -136,19 +143,88 @@ const TutorSessions = () => {
   const byNewest = (a: TutorSession, b: TutorSession) =>
     new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
 
+  const hasFilters = Boolean(
+    searchTerm ||
+    statusFilter !== 'ALL' ||
+    paymentFilter !== 'ALL' ||
+    timeFilter !== 'ALL' ||
+    dateFrom ||
+    dateTo ||
+    showHidden
+  )
+
+  const filteredSessions = useMemo(() => {
+    const now = Date.now()
+    const searchLower = searchTerm.trim().toLowerCase()
+
+    return sessions
+      .filter((session) => {
+        if (!showHidden && dismissedIds.has(session.id)) {
+          return false
+        }
+
+        const startMs = new Date(session.startTime).getTime()
+        const studentName = (session.studentName || '').toLowerCase()
+        const studentEmail = (session.studentEmail || '').toLowerCase()
+        const paymentStatus = (session.paymentStatus || 'PENDING').toUpperCase()
+
+        if (
+          searchLower &&
+          !studentName.includes(searchLower) &&
+          !studentEmail.includes(searchLower) &&
+          !session.id.toLowerCase().includes(searchLower)
+        ) {
+          return false
+        }
+
+        if (statusFilter !== 'ALL' && session.status !== statusFilter) {
+          return false
+        }
+
+        if (paymentFilter !== 'ALL' && paymentStatus !== paymentFilter) {
+          return false
+        }
+
+        if (timeFilter === 'UPCOMING' && startMs < now) {
+          return false
+        }
+
+        if (timeFilter === 'PAST' && startMs >= now) {
+          return false
+        }
+
+        if (dateFrom) {
+          const fromMs = new Date(`${dateFrom}T00:00:00`).getTime()
+          if (startMs < fromMs) {
+            return false
+          }
+        }
+
+        if (dateTo) {
+          const toMs = new Date(`${dateTo}T23:59:59`).getTime()
+          if (startMs > toMs) {
+            return false
+          }
+        }
+
+        return true
+      })
+      .sort(byNewest)
+  }, [dateFrom, dateTo, dismissedIds, paymentFilter, searchTerm, sessions, showHidden, statusFilter, timeFilter])
+
   const pendingRequests = useMemo(
-    () => sessions.filter((s) => s.status === 'PENDING').sort(byNewest),
-    [sessions]
+    () => filteredSessions.filter((s) => s.status === 'PENDING'),
+    [filteredSessions]
   )
 
   const activeSessions = useMemo(
-    () => sessions.filter((s) => s.status === 'CONFIRMED' || s.status === 'COMPLETED').sort(byNewest),
-    [sessions]
+    () => filteredSessions.filter((s) => s.status === 'CONFIRMED' || s.status === 'COMPLETED'),
+    [filteredSessions]
   )
 
   const cancelledSessions = useMemo(
-    () => sessions.filter((s) => s.status === 'CANCELLED' && !dismissedIds.has(s.id)).sort(byNewest),
-    [sessions, dismissedIds]
+    () => filteredSessions.filter((s) => s.status === 'CANCELLED'),
+    [filteredSessions]
   )
 
   const upcomingCount = useMemo(
@@ -299,10 +375,22 @@ const TutorSessions = () => {
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">My Sessions</h1>
-          <p className="text-slate-600 mt-2">
-            Manage booking requests, deliver sessions, and track your earnings.
-          </p>
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">My Sessions</h1>
+              <p className="text-slate-600 mt-2">
+                Manage booking requests, deliver sessions, and track your earnings.
+              </p>
+            </div>
+            <a
+              href="https://www.pencilspaces.com/post/getting-started-with-pencil-spaces-your-step-by-step-guide"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-[#012c54] hover:bg-slate-50"
+            >
+              Pencil Spaces Guide
+            </a>
+          </div>
         </header>
 
         <section className="grid gap-4 md:grid-cols-3 mb-8">
@@ -330,10 +418,90 @@ const TutorSessions = () => {
           <div className="mb-6 bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
         )}
 
+        <section className="mb-8 rounded-3xl bg-white p-6 shadow">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+            <div className="flex-1">
+              <label className="label">Search sessions</label>
+              <input
+                type="text"
+                className="input"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search by student name, email, or session ID"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:flex-1">
+              <div>
+                <label className="label">Status</label>
+                <select className="input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                  <option value="ALL">All</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Payment</label>
+                <select className="input" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+                  <option value="ALL">All</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="PAID">Paid</option>
+                  <option value="REFUNDED">Refunded</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">When</label>
+                <select className="input" value={timeFilter} onChange={(event) => setTimeFilter(event.target.value)}>
+                  <option value="ALL">All</option>
+                  <option value="UPCOMING">Upcoming</option>
+                  <option value="PAST">Past</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">From</label>
+                <input type="date" className="input" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+              </div>
+              <div>
+                <label className="label">To</label>
+                <input type="date" className="input" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={showHidden} onChange={(event) => setShowHidden(event.target.checked)} />
+              Show hidden cancelled sessions
+            </label>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-slate-500">Showing {filteredSessions.length} of {sessions.length}</span>
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="font-semibold text-[#012c54] hover:underline"
+                  onClick={() => {
+                    setSearchTerm('')
+                    setStatusFilter('ALL')
+                    setPaymentFilter('ALL')
+                    setTimeFilter('ALL')
+                    setDateFrom('')
+                    setDateTo('')
+                    setShowHidden(false)
+                  }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+
         {loading ? (
           <div className="bg-white rounded-3xl shadow p-10 text-center text-slate-500">Loading sessions…</div>
         ) : sessions.length === 0 ? (
           <div className="bg-white rounded-3xl shadow p-10 text-center text-slate-500">No sessions yet. New bookings will appear here.</div>
+        ) : filteredSessions.length === 0 ? (
+          <div className="bg-white rounded-3xl shadow p-10 text-center text-slate-500">No sessions match the current filters.</div>
         ) : (
           <div className="space-y-8">
             {/* Booking Requests — need tutor action */}

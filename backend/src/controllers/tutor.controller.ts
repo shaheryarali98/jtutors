@@ -120,6 +120,7 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
       zipcode,
       languagesSpoken,
       profileImage,
+      coverImage,
       timezone
     } = req.body;
 
@@ -190,6 +191,8 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
         timezone,
         // Only overwrite profileImage if a non-empty value is explicitly provided
         ...(profileImage ? { profileImage } : {}),
+        // Only overwrite coverImage if a non-empty value is explicitly provided
+        ...(coverImage ? { coverImage } : {}),
       }
     });
 
@@ -521,6 +524,86 @@ export const removeSubject = async (req: Request, res: Response) => {
   }
 };
 
+const parseTimeToMinutes = (value: string): number | null => {
+  const [hourText, minuteText] = value.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+};
+
+const minutesToTimeText = (minutes: number) => {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+const validateAvailabilityMath = (
+  startTime: string,
+  endTime: string,
+  sessionDuration: number,
+  breakTime: number
+): { ok: true; sessionsPerDay: number } | { ok: false; error: string; recommendation: string } => {
+  const startMinutes = parseTimeToMinutes(startTime);
+  const endMinutes = parseTimeToMinutes(endTime);
+
+  if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
+    return {
+      ok: false,
+      error: 'Invalid availability time window.',
+      recommendation: 'Use a valid HH:MM range where end time is later than start time.',
+    };
+  }
+
+  if (sessionDuration < 15 || sessionDuration > 90 || sessionDuration % 5 !== 0) {
+    return {
+      ok: false,
+      error: 'Session duration must be in 5-minute steps from 15 to 90.',
+      recommendation: 'Choose 15, 20, 25 ... up to 90 minutes.',
+    };
+  }
+
+  const blockDuration = endMinutes - startMinutes;
+  const interval = sessionDuration + breakTime;
+
+  if (interval <= 0) {
+    return {
+      ok: false,
+      error: 'Session duration and break time produce an invalid interval.',
+      recommendation: 'Use a positive session duration and non-negative break time.',
+    };
+  }
+
+  if (blockDuration < sessionDuration) {
+    return {
+      ok: false,
+      error: 'Time range is shorter than one session.',
+      recommendation: `Extend end time to at least ${minutesToTimeText(startMinutes + sessionDuration)}.`,
+    };
+  }
+
+  const sessionsPerDay = Math.floor((blockDuration + breakTime) / interval);
+  if (sessionsPerDay < 1) {
+    return {
+      ok: false,
+      error: 'No workable sessions fit in this time range.',
+      recommendation: 'Increase end time, reduce break time, or choose a shorter session duration.',
+    };
+  }
+
+  return { ok: true, sessionsPerDay };
+};
 export const addAvailability = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
@@ -531,7 +614,7 @@ export const addAvailability = async (req: Request, res: Response) => {
       endTime,
       breakTime,
       sessionDuration,
-      numberOfSlots
+      timezone,
     } = req.body;
 
     const tutor = await prisma.tutor.findUnique({
@@ -542,18 +625,77 @@ export const addAvailability = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Tutor profile not found' });
     }
 
+    const normalizedBlockTitle = typeof blockTitle === 'string' ? blockTitle.trim() : '';
+    const normalizedDays = Array.isArray(daysAvailable)
+      ? daysAvailable.filter((day) => typeof day === 'string' && day.trim().length > 0)
+      : [];
+    const normalizedStart = typeof startTime === 'string' ? startTime : '';
+    const normalizedEnd = typeof endTime === 'string' ? endTime : '';
+    const parsedBreakTime = Number(breakTime);
+    const parsedSessionDuration = Number(sessionDuration);
+
+    if (!normalizedBlockTitle) {
+      return res.status(400).json({ error: 'Block title is required' });
+    }
+
+    if (normalizedDays.length === 0) {
+      return res.status(400).json({ error: 'Select at least one day for this availability block' });
+    }
+
+    const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timePattern.test(normalizedStart) || !timePattern.test(normalizedEnd)) {
+      return res.status(400).json({ error: 'Start time and end time must be valid HH:MM values' });
+    }
+
+    if (normalizedEnd <= normalizedStart) {
+      return res.status(400).json({ error: 'End time must be after start time' });
+    }
+
+    if (!Number.isFinite(parsedBreakTime) || parsedBreakTime < 0) {
+      return res.status(400).json({ error: 'Break time must be a non-negative number' });
+    }
+
+    if (!Number.isFinite(parsedSessionDuration) || parsedSessionDuration <= 0) {
+      return res.status(400).json({ error: 'Session duration must be greater than 0 minutes' });
+    }
+
+    const slotMath = validateAvailabilityMath(
+      normalizedStart,
+      normalizedEnd,
+      Math.trunc(parsedSessionDuration),
+      Math.trunc(parsedBreakTime)
+    );
+
+    if (!slotMath.ok && 'error' in slotMath) {
+      return res.status(400).json({
+        error: slotMath.error,
+        recommendation: slotMath.recommendation,
+      });
+    }
+
     const availabilityRecord = await prisma.availability.create({
       data: {
         tutorId: tutor.id,
-        blockTitle,
-        daysAvailable: stringifyArray(daysAvailable) ?? JSON.stringify([]),
-        startTime,
-        endTime,
-        breakTime: parseInt(breakTime),
-        sessionDuration: parseInt(sessionDuration),
-        numberOfSlots: parseInt(numberOfSlots) || 1
+        blockTitle: normalizedBlockTitle,
+        daysAvailable: stringifyArray(normalizedDays) ?? JSON.stringify([]),
+        startTime: normalizedStart,
+        endTime: normalizedEnd,
+        breakTime: Math.trunc(parsedBreakTime),
+        sessionDuration: Math.trunc(parsedSessionDuration),
+        // Slot count is derived from time range + duration + break; keep single-booking capacity per generated slot.
+        numberOfSlots: 1
       }
     });
+
+    // Persist timezone from browser so slot generation works in the tutor's local time
+    if (typeof timezone === 'string' && timezone.trim()) {
+      try {
+        Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+        await prisma.tutor.update({ where: { id: tutor.id }, data: { timezone } });
+      } catch {
+        // invalid IANA tz string – silently ignore
+      }
+    }
 
     const completion = await calculateProfileCompletion(tutor.id);
     const formattedAvailability = {
@@ -583,7 +725,7 @@ export const updateAvailability = async (req: Request, res: Response) => {
       endTime,
       breakTime,
       sessionDuration,
-      numberOfSlots
+      timezone,
     } = req.body;
 
     const tutor = await prisma.tutor.findUnique({
@@ -594,18 +736,91 @@ export const updateAvailability = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Tutor profile not found' });
     }
 
+    const existingAvailability = await prisma.availability.findFirst({
+      where: {
+        id,
+        tutorId: tutor.id,
+      },
+    });
+
+    if (!existingAvailability) {
+      return res.status(404).json({ error: 'Availability block not found' });
+    }
+
+    const normalizedBlockTitle =
+      typeof blockTitle === 'string' ? blockTitle.trim() : existingAvailability.blockTitle;
+    const normalizedDays = Array.isArray(daysAvailable)
+      ? daysAvailable.filter((day) => typeof day === 'string' && day.trim().length > 0)
+      : parseStoredArray(existingAvailability.daysAvailable);
+    const normalizedStart = typeof startTime === 'string' ? startTime : existingAvailability.startTime;
+    const normalizedEnd = typeof endTime === 'string' ? endTime : existingAvailability.endTime;
+    const parsedBreakTime =
+      breakTime === undefined ? existingAvailability.breakTime : Number(breakTime);
+    const parsedSessionDuration =
+      sessionDuration === undefined ? existingAvailability.sessionDuration : Number(sessionDuration);
+
+    if (!normalizedBlockTitle) {
+      return res.status(400).json({ error: 'Block title is required' });
+    }
+
+    if (normalizedDays.length === 0) {
+      return res.status(400).json({ error: 'Select at least one day for this availability block' });
+    }
+
+    const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timePattern.test(normalizedStart) || !timePattern.test(normalizedEnd)) {
+      return res.status(400).json({ error: 'Start time and end time must be valid HH:MM values' });
+    }
+
+    if (normalizedEnd <= normalizedStart) {
+      return res.status(400).json({ error: 'End time must be after start time' });
+    }
+
+    if (!Number.isFinite(parsedBreakTime) || parsedBreakTime < 0) {
+      return res.status(400).json({ error: 'Break time must be a non-negative number' });
+    }
+
+    if (!Number.isFinite(parsedSessionDuration) || parsedSessionDuration <= 0) {
+      return res.status(400).json({ error: 'Session duration must be greater than 0 minutes' });
+    }
+
+    const slotMath = validateAvailabilityMath(
+      normalizedStart,
+      normalizedEnd,
+      Math.trunc(parsedSessionDuration),
+      Math.trunc(parsedBreakTime)
+    );
+
+    if (!slotMath.ok && 'error' in slotMath) {
+      return res.status(400).json({
+        error: slotMath.error,
+        recommendation: slotMath.recommendation,
+      });
+    }
+
     const availabilityRecord = await prisma.availability.update({
-      where: { id, tutorId: tutor.id },
+      where: { id },
       data: {
-        blockTitle,
-        daysAvailable: daysAvailable ? stringifyArray(daysAvailable) : undefined,
-        startTime,
-        endTime,
-        breakTime: breakTime ? parseInt(breakTime) : undefined,
-        sessionDuration: sessionDuration ? parseInt(sessionDuration) : undefined,
-        numberOfSlots: numberOfSlots ? parseInt(numberOfSlots) : undefined
+        blockTitle: normalizedBlockTitle,
+        daysAvailable: stringifyArray(normalizedDays),
+        startTime: normalizedStart,
+        endTime: normalizedEnd,
+        breakTime: Math.trunc(parsedBreakTime),
+        sessionDuration: Math.trunc(parsedSessionDuration),
+        // Slot count is derived from time range + duration + break; keep single-booking capacity per generated slot.
+        numberOfSlots: 1
       }
     });
+
+    // Persist timezone from browser so slot generation works in the tutor's local time
+    if (typeof timezone === 'string' && timezone.trim()) {
+      try {
+        Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+        await prisma.tutor.update({ where: { id: tutor.id }, data: { timezone } });
+      } catch {
+        // invalid IANA tz string – silently ignore
+      }
+    }
 
     res.json({
       message: 'Availability updated successfully',
@@ -633,8 +848,19 @@ export const deleteAvailability = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Tutor profile not found' });
     }
 
+    const existingAvailability = await prisma.availability.findFirst({
+      where: {
+        id,
+        tutorId: tutor.id,
+      },
+    });
+
+    if (!existingAvailability) {
+      return res.status(404).json({ error: 'Availability block not found' });
+    }
+
     await prisma.availability.delete({
-      where: { id, tutorId: tutor.id }
+      where: { id }
     });
 
     const completion = await calculateProfileCompletion(tutor.id);

@@ -33,6 +33,7 @@ interface Tutor {
   country: string
   gradesCanTeach: string[]
   profileImage?: string
+  coverImage?: string
   subjects: Array<{ subject: { name: string } }>
   saved?: boolean
 }
@@ -57,7 +58,7 @@ const StudentDashboard = () => {
   const [errorMessage, setErrorMessage] = useState('')
   const [stats, setStats] = useState<StudentStats>({ firstName: null, savedTutors: 0, bookings: 0, totalHours: 0 })
   const [unreadMessages, setUnreadMessages] = useState(0)
-  const { settings, fetchSettings } = usePlatformSettings()
+  const { fetchSettings } = usePlatformSettings()
 
   useEffect(() => {
     fetchSettings()
@@ -119,10 +120,10 @@ const StudentDashboard = () => {
         previous.map((item) => (item.id === tutor.id ? { ...item, saved: !tutor.saved } : item))
       )
       setStats((prev) => ({ ...prev, savedTutors: tutor.saved ? prev.savedTutors - 1 : prev.savedTutors + 1 }))
-      setStatusMessage(tutor.saved ? 'Removed from saved tutors.' : 'Saved to your instructors list.')
+      setStatusMessage(tutor.saved ? 'Removed from saved tutors.' : 'Saved to your tutors list.')
     } catch (error) {
       console.error('Error updating saved tutor:', error)
-      setErrorMessage('Unable to update saved instructors. Please try again.')
+      setErrorMessage('Unable to update saved tutors. Please try again.')
     } finally {
       setSavingTutorId(null)
       setTimeout(() => setStatusMessage(''), 3000)
@@ -235,7 +236,7 @@ const StudentDashboard = () => {
             </div>
             <div className="text-2xl font-bold text-slate-900">{stats.totalHours}</div>
             <div className="text-sm text-slate-500 mt-0.5 flex items-center justify-between">
-              Hours Tutored
+              Tutoring Hours
               <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </Link>
@@ -259,12 +260,29 @@ const StudentDashboard = () => {
           <Link to="/student/saved-instructors" className="flex items-center gap-2.5 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 text-sm font-medium text-slate-700 hover:shadow-md hover:text-[#012c54] transition-all">
             <Star className="w-4 h-4 text-yellow-500" /> Saved Tutors
           </Link>
-          <Link to="/student/messages" className="flex items-center gap-2.5 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 text-sm font-medium text-slate-700 hover:shadow-md hover:text-[#012c54] transition-all">
-            <MessageCircle className="w-4 h-4 text-sky-500" /> Messages
+          <Link to="/student/wallet" className="flex items-center gap-2.5 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 text-sm font-medium text-slate-700 hover:shadow-md hover:text-[#012c54] transition-all">
+            <BookmarkCheck className="w-4 h-4 text-emerald-500" /> My Wallet
           </Link>
           <Link to="/student/profile" className="flex items-center gap-2.5 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 text-sm font-medium text-slate-700 hover:shadow-md hover:text-[#012c54] transition-all">
-            <GraduationCap className="w-4 h-4 text-emerald-500" /> My Profile
+            <GraduationCap className="w-4 h-4 text-sky-500" /> Settings
           </Link>
+        </div>
+
+        <div className="mb-8 rounded-2xl border border-sky-100 bg-white p-5 shadow-sm flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">New to Pencil Spaces?</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Review the walkthrough before your first tutoring session so you know how the online classroom works.
+            </p>
+          </div>
+          <a
+            href="https://www.pencilspaces.com/post/getting-started-with-pencil-spaces-your-step-by-step-guide"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#012c54] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#023a70] transition-colors"
+          >
+            Open Pencil Spaces Guide
+          </a>
         </div>
 
         {/* Status messages */}
@@ -329,7 +347,8 @@ const StudentDashboard = () => {
         ) : (
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredTutors.map((tutor) => {
-              const heroImage = resolveImageUrl(tutor.profileImage || settings?.defaultTutorImage || '')
+              const heroImage = resolveImageUrl(tutor.profileImage || '')
+              const coverImage = resolveImageUrl(tutor.coverImage || '')
               const initials = `${tutor.firstName?.charAt(0) ?? ''}${tutor.lastName?.charAt(0) ?? ''}` || 'JT'
               const isSaving = savingTutorId === tutor.id
               const location = [tutor.city, tutor.state || tutor.country].filter(Boolean).join(', ')
@@ -338,10 +357,10 @@ const StudentDashboard = () => {
                 <div key={tutor.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 hover:shadow-lg transition-all overflow-hidden flex flex-col">
                   {/* Cover + avatar */}
                   <div className="relative">
-                    <div className="h-36 bg-gradient-to-r from-sky-100 via-indigo-50 to-slate-100">
-                      {heroImage && (
-                        <img src={heroImage} alt="" className="h-full w-full object-cover opacity-80" />
-                      )}
+                    <div className="h-36 bg-gradient-to-r from-[#012c54] via-indigo-700 to-slate-700 overflow-hidden">
+                      {coverImage ? (
+                        <img src={coverImage} alt="Cover" className="h-full w-full object-cover" />
+                      ) : null}
                     </div>
                     <button
                       onClick={() => handleSaveTutor(tutor)}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
@@ -18,6 +18,7 @@ interface StudentProfileForm {
   country: string
   state: string
   city: string
+  timezone: string
   zipcode: string
 }
 
@@ -55,6 +56,17 @@ const countryOptions = [
   'Other',
 ]
 
+const timezoneOptions: string[] =
+  typeof Intl !== 'undefined' && (Intl as any).supportedValuesOf
+    ? (Intl as any).supportedValuesOf('timeZone')
+    : [
+        'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+        'America/Toronto', 'America/Vancouver', 'America/Mexico_City', 'America/Sao_Paulo',
+        'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Madrid', 'Europe/Rome',
+        'Asia/Jerusalem', 'Asia/Dubai', 'Asia/Karachi', 'Asia/Kolkata', 'Asia/Singapore',
+        'Asia/Shanghai', 'Asia/Tokyo', 'Asia/Seoul', 'Australia/Sydney', 'Pacific/Auckland',
+      ]
+
 const StudentProfile = () => {
   const [showTermsModal, setShowTermsModal] = useState(false)
   const {
@@ -72,6 +84,7 @@ const StudentProfile = () => {
       country: '',
       state: '',
       city: '',
+      timezone: '',
       zipcode: '',
     },
   })
@@ -111,6 +124,7 @@ const StudentProfile = () => {
           setValue('country', student.country || '')
           setValue('state', student.state || '')
           setValue('city', student.city || '')
+          setValue('timezone', student.timezone || '')
           setValue('zipcode', student.zipcode || '')
           setProfileImage(student.profileImage || '')
           setProfileCompleted(Boolean(student.profileCompleted))
@@ -216,6 +230,7 @@ const StudentProfile = () => {
       if (!data.bio?.trim()) missingFields.push('Educational goals')
       if (!data.country) missingFields.push('Country')
       if (!data.city?.trim()) missingFields.push('City')
+      if (!data.timezone) missingFields.push('Timezone')
       if (!data.zipcode?.trim()) missingFields.push('Zipcode')
 
       if (missingFields.length > 0) {
@@ -232,6 +247,7 @@ const StudentProfile = () => {
         bio: data.bio,
         country: data.country,
         city: data.city,
+        timezone: data.timezone,
         zipcode: data.zipcode,
         languagesCount: sanitizedLanguages.length,
         preferencesCount: learningPreferences.length,
@@ -279,7 +295,7 @@ const StudentProfile = () => {
       <Navbar />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">Student Profile</h1>
+          <h1 className="text-3xl font-bold text-white">Student Settings</h1>
           <p className="text-white mt-2">
             Share more about yourself so tutors can tailor their sessions to your learning style.
           </p>
@@ -340,8 +356,29 @@ const StudentProfile = () => {
           {fetchingProfile ? (
             <div className="text-center text-slate-500 py-12">Loading your profile…</div>
           ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-              <section>
+            <form onSubmit={handleSubmit(onSubmit)} className="grid gap-8 lg:grid-cols-4">
+              <aside className="lg:col-span-1">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:sticky lg:top-24">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">Settings</h3>
+                  <div className="space-y-2">
+                    <a href="#basic-info" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white hover:text-[#012c54]">Basic information</a>
+                    <a href="#location-timezone" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white hover:text-[#012c54]">Location and timezone</a>
+                    <a href="#learning-settings" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white hover:text-[#012c54]">Languages and preferences</a>
+                    <a href="#terms-settings" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white hover:text-[#012c54]">Terms and conditions</a>
+                  </div>
+                  <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
+                    <Link to="/change-password" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white hover:text-[#012c54]">
+                      Change password
+                    </Link>
+                    <Link to="/student/wallet" className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white hover:text-[#012c54]">
+                      Open my wallet
+                    </Link>
+                  </div>
+                </div>
+              </aside>
+
+              <div className="space-y-8 lg:col-span-3">
+              <section id="basic-info">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Basic information</h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
@@ -398,7 +435,7 @@ const StudentProfile = () => {
                 </div>
               </section>
 
-              <section>
+              <section id="location-timezone">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">About you</h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
@@ -451,6 +488,21 @@ const StudentProfile = () => {
                     />
                     {errors.zipcode && <p className="error-text">{errors.zipcode.message}</p>}
                   </div>
+                  <div>
+                    <label className="label">Timezone *</label>
+                    <select
+                      className="input"
+                      {...register('timezone', { required: 'Timezone is required' })}
+                    >
+                      <option value="">Select timezone</option>
+                      {timezoneOptions.map((timezone) => (
+                        <option key={timezone} value={timezone}>
+                          {timezone.replace(/_/g, ' ')}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.timezone && <p className="error-text">{errors.timezone.message}</p>}
+                  </div>
                 </div>
                 <div className="mt-6">
                   <label className="label">Your educational goals *</label>
@@ -464,7 +516,7 @@ const StudentProfile = () => {
                 </div>
               </section>
 
-              <section className="space-y-6">
+              <section id="learning-settings" className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 mb-2">Languages *</h3>
                   <p className="text-sm text-slate-500 mb-2">
@@ -558,7 +610,7 @@ const StudentProfile = () => {
                 </div>
               </section>
 
-              <section className="space-y-6">
+              <section id="terms-settings" className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 mb-4">Terms and Conditions</h3>
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
@@ -611,6 +663,7 @@ const StudentProfile = () => {
                 <p className="text-sm text-slate-500">
                   Need to finish later? You can always return to update these details.
                 </p>
+              </div>
               </div>
             </form>
           )}

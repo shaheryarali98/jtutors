@@ -18,6 +18,7 @@ interface TutorDetail {
   state?: string
   city?: string
   profileImage?: string
+  coverImage?: string
   gradesCanTeach?: string[]
   languagesSpoken?: string[]
   experiences?: Array<{
@@ -56,7 +57,7 @@ const TutorDetailPage = () => {
   const [error, setError] = useState('')
   const [bookingModalOpen, setBookingModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-console.log("tutor details ,",tutor)
+
   const fetchTutor = async () => {
     if (!tutorId) return
     try {
@@ -122,6 +123,7 @@ console.log("tutor details ,",tutor)
   }
 
   const profileImage = resolveImageUrl(tutor.profileImage)
+  const coverImage = resolveImageUrl(tutor.coverImage)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-100">
@@ -133,10 +135,10 @@ console.log("tutor details ,",tutor)
         </a>
 
         <div className="bg-white rounded-3xl shadow overflow-hidden">
-          <div className="bg-gradient-to-r from-primary-300 via-indigo-200 to-slate-200 h-40 relative">
-            {profileImage && (
-              <img src={profileImage} alt={`${tutor.firstName}`} className="h-full w-full object-cover opacity-60" />
-            )}
+          <div className="h-56 relative overflow-hidden bg-gradient-to-r from-[#012c54] via-indigo-700 to-slate-700">
+            {coverImage ? (
+              <img src={coverImage} alt="Cover" className="h-full w-full object-cover" />
+            ) : null}
           </div>
           <div className="px-6 md:px-10 pb-10 -mt-16">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">

@@ -96,7 +96,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), handl
 // Body parsing middleware for all other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);

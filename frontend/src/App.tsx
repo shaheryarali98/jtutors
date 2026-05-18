@@ -13,7 +13,6 @@ import StudentDashboard from './pages/student/StudentDashboard'
 import StudentProfile from './pages/student/StudentProfile'
 import SavedInstructors from './pages/student/SavedInstructors'
 import StudentBookings from './pages/student/Bookings'
-import StudentInvoices from './pages/student/Invoices'
 import StudentHourLog from './pages/student/HourLog'
 import StudentWallet from './pages/student/StudentWallet'
 import TutorDetailPage from './pages/student/TutorDetail'
@@ -21,10 +20,6 @@ import BrowseTutors from './pages/student/BrowseTutors'
 import Messages from './pages/Messages'
 import StudentTutorRequests from './pages/student/TutorRequests'
 import BrowseStudentRequests from './pages/tutor/BrowseStudentRequests'
-import BrowseCourses from './pages/student/BrowseCourses'
-import MyCourses from './pages/student/MyCourses'
-import EnrollmentSuccess from './pages/student/EnrollmentSuccess'
-import CourseManager from './pages/tutor/CourseManager'
 import DevMockCheckout from './pages/DevMockCheckout'
 import HomePage from './pages/HomePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -96,11 +91,7 @@ function App() {
             <BrowseStudentRequests />
           </ProtectedRoute>
         } />
-        <Route path="/tutor/courses" element={
-          <ProtectedRoute role="TUTOR">
-            <CourseManager />
-          </ProtectedRoute>
-        } />
+        <Route path="/tutor/courses" element={<Navigate to="/tutor/dashboard" replace />} />
 
         {/* Student Routes */}
         <Route path="/student/dashboard" element={
@@ -128,11 +119,7 @@ function App() {
             <StudentBookings />
           </ProtectedRoute>
         } />
-        <Route path="/student/invoices" element={
-          <ProtectedRoute role="STUDENT">
-            <StudentInvoices />
-          </ProtectedRoute>
-        } />
+        <Route path="/student/invoices" element={<Navigate to="/student/wallet" replace />} />
         <Route path="/student/hour-log" element={
           <ProtectedRoute role="STUDENT">
             <StudentHourLog />
@@ -158,21 +145,9 @@ function App() {
             <StudentTutorRequests />
           </ProtectedRoute>
         } />
-        <Route path="/student/courses" element={
-          <ProtectedRoute role="STUDENT">
-            <BrowseCourses />
-          </ProtectedRoute>
-        } />
-        <Route path="/student/my-courses" element={
-          <ProtectedRoute role="STUDENT">
-            <MyCourses />
-          </ProtectedRoute>
-        } />
-        <Route path="/student/enrollment-success" element={
-          <ProtectedRoute role="STUDENT">
-            <EnrollmentSuccess />
-          </ProtectedRoute>
-        } />
+        <Route path="/student/courses" element={<Navigate to="/student/dashboard" replace />} />
+        <Route path="/student/my-courses" element={<Navigate to="/student/dashboard" replace />} />
+        <Route path="/student/enrollment-success" element={<Navigate to="/student/dashboard" replace />} />
 
         {/* Dev-mode mock checkout — no auth required, disabled text in prod */}
         <Route path="/dev/mock-checkout" element={<DevMockCheckout />} />
