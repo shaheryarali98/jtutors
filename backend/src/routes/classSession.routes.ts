@@ -11,6 +11,7 @@ import {
   getJoinUrlController,
   studentConfirmSessionController,
   createSpaceForSessionController,
+  createExtraTimeChargeRequestController,
 } from '../controllers/classSession.controller';
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.use(authenticate);
 
 router.post('/', createClassSessionController);
 router.post('/:id/complete', completeClassSessionController);
+router.post('/:id/extra-time-request', requireRole('TUTOR'), createExtraTimeChargeRequestController);
 router.post('/:id/student-confirm', requireRole('STUDENT'), studentConfirmSessionController);
 router.post('/:id/approve', requireRole('ADMIN'), approveClassSessionController);
 router.post('/:id/release-payment', requireRole('ADMIN'), releasePaymentController);

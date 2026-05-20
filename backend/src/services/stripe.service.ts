@@ -172,6 +172,7 @@ export const createEnrollmentCheckoutSession = async (options: {
 
   return stripe.checkout.sessions.create({
     mode: 'payment',
+    billing_address_collection: 'required',
     line_items: [
       {
         price_data: {
@@ -229,6 +230,7 @@ export const createBookingCheckoutSession = async (options: {
 
   return stripe.checkout.sessions.create({
     mode: 'payment',
+    billing_address_collection: 'required',
     line_items: [
       {
         price_data: {
@@ -262,6 +264,64 @@ export const createBookingCheckoutSession = async (options: {
       studentPaysCents:      String(breakdown.studentPaysCents),
       tutorPayoutCents:      String(breakdown.tutorPayoutCents),
       platformFeeCents:      String(breakdown.platformFeeCents),
+    },
+  });
+};
+
+export const createExtraTimeCheckoutSession = async (options: {
+  title: string;
+  description: string;
+  breakdown: PaymentBreakdown;
+  tutorStripeAccountId: string;
+  extraTimeChargeId: string;
+  bookingId: string;
+  classSessionId: string;
+  studentId: string;
+  tutorId: string;
+  successUrl: string;
+  cancelUrl: string;
+}): Promise<Stripe.Checkout.Session> => {
+  if (!stripe) throw new Error('Stripe is not configured');
+
+  const { breakdown } = options;
+
+  return stripe.checkout.sessions.create({
+    mode: 'payment',
+    billing_address_collection: 'required',
+    line_items: [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: options.title,
+            description: options.description,
+          },
+          unit_amount: breakdown.studentPaysCents,
+        },
+        quantity: 1,
+      },
+    ],
+    payment_intent_data: {
+      application_fee_amount: breakdown.platformFeeCents,
+      transfer_data: {
+        destination: options.tutorStripeAccountId,
+      },
+    },
+    success_url: options.successUrl,
+    cancel_url: options.cancelUrl,
+    metadata: {
+      extraTimeChargeId: options.extraTimeChargeId,
+      bookingId: options.bookingId,
+      classSessionId: options.classSessionId,
+      studentId: options.studentId,
+      tutorId: options.tutorId,
+      basePriceCents: String(breakdown.basePriceCents),
+      studentFeeCents: String(breakdown.studentFeeCents),
+      adminCommissionCents: String(breakdown.adminCommissionCents),
+      tutorDeductionCents: String(breakdown.tutorDeductionCents),
+      studentPaysCents: String(breakdown.studentPaysCents),
+      tutorPayoutCents: String(breakdown.tutorPayoutCents),
+      platformFeeCents: String(breakdown.platformFeeCents),
     },
   });
 };

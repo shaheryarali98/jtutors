@@ -40,6 +40,13 @@ interface Booking {
     paymentStatus: string
     paidAt?: string | null
   } | null
+  extraTimeCharge?: {
+    id: string
+    status: string
+    extraHours: number
+    studentChargeAmount: number
+    requestedAt: string
+  } | null
 }
 
 const formatter = new Intl.DateTimeFormat(undefined, {
@@ -64,6 +71,7 @@ const StudentBookings = () => {
   const [showHidden, setShowHidden] = useState(false)
   const [payingId, setPayingId] = useState<string | null>(null)
   const [payErrors, setPayErrors] = useState<Record<string, string>>({})
+  const [extraAmountInputs, setExtraAmountInputs] = useState<Record<string, string>>({})
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [searchParams, setSearchParams] = useSearchParams()
@@ -91,6 +99,10 @@ const StudentBookings = () => {
       setInfo('Payment successful! Your booking is confirmed.')
       searchParams.delete('paid'); searchParams.delete('session_id')
       setSearchParams(searchParams, { replace: true })
+    } else if (searchParams.get('extra_paid') === '1') {
+      setInfo('Extra-time payment successful!')
+      searchParams.delete('extra_paid'); searchParams.delete('session_id')
+      setSearchParams(searchParams, { replace: true })
     } else if (searchParams.get('cancelled') === '1') {
       setInfo('Payment was cancelled. You can try again anytime.')
       searchParams.delete('cancelled')
@@ -98,6 +110,20 @@ const StudentBookings = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    setExtraAmountInputs((prev) => {
+      const next = { ...prev }
+      for (const booking of bookings) {
+        const charge = booking.extraTimeCharge
+        if (!charge || charge.status !== 'PENDING') continue
+        if (!next[charge.id]) {
+          next[charge.id] = charge.studentChargeAmount.toFixed(2)
+        }
+      }
+      return next
+    })
+  }, [bookings])
 
   const handlePayNow = async (booking: Booking) => {
     setError(''); setInfo('')
@@ -120,6 +146,40 @@ const StudentBookings = () => {
 
   const handleDismiss = (bookingId: string) => {
     setDismissedIds(prev => new Set([...prev, bookingId]))
+  }
+
+  const handlePayExtraTime = async (booking: Booking) => {
+    if (!booking.extraTimeCharge) return
+
+    const inputValue = (extraAmountInputs[booking.extraTimeCharge.id] ?? booking.extraTimeCharge.studentChargeAmount.toFixed(2)).trim()
+    const amount = Number(inputValue)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPayErrors(prev => ({ ...prev, [booking.extraTimeCharge!.id]: 'Please enter a valid amount greater than 0.' }))
+      return
+    }
+
+    setError('')
+    setInfo('')
+    setPayErrors(prev => {
+      const next = { ...prev }
+      delete next[booking.extraTimeCharge!.id]
+      return next
+    })
+    setPayingId(booking.extraTimeCharge.id)
+
+    try {
+      const response = await api.post(`/payments/extra-time/${booking.extraTimeCharge.id}/checkout`, { amount })
+      if (response.data?.url) {
+        window.location.href = response.data.url
+        return
+      }
+      setPayErrors(prev => ({ ...prev, [booking.extraTimeCharge!.id]: 'Unable to start extra-time checkout.' }))
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Unable to pay extra-time request right now.'
+      setPayErrors(prev => ({ ...prev, [booking.extraTimeCharge!.id]: msg }))
+    } finally {
+      setPayingId(null)
+    }
   }
 
   const handleJoinSpace = (pencilSpaceUrl: string) => {
@@ -358,6 +418,7 @@ const StudentBookings = () => {
               const start = new Date(booking.startTime)
               const end = new Date(booking.endTime)
               const needsPayment = booking.status === 'CONFIRMED' && (!booking.payment || booking.payment.paymentStatus !== 'PAID')
+              const hasPendingExtraTime = booking.extraTimeCharge?.status === 'PENDING'
               const amountDue =
                 booking.payment?.amount ??
                 Math.max(1, Math.round((booking.durationHours || 1) * tutor.hourlyFee * 100) / 100)
@@ -424,6 +485,11 @@ const StudentBookings = () => {
                       {booking.payment?.paidAt && (
                         <p className="text-xs text-slate-400 mt-1">
                           Paid on {formatter.format(new Date(booking.payment.paidAt))}
+                        </p>
+                      )}
+                      {booking.extraTimeCharge && (
+                        <p className={`text-xs mt-1 ${booking.extraTimeCharge.status === 'PAID' ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                          Extra-time request: {booking.extraTimeCharge.status}
                         </p>
                       )}
                     </div>
@@ -539,6 +605,59 @@ const StudentBookings = () => {
                           {payErrors[booking.id] && (
                             <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 max-w-xs">
                               ⚠️ {payErrors[booking.id]}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    {hasPendingExtraTime && booking.extraTimeCharge && (
+                      <>
+                        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm text-indigo-900 space-y-2 md:self-center">
+                          <div className="flex justify-between gap-6">
+                            <span>Extra hours</span>
+                            <span className="font-medium">{booking.extraTimeCharge.extraHours.toFixed(2)}h</span>
+                          </div>
+                          <div className="flex justify-between gap-6">
+                            <span>Suggested amount</span>
+                            <span className="font-semibold">${booking.extraTimeCharge.studentChargeAmount.toFixed(2)}</span>
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Pay amount (USD)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="input mt-1"
+                              value={extraAmountInputs[booking.extraTimeCharge.id] ?? booking.extraTimeCharge.studentChargeAmount.toFixed(2)}
+                              onChange={(event) => {
+                                const value = event.target.value
+                                setExtraAmountInputs((prev) => ({
+                                  ...prev,
+                                  [booking.extraTimeCharge!.id]: value,
+                                }))
+                                setPayErrors((prev) => {
+                                  const next = { ...prev }
+                                  delete next[booking.extraTimeCharge!.id]
+                                  return next
+                                })
+                              }}
+                              placeholder="Enter any amount"
+                            />
+                            <p className="text-xs text-indigo-700 mt-1">You can enter any amount you want to pay.</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 md:self-center">
+                          <button
+                            type="button"
+                            className="btn btn-primary inline-flex items-center justify-center gap-2 md:w-auto disabled:opacity-60"
+                            onClick={() => handlePayExtraTime(booking)}
+                            disabled={payingId === booking.extraTimeCharge.id}
+                          >
+                            {payingId === booking.extraTimeCharge.id ? 'Redirecting…' : 'Pay Extra Time'}
+                          </button>
+                          {payErrors[booking.extraTimeCharge.id] && (
+                            <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 max-w-xs">
+                              ⚠️ {payErrors[booking.extraTimeCharge.id]}
                             </p>
                           )}
                         </div>

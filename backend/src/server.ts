@@ -23,6 +23,7 @@ import { handleStripeWebhook } from './controllers/stripe.webhook.controller';
 import { initializeDefaultTemplates } from './services/emailTemplate.service';
 import { startCronJobs } from './services/cron.service';
 import { PrismaClient } from '@prisma/client';
+import { getPublicTutorDetails, getPublicTutors } from './controllers/admin.controller';
 
 dotenv.config();
 
@@ -49,6 +50,35 @@ async function ensureProductionColumns() {
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "adminCommissionAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "tutorDeductionAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "studentChargeAmount" DOUBLE PRECISION`);
+    await _patchPrisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ExtraTimeCharge" (
+        "id" TEXT NOT NULL,
+        "bookingId" TEXT NOT NULL,
+        "classSessionId" TEXT NOT NULL,
+        "studentId" TEXT NOT NULL,
+        "tutorId" TEXT NOT NULL,
+        "scheduledHours" DOUBLE PRECISION NOT NULL,
+        "actualHours" DOUBLE PRECISION NOT NULL,
+        "extraHours" DOUBLE PRECISION NOT NULL,
+        "baseAmount" DOUBLE PRECISION NOT NULL,
+        "studentFeeAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "adminCommissionAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "tutorAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "studentChargeAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "stripeCheckoutSessionId" TEXT,
+        "stripePaymentIntentId" TEXT,
+        "stripeChargeId" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'PENDING',
+        "paidAt" TIMESTAMP(3),
+        "requestedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "ExtraTimeCharge_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await _patchPrisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ExtraTimeCharge_classSessionId_key" ON "ExtraTimeCharge"("classSessionId")`);
+    await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExtraTimeCharge_studentId_status_idx" ON "ExtraTimeCharge"("studentId", "status")`);
+    await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExtraTimeCharge_tutorId_status_idx" ON "ExtraTimeCharge"("tutorId", "status")`);
+    await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExtraTimeCharge_bookingId_idx" ON "ExtraTimeCharge"("bookingId")`);
     console.log('✅ DB columns verified/patched');
   } catch (err: any) {
     console.error('⚠️ Column patch error (non-fatal):', err.message);
@@ -125,8 +155,31 @@ if (process.env.NODE_ENV !== 'production' && process.env.DEV_BYPASS_STRIPE === '
 }
 
 // Public API: approved tutors (no auth required)
-import { getPublicTutors } from './controllers/admin.controller';
-app.get('/api/public/tutors', getPublicTutors);
+const publicTutorHits = new Map<string, { count: number; resetAt: number }>();
+const PUBLIC_TUTOR_WINDOW_MS = 60_000;
+const PUBLIC_TUTOR_MAX_REQUESTS = 180;
+
+const publicTutorRateLimit: express.RequestHandler = (req, res, next) => {
+  const now = Date.now();
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const entry = publicTutorHits.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    publicTutorHits.set(ip, { count: 1, resetAt: now + PUBLIC_TUTOR_WINDOW_MS });
+    return next();
+  }
+
+  if (entry.count >= PUBLIC_TUTOR_MAX_REQUESTS) {
+    return res.status(429).json({ error: 'Too many public tutor requests. Please try again shortly.' });
+  }
+
+  entry.count += 1;
+  publicTutorHits.set(ip, entry);
+  return next();
+};
+
+app.get('/api/public/tutors', publicTutorRateLimit, getPublicTutors);
+app.get('/api/public/tutors/:tutorId', publicTutorRateLimit, getPublicTutorDetails);
 
 // Health check (both paths — /health and /api/health for frontend warm-up pings)
 app.get('/health', (_req, res) => {

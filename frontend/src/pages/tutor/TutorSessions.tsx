@@ -25,6 +25,12 @@ interface TutorSession {
     pencilSpaceId?: string | null
     pencilSpaceUrl?: string | null
   } | null
+  extraTimeCharge?: {
+    id: string
+    status: string
+    extraHours: number
+    studentChargeAmount: number
+  } | null
 }
 
 const statusColors: Record<string, string> = {
@@ -32,6 +38,12 @@ const statusColors: Record<string, string> = {
   CONFIRMED: 'bg-blue-100 text-blue-700',
   COMPLETED: 'bg-green-100 text-green-700',
   CANCELLED: 'bg-red-100 text-red-700',
+}
+
+type ActualHoursModalState = {
+  mode: 'complete' | 'extra'
+  classSessionId: string
+  scheduledHours: number
 }
 
 const TutorSessions = () => {
@@ -49,9 +61,16 @@ const TutorSessions = () => {
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [decliningId, setDecliningId] = useState<string | null>(null)
+  const [requestingExtraId, setRequestingExtraId] = useState<string | null>(null)
   const [actionMsg, setActionMsg] = useState('')
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [creatingSpaceId, setCreatingSpaceId] = useState<string | null>(null)
+  const [actualHoursModal, setActualHoursModal] = useState<ActualHoursModalState | null>(null)
+  const [actualHoursInput, setActualHoursInput] = useState('')
+  const [actualHoursModalError, setActualHoursModalError] = useState('')
+
+  const allowEarlyCompleteForTesting =
+    import.meta.env.DEV || import.meta.env.VITE_ALLOW_EARLY_SESSION_COMPLETE === 'true'
 
   const fetchSessions = async () => {
     try {
@@ -96,16 +115,98 @@ const TutorSessions = () => {
     }
   }
 
-  const handleMarkComplete = async (classSessionId: string) => {
-    setCompleting(classSessionId); setActionMsg(''); setError('')
+  const handleOpenCompleteModal = (classSessionId: string, scheduledHours: number) => {
+    setActionMsg('')
+    setError('')
+    setActualHoursModalError('')
+    setActualHoursInput(scheduledHours.toFixed(2))
+    setActualHoursModal({ mode: 'complete', classSessionId, scheduledHours })
+  }
+
+  const handleOpenExtraTimeModal = (session: TutorSession) => {
+    if (!session.classSession) return
+
+    setActionMsg('')
+    setError('')
+    setActualHoursModalError('')
+    setActualHoursInput(session.durationHours.toFixed(2))
+    setActualHoursModal({
+      mode: 'extra',
+      classSessionId: session.classSession.id,
+      scheduledHours: session.durationHours,
+    })
+  }
+
+  const closeActualHoursModal = () => {
+    if (!actualHoursModal) return
+    const isSubmitting =
+      (actualHoursModal.mode === 'complete' && completing === actualHoursModal.classSessionId) ||
+      (actualHoursModal.mode === 'extra' && requestingExtraId === actualHoursModal.classSessionId)
+
+    if (isSubmitting) return
+
+    setActualHoursModal(null)
+    setActualHoursModalError('')
+    setActualHoursInput('')
+  }
+
+  const handleSubmitActualHours = async () => {
+    if (!actualHoursModal) return
+
+    const trimmed = actualHoursInput.trim()
+    const parsedActualHours =
+      trimmed.length > 0 ? Number(trimmed) : actualHoursModal.mode === 'complete' ? actualHoursModal.scheduledHours : NaN
+
+    if (!Number.isFinite(parsedActualHours) || parsedActualHours <= 0) {
+      setActualHoursModalError('Actual hours must be a valid number greater than 0.')
+      return
+    }
+
+    if (actualHoursModal.mode === 'extra' && parsedActualHours <= actualHoursModal.scheduledHours) {
+      setActualHoursModalError('Actual hours must be greater than scheduled hours to request extra payment.')
+      return
+    }
+
+    setActualHoursModalError('')
+
+    if (actualHoursModal.mode === 'complete') {
+      setCompleting(actualHoursModal.classSessionId)
+      setActionMsg('')
+      setError('')
+      try {
+        await api.post(`/class-sessions/${actualHoursModal.classSessionId}/complete`, {
+          actualHoursTaught: parsedActualHours,
+        })
+
+        setActionMsg('Session marked complete. Payment will be released to you in 48 hours unless the student files a dispute.')
+        setActualHoursModal(null)
+        setActualHoursInput('')
+        await fetchSessions()
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Failed to mark session as complete.')
+      } finally {
+        setCompleting(null)
+      }
+      return
+    }
+
+    setRequestingExtraId(actualHoursModal.classSessionId)
+    setActionMsg('')
+    setError('')
+
     try {
-      await api.post(`/class-sessions/${classSessionId}/complete`, {})
-      setActionMsg('Session marked complete. Payment will be released to you in 48 hours unless the student files a dispute.')
+      const response = await api.post(`/class-sessions/${actualHoursModal.classSessionId}/extra-time-request`, {
+        actualHoursTaught: parsedActualHours,
+      })
+
+      setActionMsg(response.data?.message || 'Extra-time request sent to the student.')
+      setActualHoursModal(null)
+      setActualHoursInput('')
       await fetchSessions()
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to mark session as complete.')
+      setError(err.response?.data?.error || 'Failed to create extra-time request.')
     } finally {
-      setCompleting(null)
+      setRequestingExtraId(null)
     }
   }
 
@@ -272,6 +373,15 @@ const TutorSessions = () => {
                   : ' in 48h'}
               </span>
             )}
+            {session.extraTimeCharge && (
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                session.extraTimeCharge.status === 'PAID'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-indigo-100 text-indigo-700'
+              }`}>
+                Extra time {session.extraTimeCharge.status} · ${session.extraTimeCharge.studentChargeAmount.toFixed(2)}
+              </span>
+            )}
           </div>
         </div>
         {/* Join links — only shown for confirmed/active sessions */}
@@ -330,20 +440,23 @@ const TutorSessions = () => {
           const sessionEndTime = new Date(session.endTime)
           const now = new Date()
           const sessionEnded = now >= sessionEndTime
+          const canMarkComplete = sessionEnded || allowEarlyCompleteForTesting
           return (
             <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-3 items-start">
               <div>
                 <button
                   type="button"
-                  disabled={completing === session.classSession.id || !sessionEnded}
-                  onClick={() => handleMarkComplete(session.classSession!.id)}
+                  disabled={completing === session.classSession.id || !canMarkComplete}
+                  onClick={() => handleOpenCompleteModal(session.classSession!.id, session.durationHours)}
                   className="inline-flex items-center gap-2 bg-[#012c54] hover:bg-[#023a70] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {completing === session.classSession.id ? 'Processing…' : 'Mark Session as Complete'}
                 </button>
                 <p className="text-xs text-slate-500 mt-1">
-                  {!sessionEnded 
-                    ? `Session must end before marking complete (ends ${sessionEndTime.toLocaleString()})` 
+                  {!canMarkComplete
+                    ? `Session must end before marking complete (ends ${sessionEndTime.toLocaleString()})`
+                    : !sessionEnded
+                    ? `Testing mode enabled: you can mark complete before end time (scheduled end ${sessionEndTime.toLocaleString()}).`
                     : 'Marks the session as done and releases payment to you.'}
                 </p>
               </div>
@@ -358,6 +471,25 @@ const TutorSessions = () => {
             </div>
           )
         })()}
+
+      {session.classSession?.status === 'COMPLETED' &&
+        session.classSession.tutorApproved &&
+        !session.extraTimeCharge &&
+        !session.classSession.paymentReleased && (
+        <div className="pt-2 border-t border-slate-200">
+          <button
+            type="button"
+            disabled={requestingExtraId === session.classSession.id}
+            onClick={() => handleOpenExtraTimeModal(session)}
+            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
+          >
+            {requestingExtraId === session.classSession.id ? 'Submitting…' : 'Request Extra Time Payment'}
+          </button>
+          <p className="text-xs text-slate-500 mt-1">
+            Use this if actual class time exceeded the booked slot.
+          </p>
+        </div>
+      )}
 
       {session.classSession?.paymentReleased && (
         <p className="text-xs text-emerald-600 pt-1">✓ Payment released to your account.</p>
@@ -581,6 +713,77 @@ const TutorSessions = () => {
                 </div>
               </section>
             )}
+          </div>
+        )}
+
+        {actualHoursModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <button
+              type="button"
+              aria-label="Close actual hours dialog"
+              onClick={closeActualHoursModal}
+              className="absolute inset-0 bg-slate-900/40"
+            />
+            <div className="relative w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-2xl p-5">
+              <h3 className="text-lg font-semibold text-slate-900">
+                {actualHoursModal.mode === 'complete' ? 'Mark Session as Complete' : 'Request Extra Time Payment'}
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Scheduled hours: {actualHoursModal.scheduledHours.toFixed(2)}
+              </p>
+
+              <label className="label mt-4">Actual hours taught</label>
+              <input
+                type="number"
+                min={0.01}
+                step="0.01"
+                className="input"
+                value={actualHoursInput}
+                onChange={(event) => {
+                  setActualHoursInput(event.target.value)
+                  if (actualHoursModalError) {
+                    setActualHoursModalError('')
+                  }
+                }}
+                placeholder={actualHoursModal.scheduledHours.toFixed(2)}
+              />
+
+              {actualHoursModal.mode === 'extra' && (
+                <p className="text-xs text-slate-500 mt-2">
+                  Enter a value greater than {actualHoursModal.scheduledHours.toFixed(2)} to create an extra-time charge.
+                </p>
+              )}
+
+              {actualHoursModalError && (
+                <p className="text-sm text-rose-600 mt-3">{actualHoursModalError}</p>
+              )}
+
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeActualHoursModal}
+                  className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitActualHours}
+                  disabled={
+                    (actualHoursModal.mode === 'complete' && completing === actualHoursModal.classSessionId) ||
+                    (actualHoursModal.mode === 'extra' && requestingExtraId === actualHoursModal.classSessionId)
+                  }
+                  className="px-4 py-2 rounded-lg bg-[#012c54] text-white text-sm font-semibold hover:bg-[#023a70] disabled:opacity-60"
+                >
+                  {(actualHoursModal.mode === 'complete' && completing === actualHoursModal.classSessionId) ||
+                  (actualHoursModal.mode === 'extra' && requestingExtraId === actualHoursModal.classSessionId)
+                    ? 'Saving...'
+                    : actualHoursModal.mode === 'complete'
+                    ? 'Mark Complete'
+                    : 'Send Request'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>

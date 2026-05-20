@@ -6,6 +6,7 @@ import { confirmPayment, markPaymentRefunded } from '../services/payment.service
 import { getGoogleClassroomStatus } from '../services/googleClassroom.service';
 import { calculateProfileCompletion } from './tutor.controller';
 import { stripe } from '../services/stripe.service';
+import { formatTutor } from '../utils/formatters';
 
 const prisma = new PrismaClient();
 
@@ -604,6 +605,48 @@ export const getPaymentsAdmin = async (req: Request, res: Response) => {
   }
 };
 
+export const getExtraTimeChargesAdmin = async (_req: Request, res: Response) => {
+  try {
+    const charges = await prisma.extraTimeCharge.findMany({
+      orderBy: { requestedAt: 'desc' },
+      include: {
+        booking: {
+          include: {
+            student: { include: { user: true } },
+            tutor: { include: { user: true } },
+          },
+        },
+      },
+    });
+
+    res.json({
+      extraTimeCharges: charges.map((charge) => ({
+        id: charge.id,
+        bookingId: charge.bookingId,
+        classSessionId: charge.classSessionId,
+        status: charge.status,
+        scheduledHours: charge.scheduledHours,
+        actualHours: charge.actualHours,
+        extraHours: charge.extraHours,
+        baseAmount: charge.baseAmount,
+        studentChargeAmount: charge.studentChargeAmount,
+        studentFeeAmount: charge.studentFeeAmount,
+        adminCommissionAmount: charge.adminCommissionAmount,
+        tutorAmount: charge.tutorAmount,
+        stripeCheckoutSessionId: charge.stripeCheckoutSessionId,
+        stripePaymentIntentId: charge.stripePaymentIntentId,
+        paidAt: charge.paidAt,
+        requestedAt: charge.requestedAt,
+        studentEmail: charge.booking?.student?.user.email || null,
+        tutorEmail: charge.booking?.tutor?.user.email || null,
+      })),
+    });
+  } catch (error) {
+    console.error('Get extra-time charges admin error:', error);
+    res.status(500).json({ error: 'Error fetching extra-time charges' });
+  }
+};
+
 export const confirmPaymentAdmin = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -724,7 +767,8 @@ export const getUserDetail = async (req: Request, res: Response) => {
 
 export const getPublicTutors = async (req: Request, res: Response) => {
   try {
-    const { subject, city, state, country, limit } = req.query;
+    const { subject, city, state, country, location, minFee, maxFee, grade, limit } = req.query;
+    const safeLimit = Math.min(50, Math.max(1, parseInt((limit as string) || '12', 10) || 12));
 
     const tutors = await prisma.tutor.findMany({
       where: {
@@ -732,9 +776,19 @@ export const getPublicTutors = async (req: Request, res: Response) => {
         backgroundCheck: {
           status: 'APPROVED',
         },
+        ...(minFee && { hourlyFee: { gte: parseFloat(minFee as string) } }),
+        ...(maxFee && { hourlyFee: { lte: parseFloat(maxFee as string) } }),
+        ...(grade && { gradesCanTeach: { contains: `"${grade}"` } }),
         ...(city && { city: city as string }),
         ...(state && { state: state as string }),
         ...(country && { country: country as string }),
+        ...(location && {
+          OR: [
+            { city: { contains: location as string } },
+            { state: { contains: location as string } },
+            { country: { contains: location as string } },
+          ],
+        }),
         ...(subject && {
           subjects: {
             some: {
@@ -750,7 +804,7 @@ export const getPublicTutors = async (req: Request, res: Response) => {
         user: { select: { email: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: limit ? parseInt(limit as string) : 12,
+      take: safeLimit,
     });
 
     const formatted = tutors.map((tutor) => {
@@ -782,6 +836,46 @@ export const getPublicTutors = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get public tutors error:', error);
     res.status(500).json({ error: 'Error fetching tutors' });
+  }
+};
+
+export const getPublicTutorDetails = async (req: Request, res: Response) => {
+  try {
+    const { tutorId } = req.params;
+
+    const tutor = await prisma.tutor.findFirst({
+      where: {
+        id: tutorId,
+        user: { emailConfirmed: true },
+        backgroundCheck: {
+          status: 'APPROVED',
+        },
+      },
+      include: {
+        subjects: {
+          include: {
+            subject: true,
+          },
+        },
+        experiences: true,
+        educations: true,
+        availabilities: true,
+      },
+    });
+
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor not found' });
+    }
+
+    res.json({
+      tutor: {
+        ...(formatTutor(tutor as any) as any),
+        saved: false,
+      },
+    });
+  } catch (error) {
+    console.error('Get public tutor detail error:', error);
+    res.status(500).json({ error: 'Error fetching tutor details' });
   }
 };
 

@@ -265,6 +265,27 @@ interface AdminPayment {
   stripeCheckoutSessionId?: string | null
 }
 
+interface AdminExtraTimeCharge {
+  id: string
+  bookingId: string
+  classSessionId: string
+  status: string
+  scheduledHours: number
+  actualHours: number
+  extraHours: number
+  baseAmount: number
+  studentChargeAmount: number
+  studentFeeAmount: number
+  adminCommissionAmount: number
+  tutorAmount: number
+  stripeCheckoutSessionId?: string | null
+  stripePaymentIntentId?: string | null
+  paidAt?: string | null
+  requestedAt: string
+  studentEmail: string | null
+  tutorEmail: string | null
+}
+
 interface SubjectItem {
   id: string
   name: string
@@ -309,6 +330,7 @@ const AdminDashboard = () => {
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([])
   const [bookings, setBookings] = useState<AdminBooking[]>([])
   const [payments, setPayments] = useState<AdminPayment[]>([])
+  const [extraTimeCharges, setExtraTimeCharges] = useState<AdminExtraTimeCharge[]>([])
   const [subjects, setSubjects] = useState<SubjectItem[]>([])
   const [googleStatus, setGoogleStatus] = useState<GoogleStatus | null>(null)
   const [adminCourses, setAdminCourses] = useState<any[]>([])
@@ -341,12 +363,13 @@ const AdminDashboard = () => {
       try {
         setLoading(true)
         setError('')
-        const [analyticsRes, settingsRes, usersRes, bookingsRes, paymentsRes, subjectsRes] = await Promise.all([
+        const [analyticsRes, settingsRes, usersRes, bookingsRes, paymentsRes, extraTimeRes, subjectsRes] = await Promise.all([
           api.get<AnalyticsPayload>('/admin/analytics'),
           api.get<{ settings: AdminSettings }>('/admin/settings'),
           api.get<{ users: AdminUser[] }>('/admin/users'),
           api.get<{ bookings: AdminBooking[] }>('/admin/bookings'),
           api.get<{ payments: AdminPayment[] }>('/admin/payments'),
+          api.get<{ extraTimeCharges: AdminExtraTimeCharge[] }>('/admin/extra-time-charges'),
           api.get<{ subjects: SubjectItem[] }>('/subjects'),
         ])
 
@@ -355,6 +378,7 @@ const AdminDashboard = () => {
         setUsers(usersRes.data.users)
         setBookings(bookingsRes.data.bookings)
         setPayments(paymentsRes.data.payments)
+        setExtraTimeCharges(extraTimeRes.data.extraTimeCharges || [])
         setSubjects(subjectsRes.data.subjects)
       } catch (err) {
         console.error('Error loading admin dashboard:', err)
@@ -442,12 +466,14 @@ const AdminDashboard = () => {
 
   const loadHires = async () => {
     try {
-      const [bookingsRes, paymentsRes] = await Promise.all([
+      const [bookingsRes, paymentsRes, extraTimeRes] = await Promise.all([
         api.get<{ bookings: AdminBooking[] }>('/admin/bookings'),
         api.get<{ payments: AdminPayment[] }>('/admin/payments'),
+        api.get<{ extraTimeCharges: AdminExtraTimeCharge[] }>('/admin/extra-time-charges'),
       ])
       setBookings(bookingsRes.data.bookings)
       setPayments(paymentsRes.data.payments)
+      setExtraTimeCharges(extraTimeRes.data.extraTimeCharges || [])
     } catch (err) {
       console.error('Error loading hires data:', err)
       setError('Unable to refresh hires data. Please try again.')
@@ -1151,6 +1177,54 @@ const AdminDashboard = () => {
                           <tr>
                             <td colSpan={10} className="px-4 py-6 text-center text-slate-500 text-sm">
                               No payments found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl shadow p-6">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-slate-900">Extra Time Payments</h2>
+                    <p className="text-sm text-slate-500">Monitor extra-time requests sent by tutors and paid by students.</p>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200 text-sm">
+                      <thead className="bg-slate-50">
+                        <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          <th className="px-4 py-3">Student</th>
+                          <th className="px-4 py-3">Tutor</th>
+                          <th className="px-4 py-3">Hours</th>
+                          <th className="px-4 py-3">Base</th>
+                          <th className="px-4 py-3">Student Pays</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Requested</th>
+                          <th className="px-4 py-3">Paid</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {extraTimeCharges.map((charge) => (
+                          <tr key={charge.id} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-3 text-slate-600">{charge.studentEmail || '—'}</td>
+                            <td className="px-4 py-3 text-slate-600">{charge.tutorEmail || '—'}</td>
+                            <td className="px-4 py-3 text-slate-600">
+                              <div>Scheduled {charge.scheduledHours.toFixed(2)}h</div>
+                              <div className="text-xs text-slate-500">Actual {charge.actualHours.toFixed(2)}h (+{charge.extraHours.toFixed(2)}h)</div>
+                            </td>
+                            <td className="px-4 py-3 text-slate-700 font-medium">${charge.baseAmount.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-slate-900 font-semibold">${charge.studentChargeAmount.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-slate-600">{charge.status}</td>
+                            <td className="px-4 py-3 text-slate-500">{new Date(charge.requestedAt).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-slate-500">{charge.paidAt ? new Date(charge.paidAt).toLocaleString() : '—'}</td>
+                          </tr>
+                        ))}
+                        {extraTimeCharges.length === 0 && (
+                          <tr>
+                            <td colSpan={8} className="px-4 py-6 text-center text-slate-500 text-sm">
+                              No extra-time charges found.
                             </td>
                           </tr>
                         )}

@@ -67,6 +67,7 @@ model Student {
   conversations Conversation[]
   tutorRequests TutorRequest[]
   enrollments   Enrollment[]
+  extraTimeCharges ExtraTimeCharge[]
 }
 
 model Tutor {
@@ -127,6 +128,7 @@ model Tutor {
   savedByStudents  StudentSavedTutor[]
   conversations    Conversation[]
   courses          Course[]
+  extraTimeCharges ExtraTimeCharge[]
 }
 
 model Experience {
@@ -257,6 +259,7 @@ model Booking {
   // Relations
   classSession ClassSession?
   payment      Payment?
+  extraTimeCharges ExtraTimeCharge[]
 }
 
 model ClassSession {
@@ -285,9 +288,47 @@ model ClassSession {
   paymentReleasedAt DateTime?
   
   notes       String?
+
+  extraTimeCharge ExtraTimeCharge?
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model ExtraTimeCharge {
+  id            String   @id @default(uuid())
+  bookingId     String
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  classSessionId String  @unique
+  classSession  ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutorId       String
+  tutor         Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  scheduledHours Float
+  actualHours    Float
+  extraHours     Float
+  baseAmount     Float
+
+  studentFeeAmount      Float @default(0)
+  adminCommissionAmount Float @default(0)
+  tutorAmount           Float @default(0)
+  studentChargeAmount   Float @default(0)
+
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId   String?
+  stripeChargeId          String?
+  status                  String @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
+  paidAt                  DateTime?
+
+  requestedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([studentId, status])
+  @@index([tutorId, status])
+  @@index([bookingId])
 }
 
 model Payment {

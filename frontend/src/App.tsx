@@ -59,6 +59,8 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/browse-tutors" element={<BrowseTutors />} />
+        <Route path="/tutors/:tutorId" element={<TutorDetailPage />} />
 
         {/* Tutor Routes */}
         <Route path="/tutor/dashboard" element={

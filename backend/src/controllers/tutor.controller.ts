@@ -7,6 +7,7 @@ import { sendEmail } from '../services/email.service';
 import { sendTemplatedEmail } from '../services/emailTemplate.service';
 import { getWalletSummary } from '../services/wallet.service';
 import { stripe } from '../services/stripe.service';
+import { toStripeCountryCode } from '../utils/country';
 
 const prisma = new PrismaClient();
 
@@ -157,7 +158,14 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
     }
 
     const tutor = await prisma.tutor.findUnique({
-      where: { userId }
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
     });
 
     if (!tutor) {
@@ -1009,7 +1017,14 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
     const userId = req.user!.userId;
 
     const tutor = await prisma.tutor.findUnique({
-      where: { userId }
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
     });
 
     if (!tutor) {
@@ -1020,8 +1035,11 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
 
     // Create Stripe Connect account if doesn't exist
     if (!accountId) {
+      const stripeCountry = toStripeCountryCode(tutor.country);
       const account = await stripe.accounts.create({
         type: 'express',
+        email: tutor.user.email,
+        ...(stripeCountry ? { country: stripeCountry } : {}),
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true }
@@ -1189,6 +1207,10 @@ export const getTutorSessions = async (req: Request, res: Response) => {
         student: { include: { user: true } },
         payment: true,
         classSession: true,
+        extraTimeCharges: {
+          orderBy: { requestedAt: 'desc' },
+          take: 1,
+        },
       },
     });
 
@@ -1219,6 +1241,14 @@ export const getTutorSessions = async (req: Request, res: Response) => {
               pencilSpaceUrl: booking.classSession.pencilSpaceUrl,
               studentConfirmed: booking.classSession.studentConfirmed,
               autoReleaseAt: booking.classSession.autoReleaseAt,
+            }
+          : null,
+        extraTimeCharge: booking.extraTimeCharges[0]
+          ? {
+              id: booking.extraTimeCharges[0].id,
+              status: booking.extraTimeCharges[0].status,
+              extraHours: booking.extraTimeCharges[0].extraHours,
+              studentChargeAmount: booking.extraTimeCharges[0].studentChargeAmount,
             }
           : null,
       };

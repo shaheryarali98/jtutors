@@ -13,7 +13,9 @@
     "start:migrate": "node scripts/ensure-columns.js && node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:safe": "node scripts/prisma-migrate-safe.js",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:sync:local": "node scripts/set-prisma-provider.js && prisma db push --skip-generate",
     "prisma:studio": "prisma studio"
   },
   "prisma": {

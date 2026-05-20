@@ -112,7 +112,7 @@ interface PublicTutor {
 
 const HomePage = () => {
   const { user } = useAuthStore()
-  const browseTutorsUrl = user?.role === 'STUDENT' ? '/student/browse-tutors' : '/register?role=student'
+  const browseTutorsUrl = '/browse-tutors'
   const [openFAQIndex, setOpenFAQIndex] = useState<number | null>(null)
   const [featuredTutors, setFeaturedTutors] = useState<PublicTutor[]>([])
   const [loadingTutors, setLoadingTutors] = useState(true)

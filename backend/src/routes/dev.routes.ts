@@ -69,4 +69,30 @@ router.post('/confirm-payment', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/dev/confirm-extra-time  { extraTimeChargeId }
+// Marks extra-time request PAID instantly
+router.post('/confirm-extra-time', async (req: Request, res: Response) => {
+  const { extraTimeChargeId } = req.body as { extraTimeChargeId: string };
+  if (!extraTimeChargeId) return res.status(400).json({ error: 'extraTimeChargeId is required' });
+
+  try {
+    const extraTimeCharge = await prisma.extraTimeCharge.findUnique({ where: { id: extraTimeChargeId } });
+    if (!extraTimeCharge) return res.status(404).json({ error: 'Extra-time request not found' });
+    if (extraTimeCharge.status === 'PAID') return res.json({ ok: true, already: true });
+
+    const updated = await prisma.extraTimeCharge.update({
+      where: { id: extraTimeChargeId },
+      data: {
+        status: 'PAID',
+        stripePaymentIntentId: 'dev_bypass',
+        paidAt: new Date(),
+      },
+    });
+
+    return res.json({ ok: true, extraTimeCharge: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

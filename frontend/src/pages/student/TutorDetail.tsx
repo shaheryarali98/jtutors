@@ -6,6 +6,7 @@ import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import BookTutorModal from '../../components/student/BookTutorModal'
+import { useAuthStore } from '../../store/authStore'
 
 interface TutorDetail {
   id: string
@@ -50,6 +51,8 @@ interface TutorDetail {
 }
 
 const TutorDetailPage = () => {
+  const { user } = useAuthStore()
+  const isStudent = user?.role === 'STUDENT'
   const { tutorId } = useParams()
   const navigate = useNavigate()
   const [tutor, setTutor] = useState<TutorDetail | null>(null)
@@ -62,7 +65,8 @@ const TutorDetailPage = () => {
     if (!tutorId) return
     try {
       setLoading(true)
-      const response = await api.get(`/student/tutors/${tutorId}`)
+      const endpoint = isStudent ? `/student/tutors/${tutorId}` : `/public/tutors/${tutorId}`
+      const response = await api.get(endpoint)
       setTutor(response.data.tutor)
     } catch (err) {
       console.error('Error fetching tutor details:', err)
@@ -74,9 +78,14 @@ const TutorDetailPage = () => {
 
   useEffect(() => {
     fetchTutor()
-  }, [tutorId])
+  }, [tutorId, isStudent])
 
   const handleToggleSaved = async () => {
+    if (!isStudent) {
+      navigate('/login')
+      return
+    }
+
     if (!tutor) return
     try {
       setSaving(true)
@@ -129,9 +138,9 @@ const TutorDetailPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-100">
       <Navbar />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-        <a href="/student/dashboard" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
+        <a href="/browse-tutors" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
           <ArrowLeft size={16} />
-          Back to tutors
+          Back to browse
         </a>
 
         <div className="bg-white rounded-3xl shadow overflow-hidden">
@@ -178,15 +187,20 @@ const TutorDetailPage = () => {
                   <button
                     type="button"
                     className="btn btn-primary inline-flex items-center gap-2"
-                    onClick={() => setBookingModalOpen(true)}
+                    onClick={() => (isStudent ? setBookingModalOpen(true) : navigate('/login'))}
                   >
                     <CalendarPlus size={18} />
-                    Hire this tutor
+                    {isStudent ? 'Hire this tutor' : 'Login to hire'}
                   </button>
                   <button
                     type="button"
                     className="btn btn-secondary inline-flex items-center gap-2"
                     onClick={async () => {
+                      if (!isStudent) {
+                        navigate('/login')
+                        return
+                      }
+
                       try {
                         await api.post('/messages/conversations', { tutorId: tutor!.id })
                         navigate('/student/messages')
@@ -205,7 +219,7 @@ const TutorDetailPage = () => {
                     disabled={saving}
                   >
                     {tutor.saved ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
-                    {tutor.saved ? 'Saved' : 'Save tutor'}
+                    {tutor.saved ? 'Saved' : isStudent ? 'Save tutor' : 'Login to save'}
                   </button>
                 </div>
               </div>

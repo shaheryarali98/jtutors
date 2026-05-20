@@ -43,19 +43,6 @@ const gradeOptions = [
 
 const learningLocationOptions = ['public place', "Student's home", 'Online']
 
-const countryOptions = [
-  'United States',
-  'Canada',
-  'United Kingdom',
-  'Australia',
-  'India',
-  'Singapore',
-  'United Arab Emirates',
-  'Nigeria',
-  'South Africa',
-  'Other',
-]
-
 const timezoneOptions: string[] =
   typeof Intl !== 'undefined' && (Intl as any).supportedValuesOf
     ? (Intl as any).supportedValuesOf('timeZone')
@@ -231,7 +218,7 @@ const StudentProfile = () => {
       if (!data.country) missingFields.push('Country')
       if (!data.city?.trim()) missingFields.push('City')
       if (!data.timezone) missingFields.push('Timezone')
-      if (!data.zipcode?.trim()) missingFields.push('Zipcode')
+      if (!data.zipcode?.trim()) missingFields.push('Postal code')
 
       if (missingFields.length > 0) {
         setValidationError(`Missing required fields: ${missingFields.join(', ')}`)
@@ -452,17 +439,12 @@ const StudentProfile = () => {
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
                   <div>
                     <label className="label">Country *</label>
-                    <select
+                    <input
+                      type="text"
                       className="input"
+                      placeholder="Enter your country"
                       {...register('country', { required: 'Please choose your country' })}
-                    >
-                      <option value="">Choose country</option>
-                      {countryOptions.map((country) => (
-                        <option key={country} value={country}>
-                          {country}
-                        </option>
-                      ))}
-                    </select>
+                    />
                     {errors.country && <p className="error-text">{errors.country.message}</p>}
                   </div>
                   {settings?.stateFieldEnabled !== false && (
@@ -479,12 +461,12 @@ const StudentProfile = () => {
                 </div>
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
                   <div>
-                    <label className="label">Zipcode *</label>
+                    <label className="label">Postal code *</label>
                     <input
                       type="text"
                       className="input"
-                      placeholder="Enter zipcode"
-                      {...register('zipcode', { required: 'Zipcode is required' })}
+                      placeholder="Enter postal code"
+                      {...register('zipcode', { required: 'Postal code is required' })}
                     />
                     {errors.zipcode && <p className="error-text">{errors.zipcode.message}</p>}
                   </div>

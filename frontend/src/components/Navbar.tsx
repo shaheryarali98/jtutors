@@ -31,7 +31,7 @@ const Navbar = () => {
     { to: '/our-team', label: 'Our Team' },
     { to: '/how-it-works-for-tutors', label: 'How it Works For Tutors' },
     { to: '/how-it-works-for-students', label: 'How it Works For Students' },
-    ...(user?.role === 'STUDENT' ? [{ to: '/student/browse-tutors', label: 'Browse Tutors' }] : []),
+    { to: '/browse-tutors', label: 'Browse Tutors' },
   ]
 
   // Role-specific links for dropdowns ONLY (guest has NO links here)

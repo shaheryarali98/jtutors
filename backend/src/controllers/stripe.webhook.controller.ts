@@ -98,6 +98,26 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   // Booking checkout — save breakdown fields from session metadata
+  if (meta.extraTimeChargeId) {
+    try {
+      await prisma.extraTimeCharge.update({
+        where: { id: meta.extraTimeChargeId },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          stripeCheckoutSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId || undefined,
+        },
+      });
+      console.log(`[Stripe Webhook] Extra-time charge confirmed: ${meta.extraTimeChargeId}`);
+    } catch (error: any) {
+      console.error(`[Stripe Webhook] Error confirming extra-time charge ${meta.extraTimeChargeId}:`, error);
+      throw error;
+    }
+    return;
+  }
+
+  // Booking checkout — save breakdown fields from session metadata
   if (meta.paymentId) {
     try {
       // Save breakdown fields on Payment record before confirming

@@ -1,2 +1,2 @@
 -- Add timezone field to Student
-ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "timezone" TEXT;
+ALTER TABLE "Student" ADD COLUMN "timezone" TEXT;

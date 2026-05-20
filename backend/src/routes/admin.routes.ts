@@ -14,6 +14,7 @@ import {
   updateBookingStatusAdmin,
   createGoogleClassroomForBookingAdmin,
   getPaymentsAdmin,
+  getExtraTimeChargesAdmin,
   confirmPaymentAdmin,
   refundPaymentAdmin,
   getGoogleClassroomStatusAdmin,
@@ -44,6 +45,7 @@ router.patch('/bookings/:id', updateBookingStatusAdmin);
 router.post('/bookings/:id/google-classroom', createGoogleClassroomForBookingAdmin);
 
 router.get('/payments', getPaymentsAdmin);
+router.get('/extra-time-charges', getExtraTimeChargesAdmin);
 router.post('/payments/:id/confirm', confirmPaymentAdmin);
 router.post('/payments/:id/refund', refundPaymentAdmin);
 

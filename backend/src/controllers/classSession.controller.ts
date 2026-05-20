@@ -10,6 +10,7 @@ import {
 } from '../services/classSession.service';
 import { createOrGetPencilUser, getPencilJoinUrl } from '../services/pencilSpaces.service';
 import { PrismaClient } from '@prisma/client';
+import { calculatePaymentBreakdown } from '../services/stripe.service';
 
 const prisma = new PrismaClient();
 
@@ -50,6 +51,140 @@ export const completeClassSessionController = async (req: Request, res: Response
   } catch (error: any) {
     console.error('Complete class session error:', error);
     res.status(500).json({ error: error.message || 'Error completing class session' });
+  }
+};
+
+export const createExtraTimeChargeRequestController = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actualHoursFromBody = Number(req.body?.actualHoursTaught);
+    const userId = req.user!.userId;
+
+    const tutor = await prisma.tutor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!tutor) {
+      return res.status(403).json({ error: 'Tutor profile not found' });
+    }
+
+    const classSession = await prisma.classSession.findUnique({
+      where: { id },
+      include: {
+        extraTimeCharge: true,
+        booking: {
+          include: {
+            tutor: {
+              select: {
+                hourlyFee: true,
+              },
+            },
+            payment: {
+              select: {
+                amount: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!classSession) {
+      return res.status(404).json({ error: 'Class session not found' });
+    }
+
+    if (classSession.booking.tutorId !== tutor.id) {
+      return res.status(403).json({ error: 'Only the assigned tutor can request extra payment' });
+    }
+
+    if (classSession.status !== 'COMPLETED' || !classSession.tutorApproved) {
+      return res.status(400).json({ error: 'Session must be marked completed before requesting extra payment' });
+    }
+
+    if (classSession.extraTimeCharge && classSession.extraTimeCharge.status !== 'CANCELLED' && classSession.extraTimeCharge.status !== 'EXPIRED') {
+      return res.status(400).json({ error: 'An extra-time request already exists for this session' });
+    }
+
+    const scheduledHoursRaw = (classSession.booking.endTime.getTime() - classSession.booking.startTime.getTime()) / (1000 * 60 * 60);
+    const scheduledHours = Math.max(0.25, Number(scheduledHoursRaw.toFixed(2)));
+
+    const actualHours = Number.isFinite(actualHoursFromBody) && actualHoursFromBody > 0
+      ? Number(actualHoursFromBody.toFixed(2))
+      : Number((classSession.actualHoursTaught || 0).toFixed(2));
+
+    if (!actualHours || actualHours <= 0) {
+      return res.status(400).json({ error: 'actualHoursTaught is required and must be greater than 0' });
+    }
+
+    const extraHoursRaw = actualHours - scheduledHours;
+    if (extraHoursRaw <= 0) {
+      return res.status(400).json({ error: 'No overage found. Extra payment is only available when actual time exceeds scheduled time.' });
+    }
+
+    const extraHours = Number(extraHoursRaw.toFixed(2));
+    const paymentAmount = classSession.booking.payment?.amount || 0;
+    const fallbackRate = classSession.booking.tutor.hourlyFee || 0;
+    const hourlyRate = paymentAmount > 0
+      ? paymentAmount / scheduledHours
+      : fallbackRate;
+
+    if (hourlyRate <= 0) {
+      return res.status(400).json({ error: 'Unable to calculate hourly rate for extra-time payment' });
+    }
+
+    const baseAmount = Number((hourlyRate * extraHours).toFixed(2));
+    const breakdown = await calculatePaymentBreakdown(Math.round(baseAmount * 100));
+
+    const request = classSession.extraTimeCharge
+      ? await prisma.extraTimeCharge.update({
+          where: { id: classSession.extraTimeCharge.id },
+          data: {
+            scheduledHours,
+            actualHours,
+            extraHours,
+            baseAmount,
+            studentFeeAmount: breakdown.studentFeeCents / 100,
+            adminCommissionAmount: breakdown.adminCommissionCents / 100,
+            tutorAmount: breakdown.tutorPayoutCents / 100,
+            studentChargeAmount: breakdown.studentPaysCents / 100,
+            status: 'PENDING',
+            paidAt: null,
+            stripeCheckoutSessionId: null,
+            stripePaymentIntentId: null,
+            stripeChargeId: null,
+          },
+        })
+      : await prisma.extraTimeCharge.create({
+          data: {
+            bookingId: classSession.bookingId,
+            classSessionId: classSession.id,
+            studentId: classSession.booking.studentId,
+            tutorId: classSession.booking.tutorId,
+            scheduledHours,
+            actualHours,
+            extraHours,
+            baseAmount,
+            studentFeeAmount: breakdown.studentFeeCents / 100,
+            adminCommissionAmount: breakdown.adminCommissionCents / 100,
+            tutorAmount: breakdown.tutorPayoutCents / 100,
+            studentChargeAmount: breakdown.studentPaysCents / 100,
+            status: 'PENDING',
+          },
+        });
+
+    await prisma.classSession.update({
+      where: { id: classSession.id },
+      data: { actualHoursTaught: actualHours },
+    });
+
+    return res.status(201).json({
+      message: 'Extra-time payment request sent to your student.',
+      extraTimeCharge: request,
+    });
+  } catch (error: any) {
+    console.error('Create extra-time request error:', error);
+    return res.status(500).json({ error: error.message || 'Error creating extra-time payment request' });
   }
 };
 

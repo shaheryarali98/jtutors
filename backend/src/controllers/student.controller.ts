@@ -720,6 +720,12 @@ export const getMyBookings = async (req: Request, res: Response) => {
         },
         classSession: true,
         payment: true,
+        extraTimeCharges: {
+          orderBy: {
+            requestedAt: 'desc',
+          },
+          take: 1,
+        },
       },
       orderBy: {
         startTime: 'desc',
@@ -728,9 +734,11 @@ export const getMyBookings = async (req: Request, res: Response) => {
 
     const enrichedBookings = bookings.map((booking) => {
       const durationHours = Math.max(0, (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60));
+      const latestExtraCharge = booking.extraTimeCharges[0] || null;
       return {
         ...booking,
         durationHours: Number(durationHours.toFixed(2)),
+        extraTimeCharge: latestExtraCharge,
       };
     });
 

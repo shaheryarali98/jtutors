@@ -6,10 +6,7 @@
 -- --------------------------------------------------------
 -- Missing columns in existing tables
 -- --------------------------------------------------------
-ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "studentFeePercentage" DOUBLE PRECISION NOT NULL DEFAULT 4.5;
-ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "adminPaymentInfo" TEXT;
-ALTER TABLE "Student"       ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT;
-ALTER TABLE "Tutor"         ADD COLUMN IF NOT EXISTS "jtutorsEmail" TEXT;
+ALTER TABLE "AdminSettings" ADD COLUMN "adminPaymentInfo" TEXT;
 
 -- --------------------------------------------------------
 -- Conversation table
@@ -21,17 +18,11 @@ CREATE TABLE IF NOT EXISTS "Conversation" (
     "lastMessageAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Conversation_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Conversation_tutorId_fkey" FOREIGN KEY ("tutorId") REFERENCES "Tutor"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "Conversation_studentId_tutorId_key" ON "Conversation"("studentId", "tutorId");
-DO $$ BEGIN
-    ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_studentId_fkey"
-        FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN
-    ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_tutorId_fkey"
-        FOREIGN KEY ("tutorId") REFERENCES "Tutor"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- --------------------------------------------------------
 -- Message table
@@ -44,12 +35,9 @@ CREATE TABLE IF NOT EXISTS "Message" (
     "content"        TEXT NOT NULL,
     "read"           BOOLEAN NOT NULL DEFAULT false,
     "createdAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
 );
-DO $$ BEGIN
-    ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey"
-        FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- --------------------------------------------------------
 -- TutorRequest table
@@ -68,12 +56,9 @@ CREATE TABLE IF NOT EXISTS "TutorRequest" (
     "status"            TEXT NOT NULL DEFAULT 'OPEN',
     "createdAt"         TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt"         TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "TutorRequest_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "TutorRequest_pkey" PRIMARY KEY ("id")
 );
-DO $$ BEGIN
-    ALTER TABLE "TutorRequest" ADD CONSTRAINT "TutorRequest_studentId_fkey"
-        FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- --------------------------------------------------------
 -- Course table
@@ -91,12 +76,9 @@ CREATE TABLE IF NOT EXISTS "Course" (
     "status"      TEXT NOT NULL DEFAULT 'DRAFT',
     "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Course_tutorId_fkey" FOREIGN KEY ("tutorId") REFERENCES "Tutor"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Course_pkey" PRIMARY KEY ("id")
 );
-DO $$ BEGIN
-    ALTER TABLE "Course" ADD CONSTRAINT "Course_tutorId_fkey"
-        FOREIGN KEY ("tutorId") REFERENCES "Tutor"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- --------------------------------------------------------
 -- Enrollment table
@@ -114,14 +96,8 @@ CREATE TABLE IF NOT EXISTS "Enrollment" (
     "paidAt"                TIMESTAMP(3),
     "createdAt"             TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt"             TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Enrollment_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Enrollment_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Enrollment_pkey" PRIMARY KEY ("id")
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "Enrollment_courseId_studentId_key" ON "Enrollment"("courseId", "studentId");
-DO $$ BEGIN
-    ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_courseId_fkey"
-        FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN
-    ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_studentId_fkey"
-        FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { createPayment, confirmPayment, getPayment, getPaymentsByUser, calculateCommission } from '../services/payment.service';
-import { createBookingCheckoutSession, calculatePaymentBreakdown } from '../services/stripe.service';
+import { createBookingCheckoutSession, createExtraTimeCheckoutSession, calculatePaymentBreakdown, PaymentBreakdown } from '../services/stripe.service';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -240,6 +240,157 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
   } catch (error: any) {
     console.error('Create booking checkout error:', error);
     return res.status(500).json({ error: error.message || 'Error starting checkout' });
+  }
+};
+
+export const getPendingExtraTimeChargesController = async (req: Request, res: Response) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser) return res.status(401).json({ error: 'Authentication required' });
+    if (currentUser.role !== 'STUDENT') return res.status(403).json({ error: 'Only students can view extra-time requests' });
+
+    const student = await prisma.student.findUnique({ where: { userId: currentUser.userId } });
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+
+    const charges = await prisma.extraTimeCharge.findMany({
+      where: {
+        studentId: student.id,
+        status: 'PENDING',
+      },
+      include: {
+        tutor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profileImage: true,
+          },
+        },
+        booking: {
+          select: {
+            id: true,
+            startTime: true,
+            endTime: true,
+          },
+        },
+      },
+      orderBy: {
+        requestedAt: 'desc',
+      },
+    });
+
+    return res.json({ extraTimeCharges: charges });
+  } catch (error: any) {
+    console.error('Get pending extra-time charges error:', error);
+    return res.status(500).json({ error: error.message || 'Error fetching pending extra-time charges' });
+  }
+};
+
+export const createExtraTimeCheckoutController = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const requestedAmount = Number(req.body?.amount);
+    const currentUser = req.user;
+
+    if (!currentUser) return res.status(401).json({ error: 'Authentication required' });
+    if (currentUser.role !== 'STUDENT') return res.status(403).json({ error: 'Only students can pay extra-time requests' });
+
+    const student = await prisma.student.findUnique({ where: { userId: currentUser.userId } });
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+
+    const charge = await prisma.extraTimeCharge.findUnique({
+      where: { id },
+      include: {
+        tutor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            stripeAccountId: true,
+            stripeOnboarded: true,
+          },
+        },
+      },
+    });
+
+    if (!charge) return res.status(404).json({ error: 'Extra-time request not found' });
+    if (charge.studentId !== student.id) return res.status(403).json({ error: 'Unauthorized' });
+    if (charge.status === 'PAID') return res.status(400).json({ error: 'Extra-time request is already paid' });
+    if (charge.status !== 'PENDING') return res.status(400).json({ error: `Extra-time request is ${charge.status}` });
+
+    const devBypass = process.env.DEV_BYPASS_STRIPE === 'true';
+    if (!devBypass && (!charge.tutor.stripeAccountId || !charge.tutor.stripeOnboarded)) {
+      return res.status(400).json({ error: 'Tutor has not completed Stripe onboarding' });
+    }
+
+    const hasCustomAmount = req.body?.amount !== undefined && req.body?.amount !== null && String(req.body?.amount).trim() !== '';
+    if (hasCustomAmount && (!Number.isFinite(requestedAmount) || requestedAmount <= 0)) {
+      return res.status(400).json({ error: 'Amount must be a valid number greater than 0' });
+    }
+
+    const studentPaysCents = Math.round((hasCustomAmount ? requestedAmount : charge.studentChargeAmount) * 100);
+    const existingPlatformAmount = charge.studentFeeAmount + charge.adminCommissionAmount;
+    const platformRatioRaw = charge.studentChargeAmount > 0 ? existingPlatformAmount / charge.studentChargeAmount : 0;
+    const platformRatio = Math.max(0, Math.min(platformRatioRaw, 1));
+    const studentFeeRatioRaw = existingPlatformAmount > 0 ? charge.studentFeeAmount / existingPlatformAmount : 0.5;
+    const studentFeeRatio = Math.max(0, Math.min(studentFeeRatioRaw, 1));
+
+    const platformFeeCents = Math.max(0, Math.min(studentPaysCents, Math.round(studentPaysCents * platformRatio)));
+    const studentFeeCents = Math.max(0, Math.min(platformFeeCents, Math.round(platformFeeCents * studentFeeRatio)));
+    const adminCommissionCents = Math.max(0, platformFeeCents - studentFeeCents);
+    const tutorPayoutCents = Math.max(0, studentPaysCents - platformFeeCents);
+
+    const recalculatedCharge = await prisma.extraTimeCharge.update({
+      where: { id: charge.id },
+      data: {
+        studentChargeAmount: studentPaysCents / 100,
+        studentFeeAmount: studentFeeCents / 100,
+        adminCommissionAmount: adminCommissionCents / 100,
+        tutorAmount: tutorPayoutCents / 100,
+      },
+    });
+
+    const breakdown: PaymentBreakdown = {
+      basePriceCents: studentPaysCents,
+      studentFeeCents,
+      adminCommissionCents,
+      tutorDeductionCents: 0,
+      studentPaysCents,
+      tutorPayoutCents,
+      platformFeeCents,
+    };
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    if (devBypass) {
+      return res.json({
+        url: `${frontendUrl}/dev/mock-checkout?type=extra-time&id=${charge.id}&title=${encodeURIComponent('Extra time payment')}&amount=${recalculatedCharge.studentChargeAmount.toFixed(2)}&returnUrl=${encodeURIComponent('/student/bookings?extra_paid=1')}`,
+        sessionId: 'dev_bypass',
+      });
+    }
+
+    const session = await createExtraTimeCheckoutSession({
+      title: `Extra time with ${charge.tutor.firstName || 'Tutor'} ${charge.tutor.lastName || ''}`.trim(),
+      description: `Additional ${charge.extraHours.toFixed(2)} hour(s) for booking #${charge.bookingId.slice(0, 8)}`,
+      breakdown,
+      tutorStripeAccountId: charge.tutor.stripeAccountId!,
+      extraTimeChargeId: charge.id,
+      bookingId: charge.bookingId,
+      classSessionId: charge.classSessionId,
+      studentId: charge.studentId,
+      tutorId: charge.tutorId,
+      successUrl: `${frontendUrl}/student/bookings?extra_paid=1&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${frontendUrl}/student/bookings?cancelled=1`,
+    });
+
+    await prisma.extraTimeCharge.update({
+      where: { id: charge.id },
+      data: { stripeCheckoutSessionId: session.id },
+    });
+
+    return res.json({ url: session.url, sessionId: session.id });
+  } catch (error: any) {
+    console.error('Create extra-time checkout error:', error);
+    return res.status(500).json({ error: error.message || 'Error starting extra-time checkout' });
   }
 };
 

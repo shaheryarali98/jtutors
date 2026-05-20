@@ -18,6 +18,7 @@ import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import BookTutorModal from '../../components/student/BookTutorModal'
+import { useAuthStore } from '../../store/authStore'
 
 interface Tutor {
   id: string
@@ -40,6 +41,8 @@ interface Tutor {
 }
 
 const BrowseTutors = () => {
+  const { user } = useAuthStore()
+  const isStudent = user?.role === 'STUDENT'
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -96,9 +99,25 @@ const BrowseTutors = () => {
       if (location) queryParams.append('location', location.trim())
 
       const queryString = queryParams.toString()
-      const url = `/student/tutors${queryString ? `?${queryString}` : ''}`
+      const url = isStudent
+        ? `/student/tutors${queryString ? `?${queryString}` : ''}`
+        : `/public/tutors${queryString ? `?${queryString}` : ''}`
       const response = await api.get(url)
-      setTutors(response.data.tutors || [])
+      const normalizedTutors = (response.data.tutors || []).map((tutor: any) => {
+        const normalizedSubjects = Array.isArray(tutor.subjects)
+          ? tutor.subjects.map((item: any) =>
+              typeof item === 'string' ? { subject: { name: item } } : item
+            )
+          : []
+
+        return {
+          ...tutor,
+          subjects: normalizedSubjects,
+          saved: isStudent ? Boolean(tutor.saved) : false,
+        }
+      })
+
+      setTutors(normalizedTutors)
     } catch (error) {
       console.error('Error fetching tutors:', error)
       setErrorMessage('Unable to load tutors right now. Please try again in a moment.')
@@ -109,9 +128,14 @@ const BrowseTutors = () => {
 
   useEffect(() => {
     fetchTutors()
-  }, [selectedSubject, selectedGrade, minFee, maxFee, location])
+  }, [selectedSubject, selectedGrade, minFee, maxFee, location, isStudent])
 
   const handleSaveTutor = async (tutor: Tutor) => {
+    if (!isStudent) {
+      navigate('/login')
+      return
+    }
+
     try {
       setSavingTutorId(tutor.id)
       setErrorMessage('')
@@ -136,6 +160,11 @@ const BrowseTutors = () => {
   }
 
   const handleOpenBooking = (tutor: Tutor) => {
+    if (!isStudent) {
+      navigate('/login')
+      return
+    }
+
     setSelectedTutor(tutor)
     setIsBookingModalOpen(true)
     setStatusMessage('')
@@ -521,10 +550,10 @@ const BrowseTutors = () => {
                         className="w-full py-3 bg-[#f5a11a] text-white rounded-xl font-bold hover:bg-[#c48115] transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                       >
                         <CalendarPlus size={18} />
-                        Book Session
+                        {isStudent ? 'Book Session' : 'Login to Book'}
                       </button>
                       <Link
-                        to={`/student/tutor/${tutor.id}`}
+                        to={`/tutors/${tutor.id}`}
                         className="w-full py-2.5 border-2 border-[#012c54] text-[#012c54] rounded-xl font-semibold hover:bg-[#012c54] hover:text-white transition-colors text-center"
                       >
                         View Full Profile
@@ -541,7 +570,7 @@ const BrowseTutors = () => {
       {/* Booking Modal */}
       <BookTutorModal
         tutor={selectedTutor}
-        isOpen={isBookingModalOpen}
+        isOpen={isBookingModalOpen && isStudent}
         onClose={() => {
           setIsBookingModalOpen(false)
           setSelectedTutor(null)
