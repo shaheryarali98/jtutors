@@ -59,10 +59,12 @@ const BrowseTutors = () => {
   const [errorMessage, setErrorMessage] = useState('')
   const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([])
   const [subjectsLoading, setSubjectsLoading] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const navigate = useNavigate()
 
   useEffect(() => {
-    fetchTutors()
     // Load subjects asynchronously without blocking the page
     fetchSubjects()
   }, [])
@@ -88,7 +90,7 @@ const BrowseTutors = () => {
     }
   }
 
-  const fetchTutors = async () => {
+  const fetchTutors = async (page = currentPage) => {
     try {
       setLoading(true)
       const queryParams = new URLSearchParams()
@@ -97,6 +99,10 @@ const BrowseTutors = () => {
       if (minFee) queryParams.append('minFee', minFee)
       if (maxFee) queryParams.append('maxFee', maxFee)
       if (location) queryParams.append('location', location.trim())
+      if (!isStudent) {
+        queryParams.append('page', String(page))
+        queryParams.append('limit', '12')
+      }
 
       const queryString = queryParams.toString()
       const url = isStudent
@@ -118,6 +124,11 @@ const BrowseTutors = () => {
       })
 
       setTutors(normalizedTutors)
+      if (!isStudent) {
+        setTotalCount(response.data.total ?? normalizedTutors.length)
+        setTotalPages(response.data.totalPages ?? 1)
+        setCurrentPage(response.data.page ?? page)
+      }
     } catch (error) {
       console.error('Error fetching tutors:', error)
       setErrorMessage('Unable to load tutors right now. Please try again in a moment.')
@@ -127,7 +138,8 @@ const BrowseTutors = () => {
   }
 
   useEffect(() => {
-    fetchTutors()
+    setCurrentPage(1)
+    fetchTutors(1)
   }, [selectedSubject, selectedGrade, minFee, maxFee, location, isStudent])
 
   const handleSaveTutor = async (tutor: Tutor) => {
@@ -180,6 +192,12 @@ const BrowseTutors = () => {
     }, 1500)
   }
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    fetchTutors(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const clearFilters = () => {
     setSelectedSubject('')
     setSelectedGrade('')
@@ -187,6 +205,7 @@ const BrowseTutors = () => {
     setMaxFee('')
     setLocation('')
     setSearchTerm('')
+    setCurrentPage(1)
   }
 
   const filteredTutors = tutors.filter((tutor) => {
@@ -405,8 +424,13 @@ const BrowseTutors = () => {
         <div className="mb-6 flex items-center justify-between">
           <p className="text-slate-700 font-semibold">
             <Users className="w-5 h-5 inline mr-2" />
-            {filteredTutors.length} {filteredTutors.length === 1 ? 'tutor found' : 'tutors found'}
+            {isStudent
+              ? `${filteredTutors.length} ${filteredTutors.length === 1 ? 'tutor found' : 'tutors found'}`
+              : `${totalCount} ${totalCount === 1 ? 'tutor found' : 'tutors found'}`}
           </p>
+          {!isStudent && totalPages > 1 && (
+            <p className="text-sm text-slate-500">Page {currentPage} of {totalPages}</p>
+          )}
         </div>
 
         {/* Tutors Grid */}
@@ -434,7 +458,7 @@ const BrowseTutors = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTutors.map((tutor, index) => {
               const heroImage = resolveImageUrl(tutor.profileImage || '')
               const coverImage = resolveImageUrl(tutor.coverImage || '')
@@ -563,6 +587,53 @@ const BrowseTutors = () => {
                 </motion.div>
               )
             })}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!isStudent && !loading && totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 mt-10 mb-6">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-4 py-2 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold hover:border-[#012c54] hover:text-[#012c54] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              &larr; Prev
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+              .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...')
+                acc.push(p)
+                return acc
+              }, [])
+              .map((p, idx) =>
+                p === '...' ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-slate-400">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => handlePageChange(p as number)}
+                    className={`w-10 h-10 rounded-xl font-semibold transition-colors ${
+                      currentPage === p
+                        ? 'text-white shadow-md'
+                        : 'border-2 border-slate-200 text-slate-700 hover:border-[#012c54] hover:text-[#012c54]'
+                    }`}
+                    style={currentPage === p ? { backgroundColor: '#012c54' } : {}}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 rounded-xl border-2 border-slate-200 text-slate-700 font-semibold hover:border-[#012c54] hover:text-[#012c54] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next &rarr;
+            </button>
           </div>
         )}
       </div>

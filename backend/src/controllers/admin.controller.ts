@@ -767,45 +767,53 @@ export const getUserDetail = async (req: Request, res: Response) => {
 
 export const getPublicTutors = async (req: Request, res: Response) => {
   try {
-    const { subject, city, state, country, location, minFee, maxFee, grade, limit } = req.query;
-    const safeLimit = Math.min(50, Math.max(1, parseInt((limit as string) || '12', 10) || 12));
+    const { subject, city, state, country, location, minFee, maxFee, grade, page, limit } = req.query;
+    const PAGE_SIZE = Math.min(50, Math.max(1, parseInt((limit as string) || '12', 10) || 12));
+    const currentPage = Math.max(1, parseInt((page as string) || '1', 10) || 1);
+    const skip = (currentPage - 1) * PAGE_SIZE;
 
-    const tutors = await prisma.tutor.findMany({
-      where: {
-        user: { emailConfirmed: true },
-        backgroundCheck: {
-          status: 'APPROVED',
-        },
-        ...(minFee && { hourlyFee: { gte: parseFloat(minFee as string) } }),
-        ...(maxFee && { hourlyFee: { lte: parseFloat(maxFee as string) } }),
-        ...(grade && { gradesCanTeach: { contains: `"${grade}"` } }),
-        ...(city && { city: city as string }),
-        ...(state && { state: state as string }),
-        ...(country && { country: country as string }),
-        ...(location && {
-          OR: [
-            { city: { contains: location as string } },
-            { state: { contains: location as string } },
-            { country: { contains: location as string } },
-          ],
-        }),
-        ...(subject && {
-          subjects: {
-            some: {
-              subject: { name: subject as string },
-            },
+    const whereClause = {
+      user: { emailConfirmed: true },
+      backgroundCheck: {
+        status: 'APPROVED',
+      },
+      ...(minFee && { hourlyFee: { gte: parseFloat(minFee as string) } }),
+      ...(maxFee && { hourlyFee: { lte: parseFloat(maxFee as string) } }),
+      ...(grade && { gradesCanTeach: { contains: `"${grade}"` } }),
+      ...(city && { city: city as string }),
+      ...(state && { state: state as string }),
+      ...(country && { country: country as string }),
+      ...(location && {
+        OR: [
+          { city: { contains: location as string } },
+          { state: { contains: location as string } },
+          { country: { contains: location as string } },
+        ],
+      }),
+      ...(subject && {
+        subjects: {
+          some: {
+            subject: { name: subject as string },
           },
-        }),
-      },
-      include: {
-        subjects: { include: { subject: true } },
-        experiences: true,
-        educations: true,
-        user: { select: { email: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: safeLimit,
-    });
+        },
+      }),
+    };
+
+    const [tutors, total] = await Promise.all([
+      prisma.tutor.findMany({
+        where: whereClause,
+        include: {
+          subjects: { include: { subject: true } },
+          experiences: true,
+          educations: true,
+          user: { select: { email: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: PAGE_SIZE,
+        skip,
+      }),
+      prisma.tutor.count({ where: whereClause }),
+    ]);
 
     const formatted = tutors.map((tutor) => {
       const tryParse = (v: any) => {
@@ -832,7 +840,13 @@ export const getPublicTutors = async (req: Request, res: Response) => {
       };
     });
 
-    res.json({ tutors: formatted });
+    res.json({
+      tutors: formatted,
+      total,
+      page: currentPage,
+      totalPages: Math.ceil(total / PAGE_SIZE),
+      pageSize: PAGE_SIZE,
+    });
   } catch (error) {
     console.error('Get public tutors error:', error);
     res.status(500).json({ error: 'Error fetching tutors' });
