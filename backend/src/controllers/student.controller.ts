@@ -419,7 +419,63 @@ export const updateProfile = async (req: Request, res: Response) => {
 export const searchTutors = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const { subject, minFee, maxFee, grade, location } = req.query;
+    const { subject, minFee, maxFee, grade, location, search } = req.query;
+
+    const normalizeText = (value: unknown) =>
+      typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+    const parseStoredList = (value: unknown): string[] => {
+      if (Array.isArray(value)) {
+        return value
+          .map((entry) => (typeof entry === 'string' ? entry.trim() : String(entry).trim()))
+          .filter((entry) => entry.length > 0);
+      }
+
+      if (typeof value !== 'string') {
+        return [];
+      }
+
+      const parsed = parseStoredArray(value)
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
+
+      if (parsed.length > 0) {
+        return parsed;
+      }
+
+      return value
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
+    };
+
+    const gradeToken = (value: string) => value.replace(/\s+/g, '').toLowerCase();
+    const toGradeNumber = (token: string): number | null => {
+      if (token === 'k' || token === 'kindergarten') return 0;
+      const m = token.match(/^(?:grade)?(\d+)$/);
+      return m ? Number(m[1]) : null;
+    };
+    const gradeMatches = (storedGrade: string, requestedGrade: string) => {
+      const stored = gradeToken(storedGrade);
+      const requested = gradeToken(requestedGrade);
+      if (!stored || !requested) return false;
+      if (stored === requested) return true;
+      const reqNum = toGradeNumber(requested);
+      const storedNum = toGradeNumber(stored);
+      if (reqNum !== null && storedNum !== null) return reqNum === storedNum;
+      const rangeMatch = stored.match(/^(k|\d+)-(\d+)$/i);
+      if (rangeMatch && reqNum !== null) {
+        const min = rangeMatch[1].toLowerCase() === 'k' ? 0 : Number(rangeMatch[1]);
+        const max = Number(rangeMatch[2]);
+        return reqNum >= min && reqNum <= max;
+      }
+      return false;
+    };
+
+    const subjectFilter = normalizeText(subject);
+    const gradeFilter = normalizeText(grade);
+    const locationFilter = normalizeText(location);
+    const searchFilter = normalizeText(search);
 
     const student = await prisma.student.findUnique({
       where: { userId },
@@ -442,25 +498,7 @@ export const searchTutors = async (req: Request, res: Response) => {
         user: {
           emailConfirmed: true,
         },
-        ...(minFee && { hourlyFee: { gte: parseFloat(minFee as string) } }),
-        ...(maxFee && { hourlyFee: { lte: parseFloat(maxFee as string) } }),
-        ...(grade && { gradesCanTeach: { contains: `"${grade}"` } }),
-        ...(location && {
-          OR: [
-            { city: { contains: location as string } },
-            { state: { contains: location as string } },
-            { country: { contains: location as string } },
-          ],
-        }),
-        ...(subject && {
-          subjects: {
-            some: {
-              subject: {
-                name: subject as string,
-              },
-            },
-          },
-        }),
+        ...((minFee || maxFee) ? { hourlyFee: { ...(minFee ? { gte: parseFloat(minFee as string) } : {}), ...(maxFee ? { lte: parseFloat(maxFee as string) } : {}) } } : {}),
       },
       include: {
         subjects: {
@@ -477,7 +515,41 @@ export const searchTutors = async (req: Request, res: Response) => {
       },
     });
 
-    const formattedTutors = formatTutorArray(tutors as any).map((tutor: any) => ({
+    const filteredTutors = tutors.filter((tutor) => {
+      const subjectNames = tutor.subjects.map((entry) => entry.subject.name);
+      const subjectNamesNormalized = subjectNames.map((name) => normalizeText(name));
+      const grades = parseStoredList(tutor.gradesCanTeach);
+      const locationText = [tutor.city, tutor.state, tutor.country].filter(Boolean).join(' ');
+      const locationNormalized = normalizeText(locationText);
+      const searchableText = [
+        `${tutor.firstName || ''} ${tutor.lastName || ''}`,
+        tutor.tagline || '',
+        subjectNames.join(' '),
+        locationText,
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      if (subjectFilter && !subjectNamesNormalized.some((name) => name.includes(subjectFilter))) {
+        return false;
+      }
+
+      if (gradeFilter && !grades.some((entry) => gradeMatches(entry, gradeFilter))) {
+        return false;
+      }
+
+      if (locationFilter && !locationNormalized.includes(locationFilter)) {
+        return false;
+      }
+
+      if (searchFilter && !searchableText.includes(searchFilter)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const formattedTutors = formatTutorArray(filteredTutors as any).map((tutor: any) => ({
       ...tutor,
       saved: savedTutorIds.has(tutor.id as string),
     }));

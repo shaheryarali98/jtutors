@@ -396,6 +396,9 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
             <p className="text-sm text-slate-600">
               A friendly headshot builds trust with students.
             </p>
+            <p className="text-xs text-slate-400 mt-1">
+              Min. 200×200px &middot; Max 5MB &middot; PNG, JPG, WEBP
+            </p>
             {profileImage && (
               <div className="mt-1">
                 <button
@@ -492,6 +495,9 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
             </h3>
             <p className="text-sm text-slate-600">
               A professional banner to showcase your teaching style.
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              Min. 1200×400px &middot; 3:1 ratio &middot; Max 5MB &middot; PNG, JPG, WEBP
             </p>
           </div>
         </div>

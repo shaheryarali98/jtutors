@@ -93,13 +93,21 @@ const BrowseTutors = () => {
   const fetchTutors = async (page = currentPage) => {
     try {
       setLoading(true)
+      setErrorMessage('')
       const queryParams = new URLSearchParams()
+      const normalizedSearch = searchTerm.trim()
+      const normalizedLocation = location.trim()
+      const hasActiveSearchOrFilter = Boolean(
+        normalizedSearch || selectedSubject || selectedGrade || minFee || maxFee || normalizedLocation
+      )
+
+      if (normalizedSearch) queryParams.append('search', normalizedSearch)
       if (selectedSubject) queryParams.append('subject', selectedSubject)
       if (selectedGrade) queryParams.append('grade', selectedGrade)
       if (minFee) queryParams.append('minFee', minFee)
       if (maxFee) queryParams.append('maxFee', maxFee)
-      if (location) queryParams.append('location', location.trim())
-      if (!isStudent) {
+      if (normalizedLocation) queryParams.append('location', normalizedLocation)
+      if (!isStudent && !hasActiveSearchOrFilter) {
         queryParams.append('page', String(page))
         queryParams.append('limit', '12')
       }
@@ -115,7 +123,7 @@ const BrowseTutors = () => {
               typeof item === 'string' ? { subject: { name: item } } : item
             )
           : []
-
+            
         return {
           ...tutor,
           subjects: normalizedSubjects,
@@ -126,8 +134,13 @@ const BrowseTutors = () => {
       setTutors(normalizedTutors)
       if (!isStudent) {
         setTotalCount(response.data.total ?? normalizedTutors.length)
-        setTotalPages(response.data.totalPages ?? 1)
-        setCurrentPage(response.data.page ?? page)
+        if (hasActiveSearchOrFilter) {
+          setTotalPages(1)
+          setCurrentPage(1)
+        } else {
+          setTotalPages(response.data.totalPages ?? 1)
+          setCurrentPage(response.data.page ?? page)
+        }
       }
     } catch (error) {
       console.error('Error fetching tutors:', error)
@@ -138,9 +151,13 @@ const BrowseTutors = () => {
   }
 
   useEffect(() => {
-    setCurrentPage(1)
-    fetchTutors(1)
-  }, [selectedSubject, selectedGrade, minFee, maxFee, location, isStudent])
+    const timeout = window.setTimeout(() => {
+      setCurrentPage(1)
+      fetchTutors(1)
+    }, 250)
+
+    return () => window.clearTimeout(timeout)
+  }, [searchTerm, selectedSubject, selectedGrade, minFee, maxFee, location, isStudent])
 
   const handleSaveTutor = async (tutor: Tutor) => {
     if (!isStudent) {
@@ -208,22 +225,12 @@ const BrowseTutors = () => {
     setCurrentPage(1)
   }
 
-  const filteredTutors = tutors.filter((tutor) => {
-    const fullName = `${tutor.firstName} ${tutor.lastName}`.toLowerCase()
-    const tagline = (tutor.tagline || '').toLowerCase()
-    const tutorSubjects = tutor.subjects.map((s) => s.subject.name.toLowerCase()).join(' ')
-    const locationStr = `${tutor.city || ''} ${tutor.state || ''} ${tutor.country || ''}`.toLowerCase()
-
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      fullName.includes(searchLower) ||
-      tagline.includes(searchLower) ||
-      tutorSubjects.includes(searchLower) ||
-      locationStr.includes(searchLower)
-    )
-  })
-
-  const grades = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'College', 'Adult']
+  const grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'College', 'Graduate School', 'Adult Education']
+  const hasActiveSearchOrFilter = Boolean(
+    searchTerm.trim() || selectedSubject || selectedGrade || minFee || maxFee || location.trim()
+  )
+  const visibleTutorCount = isStudent || hasActiveSearchOrFilter ? tutors.length : totalCount
+  const showPagination = !isStudent && !hasActiveSearchOrFilter && totalPages > 1
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(to bottom right, #e6f0f7, #fef5e7)' }}>
@@ -424,11 +431,9 @@ const BrowseTutors = () => {
         <div className="mb-6 flex items-center justify-between">
           <p className="text-slate-700 font-semibold">
             <Users className="w-5 h-5 inline mr-2" />
-            {isStudent
-              ? `${filteredTutors.length} ${filteredTutors.length === 1 ? 'tutor found' : 'tutors found'}`
-              : `${totalCount} ${totalCount === 1 ? 'tutor found' : 'tutors found'}`}
+            {`${visibleTutorCount} ${visibleTutorCount === 1 ? 'tutor found' : 'tutors found'}`}
           </p>
-          {!isStudent && totalPages > 1 && (
+          {showPagination && (
             <p className="text-sm text-slate-500">Page {currentPage} of {totalPages}</p>
           )}
         </div>
@@ -439,7 +444,7 @@ const BrowseTutors = () => {
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#012c54] border-t-transparent"></div>
             <p className="mt-4 text-slate-600 font-medium">Loading tutors...</p>
           </div>
-        ) : filteredTutors.length === 0 ? (
+        ) : tutors.length === 0 ? (
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl p-12 text-center">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-2xl font-bold text-slate-900 mb-2">No tutors found</h3>
@@ -459,7 +464,7 @@ const BrowseTutors = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTutors.map((tutor, index) => {
+            {tutors.map((tutor, index) => {
               const heroImage = resolveImageUrl(tutor.profileImage || '')
               const coverImage = resolveImageUrl(tutor.coverImage || '')
               const initials = `${tutor.firstName?.charAt(0) ?? ''}${tutor.lastName?.charAt(0) ?? ''}` || 'JT'
@@ -591,7 +596,7 @@ const BrowseTutors = () => {
         )}
 
         {/* Pagination */}
-        {!isStudent && !loading && totalPages > 1 && (
+        {!loading && showPagination && (
           <div className="flex justify-center items-center gap-2 mt-10 mb-6">
             <button
               onClick={() => handlePageChange(currentPage - 1)}

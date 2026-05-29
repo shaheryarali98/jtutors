@@ -203,13 +203,25 @@ interface ClassSession {
   pencilSpaceId?: string | null
   pencilSpaceUrl?: string | null
   status: string
+  studentConfirmed?: boolean
   tutorApproved: boolean
   adminApproved: boolean
   paymentReleased: boolean
+  actualHoursTaught?: number | null
+  autoReleaseAt?: string | null
   completedAt?: string | null
+  createdAt?: string
   booking?: {
-    student?: { user?: { email: string } }
-    tutor?: { user?: { email: string } }
+    status?: string
+    startTime?: string
+    endTime?: string
+    student?: { firstName?: string | null; lastName?: string | null; user?: { email: string } }
+    tutor?: { firstName?: string | null; lastName?: string | null; user?: { email: string } }
+    payment?: {
+      amount?: number
+      currency?: string
+      paymentStatus?: string
+    } | null
   }
 }
 
@@ -229,20 +241,36 @@ interface AdminBooking {
   startTime: string
   endTime: string
   createdAt: string
+  durationHours?: number
   studentEmail: string | null
+  studentName?: string | null
   tutorEmail: string | null
+  tutorName?: string | null
   payment: {
     id: string
     amount: number
     currency: string
     paymentStatus: string
     paidAt?: string | null
+    studentChargeAmount?: number | null
+    studentFeeAmount?: number | null
+    tutorAmount?: number | null
+    tutorDeductionAmount?: number | null
+    adminCommissionAmount?: number | null
   } | null
   classSession: {
     id: string
     status: string
     googleClassroomLink?: string | null
     googleMeetLink?: string | null
+    pencilSpaceUrl?: string | null
+    tutorApproved?: boolean
+    adminApproved?: boolean
+    studentConfirmed?: boolean
+    paymentReleased?: boolean
+    completedAt?: string | null
+    actualHoursTaught?: number | null
+    autoReleaseAt?: string | null
   } | null
 }
 
@@ -1017,19 +1045,28 @@ const AdminDashboard = () => {
                           <th className="px-4 py-3">Tutor</th>
                           <th className="px-4 py-3">Schedule</th>
                           <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">Google Classroom</th>
-                          <th className="px-4 py-3 text-right">Actions</th>
+                          <th className="px-4 py-3">Session Links</th>
+                          <th className="px-4 py-3 text-right">Payment & Tracking</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {bookings.map((booking) => (
                           <tr key={booking.id} className="hover:bg-slate-50/60">
-                            <td className="px-4 py-3 text-slate-600">{booking.studentEmail || '—'}</td>
-                            <td className="px-4 py-3 text-slate-600">{booking.tutorEmail || '—'}</td>
+                            <td className="px-4 py-3 text-slate-600">
+                              <div className="font-medium text-slate-800">{booking.studentName || 'Student'}</div>
+                              <div className="text-xs text-slate-500">{booking.studentEmail || '—'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              <div className="font-medium text-slate-800">{booking.tutorName || 'Tutor'}</div>
+                              <div className="text-xs text-slate-500">{booking.tutorEmail || '—'}</div>
+                            </td>
                             <td className="px-4 py-3 text-slate-600">
                               <div>{new Date(booking.startTime).toLocaleString()}</div>
                               <div className="text-xs text-slate-400">
                                 ends {new Date(booking.endTime).toLocaleString()}
+                              </div>
+                              <div className="text-xs text-slate-400">
+                                {booking.durationHours != null ? `${booking.durationHours.toFixed(2)}h` : '—'} · #{booking.id.slice(0, 8)}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -1044,6 +1081,19 @@ const AdminDashboard = () => {
                                   </option>
                                 ))}
                               </select>
+                              {booking.classSession && (
+                                <div className="mt-2 text-xs text-slate-500 space-y-0.5">
+                                  <div>Session: {booking.classSession.status}</div>
+                                  <div>
+                                    Tutor: {booking.classSession.tutorApproved ? 'approved' : 'pending'} ·
+                                    Admin: {booking.classSession.adminApproved ? 'approved' : 'pending'}
+                                  </div>
+                                  <div>
+                                    Student: {booking.classSession.studentConfirmed ? 'confirmed' : 'pending'} ·
+                                    Payout: {booking.classSession.paymentReleased ? 'released' : 'pending'}
+                                  </div>
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-slate-600">
                               {booking.classSession?.googleClassroomLink ? (
@@ -1066,27 +1116,67 @@ const AdminDashboard = () => {
                                       Meet link
                                     </a>
                                   )}
+                                  {booking.classSession.pencilSpaceUrl && (
+                                    <a
+                                      href={booking.classSession.pencilSpaceUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700"
+                                    >
+                                      Pencil Space <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
                                 </div>
                               ) : (
-                                <button
-                                  onClick={() => handleCreateGoogleClassroom(booking.id)}
-                                  className="text-sm font-semibold text-primary-600 hover:text-primary-700"
-                                >
-                                  Create Classroom
-                                </button>
+                                <div className="space-y-1">
+                                  <button
+                                    onClick={() => handleCreateGoogleClassroom(booking.id)}
+                                    className="text-sm font-semibold text-primary-600 hover:text-primary-700"
+                                  >
+                                    Create Classroom
+                                  </button>
+                                  {booking.classSession?.pencilSpaceUrl && (
+                                    <a
+                                      href={booking.classSession.pencilSpaceUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700"
+                                    >
+                                      Pencil Space <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
                               )}
                             </td>
                             <td className="px-4 py-3 text-right text-slate-600">
                               <div className="text-xs uppercase tracking-wide text-slate-400">Payment</div>
                               {booking.payment ? (
-                                <div className="mt-1 text-sm">
+                                <div className="mt-1 text-sm space-y-0.5">
                                   <div>{booking.payment.paymentStatus}</div>
                                   <div className="text-slate-500">
                                     ${booking.payment.amount.toFixed(2)} {booking.payment.currency}
                                   </div>
+                                  <div className="text-xs text-slate-500">
+                                    Student pays: ${Number(booking.payment.studentChargeAmount ?? booking.payment.amount).toFixed(2)}
+                                  </div>
+                                  {booking.payment.tutorAmount != null && (
+                                    <div className="text-xs text-slate-500">
+                                      Tutor payout: ${booking.payment.tutorAmount.toFixed(2)}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <div className="text-sm text-slate-400">Not invoiced</div>
+                              )}
+                              {booking.classSession?.completedAt && (
+                                <div className="mt-2 text-xs text-slate-500">
+                                  Completed: {new Date(booking.classSession.completedAt).toLocaleString()}
+                                </div>
+                              )}
+                              {booking.classSession?.autoReleaseAt && !booking.classSession.paymentReleased && (
+                                <div className="text-xs text-amber-600">
+                                  Auto-release: {new Date(booking.classSession.autoReleaseAt).toLocaleString()}
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -2156,12 +2246,29 @@ const AdminDashboard = () => {
                       {classSessions.map((session) => (
                         <tr key={session.id} className="hover:bg-slate-50/60">
                           <td className="px-4 py-3 text-slate-600">
-                            {session.booking?.student?.user?.email || 'Unknown'}
+                            <div className="font-medium text-slate-800">
+                              {`${session.booking?.student?.firstName || ''} ${session.booking?.student?.lastName || ''}`.trim() || 'Student'}
+                            </div>
+                            <div className="text-xs text-slate-500">{session.booking?.student?.user?.email || 'Unknown'}</div>
                           </td>
                           <td className="px-4 py-3 text-slate-600">
-                            {session.booking?.tutor?.user?.email || 'Unknown'}
+                            <div className="font-medium text-slate-800">
+                              {`${session.booking?.tutor?.firstName || ''} ${session.booking?.tutor?.lastName || ''}`.trim() || 'Tutor'}
+                            </div>
+                            <div className="text-xs text-slate-500">{session.booking?.tutor?.user?.email || 'Unknown'}</div>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">{session.status}</td>
+                          <td className="px-4 py-3 text-slate-600">
+                            <div>{session.status}</div>
+                            <div className="text-xs text-slate-500">Booking: {session.booking?.status || '—'}</div>
+                            {session.booking?.startTime && session.booking?.endTime && (
+                              <div className="text-xs text-slate-500">
+                                {new Date(session.booking.startTime).toLocaleString()} - {new Date(session.booking.endTime).toLocaleString()}
+                              </div>
+                            )}
+                            {session.actualHoursTaught != null && (
+                              <div className="text-xs text-slate-500">Actual taught: {session.actualHoursTaught.toFixed(2)}h</div>
+                            )}
+                          </td>
                           <td className="px-4 py-3">
                             {session.tutorApproved ? (
                               <span className="text-green-600">✓ Yes</span>
@@ -2183,6 +2290,16 @@ const AdminDashboard = () => {
                               <span className="text-amber-600">Pending</span>
                             ) : (
                               <span className="text-slate-400">—</span>
+                            )}
+                            {session.booking?.payment && (
+                              <div className="text-xs text-slate-500 mt-1">
+                                {session.booking.payment.paymentStatus} · ${Number(session.booking.payment.amount || 0).toFixed(2)} {session.booking.payment.currency || 'USD'}
+                              </div>
+                            )}
+                            {session.autoReleaseAt && !session.paymentReleased && (
+                              <div className="text-xs text-amber-600">
+                                Auto-release: {new Date(session.autoReleaseAt).toLocaleString()}
+                              </div>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -2213,6 +2330,16 @@ const AdminDashboard = () => {
                                 Classroom <ExternalLink className="h-3 w-3" />
                               </a>
                             ) : null}
+                            {session.googleMeetLink && (
+                              <a
+                                href={session.googleMeetLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-3 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-700"
+                              >
+                                Meet <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
                           </td>
                         </tr>
                       ))}

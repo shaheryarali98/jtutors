@@ -133,6 +133,7 @@ const TutorDetailPage = () => {
 
   const profileImage = resolveImageUrl(tutor.profileImage)
   const coverImage = resolveImageUrl(tutor.coverImage)
+  const tutorDisplayName = `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim() || 'Tutor Profile'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-100">
@@ -161,7 +162,7 @@ const TutorDetailPage = () => {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-slate-900">
-                    {tutor.firstName  } {tutor.lastName}
+                    {tutorDisplayName}
                   </h1>
                   <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-slate-500">
                     <span className="inline-flex items-center gap-1">

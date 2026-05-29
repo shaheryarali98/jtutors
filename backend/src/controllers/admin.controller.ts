@@ -444,6 +444,54 @@ export const updateSettingsController = async (req: Request, res: Response) => {
   }
 };
 
+const mapAdminBooking = (booking: any) => {
+  const durationHours =
+    (new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / (1000 * 60 * 60);
+
+  return {
+    id: booking.id,
+    status: booking.status,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    createdAt: booking.createdAt,
+    durationHours: Math.max(0.25, Math.round(durationHours * 100) / 100),
+    studentEmail: booking.student?.user.email || null,
+    studentName: `${booking.student?.firstName || ''} ${booking.student?.lastName || ''}`.trim() || null,
+    tutorEmail: booking.tutor?.user.email || null,
+    tutorName: `${booking.tutor?.firstName || ''} ${booking.tutor?.lastName || ''}`.trim() || null,
+    payment: booking.payment
+      ? {
+          id: booking.payment.id,
+          amount: booking.payment.amount,
+          currency: booking.payment.currency,
+          paymentStatus: booking.payment.paymentStatus,
+          paidAt: booking.payment.paidAt,
+          studentChargeAmount: (booking.payment as any).studentChargeAmount ?? booking.payment.amount,
+          studentFeeAmount: (booking.payment as any).studentFeeAmount ?? null,
+          tutorAmount: booking.payment.tutorAmount ?? null,
+          tutorDeductionAmount: (booking.payment as any).tutorDeductionAmount ?? null,
+          adminCommissionAmount: booking.payment.adminCommissionAmount ?? null,
+        }
+      : null,
+    classSession: booking.classSession
+      ? {
+          id: booking.classSession.id,
+          status: booking.classSession.status,
+          googleClassroomLink: booking.classSession.googleClassroomLink,
+          googleMeetLink: booking.classSession.googleMeetLink,
+          pencilSpaceUrl: booking.classSession.pencilSpaceUrl,
+          tutorApproved: booking.classSession.tutorApproved,
+          adminApproved: booking.classSession.adminApproved,
+          studentConfirmed: booking.classSession.studentConfirmed,
+          paymentReleased: booking.classSession.paymentReleased,
+          completedAt: booking.classSession.completedAt,
+          actualHoursTaught: booking.classSession.actualHoursTaught,
+          autoReleaseAt: booking.classSession.autoReleaseAt,
+        }
+      : null,
+  };
+};
+
 export const getBookingsAdmin = async (req: Request, res: Response) => {
   try {
     const { status } = req.query;
@@ -459,32 +507,7 @@ export const getBookingsAdmin = async (req: Request, res: Response) => {
     });
 
     res.json({
-      bookings: bookings.map((booking) => ({
-        id: booking.id,
-        status: booking.status,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        createdAt: booking.createdAt,
-        studentEmail: booking.student?.user.email || null,
-        tutorEmail: booking.tutor?.user.email || null,
-        payment: booking.payment
-          ? {
-              id: booking.payment.id,
-              amount: booking.payment.amount,
-              currency: booking.payment.currency,
-              paymentStatus: booking.payment.paymentStatus,
-              paidAt: booking.payment.paidAt,
-            }
-          : null,
-        classSession: booking.classSession
-          ? {
-              id: booking.classSession.id,
-              status: booking.classSession.status,
-              googleClassroomLink: booking.classSession.googleClassroomLink,
-              googleMeetLink: booking.classSession.googleMeetLink,
-            }
-          : null,
-      })),
+      bookings: bookings.map(mapAdminBooking),
     });
   } catch (error) {
     console.error('Get bookings admin error:', error);
@@ -515,32 +538,7 @@ export const updateBookingStatusAdmin = async (req: Request, res: Response) => {
 
     res.json({
       message: 'Booking updated successfully',
-      booking: {
-        id: updated.id,
-        status: updated.status,
-        startTime: updated.startTime,
-        endTime: updated.endTime,
-        createdAt: updated.createdAt,
-        studentEmail: updated.student?.user.email || null,
-        tutorEmail: updated.tutor?.user.email || null,
-        payment: updated.payment
-          ? {
-              id: updated.payment.id,
-              amount: updated.payment.amount,
-              currency: updated.payment.currency,
-              paymentStatus: updated.payment.paymentStatus,
-              paidAt: updated.payment.paidAt,
-            }
-          : null,
-        classSession: updated.classSession
-          ? {
-              id: updated.classSession.id,
-              status: updated.classSession.status,
-              googleClassroomLink: updated.classSession.googleClassroomLink,
-              googleMeetLink: updated.classSession.googleMeetLink,
-            }
-          : null,
-      },
+      booking: mapAdminBooking(updated),
     });
   } catch (error) {
     console.error('Update booking admin error:', error);
@@ -767,55 +765,143 @@ export const getUserDetail = async (req: Request, res: Response) => {
 
 export const getPublicTutors = async (req: Request, res: Response) => {
   try {
-    const { subject, city, state, country, location, minFee, maxFee, grade, page, limit } = req.query;
+    const { subject, city, state, country, location, minFee, maxFee, grade, search, page, limit } = req.query;
+    const hasPagination = typeof page !== 'undefined' || typeof limit !== 'undefined';
     const PAGE_SIZE = Math.min(50, Math.max(1, parseInt((limit as string) || '12', 10) || 12));
-    const currentPage = Math.max(1, parseInt((page as string) || '1', 10) || 1);
+    const currentPage = hasPagination ? Math.max(1, parseInt((page as string) || '1', 10) || 1) : 1;
     const skip = (currentPage - 1) * PAGE_SIZE;
 
-    const whereClause = {
-      user: { emailConfirmed: true },
-      backgroundCheck: {
-        status: 'APPROVED',
-      },
-      ...(minFee && { hourlyFee: { gte: parseFloat(minFee as string) } }),
-      ...(maxFee && { hourlyFee: { lte: parseFloat(maxFee as string) } }),
-      ...(grade && { gradesCanTeach: { contains: `"${grade}"` } }),
-      ...(city && { city: city as string }),
-      ...(state && { state: state as string }),
-      ...(country && { country: country as string }),
-      ...(location && {
-        OR: [
-          { city: { contains: location as string } },
-          { state: { contains: location as string } },
-          { country: { contains: location as string } },
-        ],
-      }),
-      ...(subject && {
-        subjects: {
-          some: {
-            subject: { name: subject as string },
-          },
-        },
-      }),
+    const normalizeText = (value: unknown) =>
+      typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+    const parseStoredList = (value: unknown): string[] => {
+      if (Array.isArray(value)) {
+        return value
+          .map((entry) => (typeof entry === 'string' ? entry.trim() : String(entry).trim()))
+          .filter((entry) => entry.length > 0);
+      }
+
+      if (typeof value !== 'string') {
+        return [];
+      }
+
+      const parsed = parseStringArray(value)
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
+
+      if (parsed.length > 0) {
+        return parsed;
+      }
+
+      return value
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
     };
 
-    const [tutors, total] = await Promise.all([
-      prisma.tutor.findMany({
-        where: whereClause,
-        include: {
-          subjects: { include: { subject: true } },
-          experiences: true,
-          educations: true,
-          user: { select: { email: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: PAGE_SIZE,
-        skip,
-      }),
-      prisma.tutor.count({ where: whereClause }),
-    ]);
+    const gradeToken = (value: string) => value.replace(/\s+/g, '').toLowerCase();
+    const toGradeNumber = (token: string): number | null => {
+      if (token === 'k' || token === 'kindergarten') return 0;
+      const m = token.match(/^(?:grade)?(\d+)$/);
+      return m ? Number(m[1]) : null;
+    };
+    const gradeMatches = (storedGrade: string, requestedGrade: string) => {
+      const stored = gradeToken(storedGrade);
+      const requested = gradeToken(requestedGrade);
+      if (!stored || !requested) return false;
+      if (stored === requested) return true;
+      const reqNum = toGradeNumber(requested);
+      const storedNum = toGradeNumber(stored);
+      if (reqNum !== null && storedNum !== null) return reqNum === storedNum;
+      const rangeMatch = stored.match(/^(k|\d+)-(\d+)$/i);
+      if (rangeMatch && reqNum !== null) {
+        const min = rangeMatch[1].toLowerCase() === 'k' ? 0 : Number(rangeMatch[1]);
+        const max = Number(rangeMatch[2]);
+        return reqNum >= min && reqNum <= max;
+      }
+      return false;
+    };
 
-    const formatted = tutors.map((tutor) => {
+    const subjectFilter = normalizeText(subject);
+    const gradeFilter = normalizeText(grade);
+    const locationFilter = normalizeText(location);
+    const searchFilter = normalizeText(search);
+    const cityFilter = normalizeText(city);
+    const stateFilter = normalizeText(state);
+    const countryFilter = normalizeText(country);
+
+    const tutors = await prisma.tutor.findMany({
+      where: {
+        user: { emailConfirmed: true },
+        backgroundCheck: {
+          status: 'APPROVED',
+        },
+        ...((minFee || maxFee) ? { hourlyFee: { ...(minFee ? { gte: parseFloat(minFee as string) } : {}), ...(maxFee ? { lte: parseFloat(maxFee as string) } : {}) } } : {}),
+      },
+      include: {
+        subjects: { include: { subject: true } },
+        experiences: true,
+        educations: true,
+        user: { select: { email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const filteredTutors = tutors.filter((tutor) => {
+      const subjectNames = tutor.subjects.map((entry) => entry.subject.name);
+      const subjectNamesNormalized = subjectNames.map((name) => normalizeText(name));
+      const grades = parseStoredList(tutor.gradesCanTeach);
+      const cityText = tutor.city || '';
+      const stateText = tutor.state || '';
+      const countryText = tutor.country || '';
+      const locationText = [cityText, stateText, countryText].filter(Boolean).join(' ');
+      const locationNormalized = normalizeText(locationText);
+      const searchableText = [
+        `${tutor.firstName || ''} ${tutor.lastName || ''}`,
+        tutor.tagline || '',
+        subjectNames.join(' '),
+        locationText,
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      if (subjectFilter && !subjectNamesNormalized.some((name) => name.includes(subjectFilter))) {
+        return false;
+      }
+
+      if (gradeFilter && !grades.some((entry) => gradeMatches(entry, gradeFilter))) {
+        return false;
+      }
+
+      if (locationFilter && !locationNormalized.includes(locationFilter)) {
+        return false;
+      }
+
+      if (cityFilter && normalizeText(cityText) !== cityFilter) {
+        return false;
+      }
+
+      if (stateFilter && normalizeText(stateText) !== stateFilter) {
+        return false;
+      }
+
+      if (countryFilter && normalizeText(countryText) !== countryFilter) {
+        return false;
+      }
+
+      if (searchFilter && !searchableText.includes(searchFilter)) {
+        return false;
+      }
+
+      return true;
+    });
+
+    const total = filteredTutors.length;
+    const tutorsForResponse = hasPagination
+      ? filteredTutors.slice(skip, skip + PAGE_SIZE)
+      : filteredTutors;
+
+    const formatted = tutorsForResponse.map((tutor) => {
       const tryParse = (v: any) => {
         if (Array.isArray(v)) return v;
         if (!v) return [];
@@ -843,9 +929,9 @@ export const getPublicTutors = async (req: Request, res: Response) => {
     res.json({
       tutors: formatted,
       total,
-      page: currentPage,
-      totalPages: Math.ceil(total / PAGE_SIZE),
-      pageSize: PAGE_SIZE,
+      page: hasPagination ? currentPage : 1,
+      totalPages: hasPagination ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : 1,
+      pageSize: hasPagination ? PAGE_SIZE : total,
     });
   } catch (error) {
     console.error('Get public tutors error:', error);
