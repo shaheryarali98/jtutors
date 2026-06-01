@@ -237,7 +237,7 @@ The app uses Stripe Connect for tutor payments:
 cd backend
 npm run dev          # Start dev server with hot reload
 npm run build        # Build TypeScript
-npm run start        # Run production build
+npm run start        # Run compiled backend from dist
 npm run prisma:studio # Open Prisma Studio (DB GUI)
 ```
 

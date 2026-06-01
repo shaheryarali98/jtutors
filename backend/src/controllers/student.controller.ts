@@ -509,7 +509,6 @@ export const searchTutors = async (req: Request, res: Response) => {
         experiences: true,
         educations: true,
         availabilities: true,
-        user: { select: { firstName: true, lastName: true } },
       },
       orderBy: {
         createdAt: 'desc',
@@ -552,8 +551,8 @@ export const searchTutors = async (req: Request, res: Response) => {
 
     const formattedTutors = formatTutorArray(filteredTutors as any).map((tutor: any) => ({
       ...tutor,
-      firstName: tutor.firstName || (tutor.user as any)?.firstName || '',
-      lastName: tutor.lastName || (tutor.user as any)?.lastName || '',
+      firstName: tutor.firstName || '',
+      lastName: tutor.lastName || '',
       saved: savedTutorIds.has(tutor.id as string),
       experienceCount: Array.isArray(tutor.experiences) ? tutor.experiences.length : 0,
       educationCount: Array.isArray(tutor.educations) ? tutor.educations.length : 0,
@@ -604,7 +603,7 @@ export const getTutorDetails = async (req: Request, res: Response) => {
         experiences: true,
         educations: true,
         availabilities: true,
-        user: { select: { firstName: true, lastName: true, email: true } },
+        user: { select: { email: true } },
       },
     });
 
@@ -634,8 +633,8 @@ export const getTutorDetails = async (req: Request, res: Response) => {
     res.json({
       tutor: {
         ...formattedTutor,
-        firstName: formattedTutor.firstName || (tutor.user as any)?.firstName || '',
-        lastName: formattedTutor.lastName || (tutor.user as any)?.lastName || '',
+        firstName: formattedTutor.firstName || '',
+        lastName: formattedTutor.lastName || '',
         saved,
         existingBookings,
         bookableSlots,

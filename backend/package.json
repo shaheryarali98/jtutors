@@ -5,10 +5,9 @@
   "main": "src/server.ts",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "node scripts/set-prisma-provider.js && prisma generate && tsc --noCheck",
+    "build": "node scripts/set-prisma-provider.js && prisma generate && node --max-old-space-size=1536 ./node_modules/typescript/bin/tsc --noCheck",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/set-prisma-provider.js && prisma generate",
-    "prestart": "npm run build",
     "start": "node dist/server.js",
     "start:migrate": "node scripts/ensure-columns.js && node dist/server.js",
     "prisma:generate": "prisma generate",

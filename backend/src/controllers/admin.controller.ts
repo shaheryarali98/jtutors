@@ -842,7 +842,6 @@ export const getPublicTutors = async (req: Request, res: Response) => {
         subjects: { include: { subject: true } },
         experiences: true,
         educations: true,
-        user: { select: { email: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -909,8 +908,8 @@ export const getPublicTutors = async (req: Request, res: Response) => {
       };
       return {
         id: tutor.id,
-        firstName: tutor.firstName || (tutor.user as any)?.firstName || '',
-        lastName: tutor.lastName || (tutor.user as any)?.lastName || '',
+        firstName: tutor.firstName || '',
+        lastName: tutor.lastName || '',
         profileImage: tutor.profileImage,
         coverImage: tutor.coverImage,
         tagline: tutor.tagline,
@@ -960,7 +959,7 @@ export const getPublicTutorDetails = async (req: Request, res: Response) => {
         experiences: true,
         educations: true,
         availabilities: true,
-        user: { select: { firstName: true, lastName: true, email: true } },
+        user: { select: { email: true } },
       },
     });
 
@@ -972,8 +971,8 @@ export const getPublicTutorDetails = async (req: Request, res: Response) => {
     res.json({
       tutor: {
         ...formattedTutor,
-        firstName: formattedTutor.firstName || (tutor.user as any)?.firstName || '',
-        lastName: formattedTutor.lastName || (tutor.user as any)?.lastName || '',
+        firstName: formattedTutor.firstName || '',
+        lastName: formattedTutor.lastName || '',
         saved: false,
       },
     });

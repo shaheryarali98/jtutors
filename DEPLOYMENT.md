@@ -59,7 +59,7 @@ If using `render.yaml`, the configuration is already set. Otherwise, configure i
 
 - **Root Directory**: `backend`
 - **Build Command**: `npm install && npm run build`
-- **Start Command**: `npm run start`
+- **Start Command**: `npm run start:migrate`
 
 ### Database Migrations
 
@@ -68,10 +68,10 @@ If using `render.yaml`, the configuration is already set. Otherwise, configure i
 The `render.yaml` is configured to automatically run migrations before starting the server:
 
 ```yaml
-startCommand: npx prisma migrate deploy && npm run start
+startCommand: npm run start:migrate
 ```
 
-This ensures migrations run every time the service starts, keeping your database schema up to date.
+This starts the already-built backend from `dist` and runs migrations/column checks before the server boots.
 
 **Manual Migration (If Needed):**
 
