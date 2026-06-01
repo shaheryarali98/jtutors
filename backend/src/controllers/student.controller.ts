@@ -419,7 +419,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 export const searchTutors = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const { subject, minFee, maxFee, grade, location, search } = req.query;
+    const { subject, minFee, maxFee, grade, location, search, page, limit } = req.query;
 
     const normalizeText = (value: unknown) =>
       typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -509,6 +509,7 @@ export const searchTutors = async (req: Request, res: Response) => {
         experiences: true,
         educations: true,
         availabilities: true,
+        user: { select: { firstName: true, lastName: true } },
       },
       orderBy: {
         createdAt: 'desc',
@@ -551,10 +552,25 @@ export const searchTutors = async (req: Request, res: Response) => {
 
     const formattedTutors = formatTutorArray(filteredTutors as any).map((tutor: any) => ({
       ...tutor,
+      firstName: tutor.firstName || (tutor.user as any)?.firstName || '',
+      lastName: tutor.lastName || (tutor.user as any)?.lastName || '',
       saved: savedTutorIds.has(tutor.id as string),
+      experienceCount: Array.isArray(tutor.experiences) ? tutor.experiences.length : 0,
+      educationCount: Array.isArray(tutor.educations) ? tutor.educations.length : 0,
     }));
 
-    res.json({ tutors: formattedTutors });
+    const PAGE_SIZE = Math.min(50, Math.max(1, parseInt((limit as string) || '12', 10) || 12));
+    const currentPage = Math.max(1, parseInt((page as string) || '1', 10) || 1);
+    const skip = (currentPage - 1) * PAGE_SIZE;
+    const total = formattedTutors.length;
+    const paginatedTutors = formattedTutors.slice(skip, skip + PAGE_SIZE);
+
+    res.json({
+      tutors: paginatedTutors,
+      total,
+      page: currentPage,
+      totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    });
   } catch (error) {
     console.error('Search tutors error:', error);
     res.status(500).json({ error: 'Error searching tutors' });
@@ -588,6 +604,7 @@ export const getTutorDetails = async (req: Request, res: Response) => {
         experiences: true,
         educations: true,
         availabilities: true,
+        user: { select: { firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -613,9 +630,12 @@ export const getTutorDetails = async (req: Request, res: Response) => {
       tutorTimeZone
     );
 
+    const formattedTutor = formatTutor(tutor as any) as any;
     res.json({
       tutor: {
-        ...formatTutor(tutor as any),
+        ...formattedTutor,
+        firstName: formattedTutor.firstName || (tutor.user as any)?.firstName || '',
+        lastName: formattedTutor.lastName || (tutor.user as any)?.lastName || '',
         saved,
         existingBookings,
         bookableSlots,

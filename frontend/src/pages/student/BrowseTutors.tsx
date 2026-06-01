@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import {
   Bookmark,
   BookmarkCheck,
+  Briefcase,
   CalendarPlus,
   Search,
   MapPin,
@@ -30,8 +31,11 @@ interface Tutor {
   state?: string
   country?: string
   gradesCanTeach?: string[]
+  languagesSpoken?: string[]
   profileImage?: string
   coverImage?: string
+  experienceCount?: number
+  educationCount?: number
   subjects: Array<{
     subject: {
       name: string
@@ -97,9 +101,6 @@ const BrowseTutors = () => {
       const queryParams = new URLSearchParams()
       const normalizedSearch = searchTerm.trim()
       const normalizedLocation = location.trim()
-      const hasActiveSearchOrFilter = Boolean(
-        normalizedSearch || selectedSubject || selectedGrade || minFee || maxFee || normalizedLocation
-      )
 
       if (normalizedSearch) queryParams.append('search', normalizedSearch)
       if (selectedSubject) queryParams.append('subject', selectedSubject)
@@ -107,10 +108,8 @@ const BrowseTutors = () => {
       if (minFee) queryParams.append('minFee', minFee)
       if (maxFee) queryParams.append('maxFee', maxFee)
       if (normalizedLocation) queryParams.append('location', normalizedLocation)
-      if (!isStudent && !hasActiveSearchOrFilter) {
-        queryParams.append('page', String(page))
-        queryParams.append('limit', '12')
-      }
+      queryParams.append('page', String(page))
+      queryParams.append('limit', '12')
 
       const queryString = queryParams.toString()
       const url = isStudent
@@ -128,20 +127,15 @@ const BrowseTutors = () => {
           ...tutor,
           subjects: normalizedSubjects,
           saved: isStudent ? Boolean(tutor.saved) : false,
+          experienceCount: tutor.experienceCount ?? (Array.isArray(tutor.experiences) ? tutor.experiences.length : 0),
+          educationCount: tutor.educationCount ?? (Array.isArray(tutor.educations) ? tutor.educations.length : 0),
         }
       })
 
       setTutors(normalizedTutors)
-      if (!isStudent) {
-        setTotalCount(response.data.total ?? normalizedTutors.length)
-        if (hasActiveSearchOrFilter) {
-          setTotalPages(1)
-          setCurrentPage(1)
-        } else {
-          setTotalPages(response.data.totalPages ?? 1)
-          setCurrentPage(response.data.page ?? page)
-        }
-      }
+      setTotalCount(response.data.total ?? normalizedTutors.length)
+      setTotalPages(response.data.totalPages ?? 1)
+      setCurrentPage(response.data.page ?? page)
     } catch (error) {
       console.error('Error fetching tutors:', error)
       setErrorMessage('Unable to load tutors right now. Please try again in a moment.')
@@ -226,11 +220,8 @@ const BrowseTutors = () => {
   }
 
   const grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'College', 'Graduate School', 'Adult Education']
-  const hasActiveSearchOrFilter = Boolean(
-    searchTerm.trim() || selectedSubject || selectedGrade || minFee || maxFee || location.trim()
-  )
-  const visibleTutorCount = isStudent || hasActiveSearchOrFilter ? tutors.length : totalCount
-  const showPagination = !isStudent && !hasActiveSearchOrFilter && totalPages > 1
+  const visibleTutorCount = totalCount || tutors.length
+  const showPagination = totalPages > 1
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(to bottom right, #e6f0f7, #fef5e7)' }}>
@@ -241,7 +232,7 @@ const BrowseTutors = () => {
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="relative overflow-hidden h-48 md:h-56"
+        className="relative overflow-hidden h-64 md:h-80"
       >
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -252,18 +243,44 @@ const BrowseTutors = () => {
           <div
             className="absolute inset-0"
             style={{
-              background: 'linear-gradient(to right, rgba(1, 44, 84, 0.85), rgba(1, 74, 122, 0.75))',
+              background: 'linear-gradient(135deg, rgba(1, 44, 84, 0.95) 0%, rgba(1, 74, 122, 0.85) 60%, rgba(245, 161, 26, 0.45) 100%)',
             }}
           />
         </div>
-        <div className="relative z-10 h-full flex items-center">
+        <div className="relative z-10 h-full flex flex-col justify-center">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-white mb-2">
-              Browse Expert Tutors
-            </h1>
-            <p className="text-lg md:text-xl text-white/90">
-              Find your perfect match from our network of qualified educators
-            </p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-3 drop-shadow-lg">
+                Find Your Perfect Tutor
+              </h1>
+              <p className="text-lg md:text-xl text-white/90 mb-6 max-w-2xl">
+                Browse verified, background-checked educators ready to help you succeed
+              </p>
+              <div className="flex flex-wrap gap-6">
+                <div className="flex items-center gap-2 text-white/90">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <GraduationCap className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold">Expert Tutors</span>
+                </div>
+                <div className="flex items-center gap-2 text-white/90">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <Users className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold">All Grade Levels</span>
+                </div>
+                <div className="flex items-center gap-2 text-white/90">
+                  <div className="w-8 h-8 rounded-full bg-[#f5a11a]/40 flex items-center justify-center">
+                    <Search className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold">50+ Subjects</span>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </motion.div>
@@ -514,9 +531,14 @@ const BrowseTutors = () => {
                     {/* Name and Price */}
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold text-slate-900 line-clamp-1">
-                          {tutor.firstName} {tutor.lastName}
-                        </h3>
+                        <Link
+                          to={`/tutors/${tutor.id}`}
+                          className="text-xl font-bold text-slate-900 line-clamp-1 hover:text-[#012c54] transition-colors block"
+                        >
+                          {(tutor.firstName || tutor.lastName)
+                            ? `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim()
+                            : 'View Tutor Profile'}
+                        </Link>
                         {(tutor.city || tutor.country) && (
                           <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
@@ -542,7 +564,7 @@ const BrowseTutors = () => {
                           Subjects
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {tutor.subjects.slice(0, 3).map((subjectItem, idx) => (
+                          {tutor.subjects.slice(0, 5).map((subjectItem, idx) => (
                             <span
                               key={`${subjectItem.subject.name}-${idx}`}
                               className="px-3 py-1 bg-[#e6f0f7] text-[#012c54] rounded-full text-xs font-medium"
@@ -550,9 +572,9 @@ const BrowseTutors = () => {
                               {subjectItem.subject.name}
                             </span>
                           ))}
-                          {tutor.subjects.length > 3 && (
+                          {tutor.subjects.length > 5 && (
                             <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
-                              +{tutor.subjects.length - 3} more
+                              +{tutor.subjects.length - 5} more
                             </span>
                           )}
                         </div>
@@ -569,6 +591,31 @@ const BrowseTutors = () => {
                           {tutor.gradesCanTeach.slice(0, 4).join(', ')}
                           {tutor.gradesCanTeach.length > 4 && ` +${tutor.gradesCanTeach.length - 4} more`}
                         </p>
+                      </div>
+                    )}
+
+                    {/* Languages & Stats */}
+                    {((tutor.languagesSpoken && tutor.languagesSpoken.length > 0) ||
+                      (tutor.experienceCount ?? 0) > 0 ||
+                      (tutor.educationCount ?? 0) > 0) && (
+                      <div className="flex flex-wrap gap-3 mb-4 text-xs text-slate-500 border-t border-slate-100 pt-3">
+                        {tutor.languagesSpoken && tutor.languagesSpoken.length > 0 && (
+                          <span className="flex items-center gap-1">
+                            🌐 {tutor.languagesSpoken.slice(0, 2).join(', ')}
+                          </span>
+                        )}
+                        {(tutor.experienceCount ?? 0) > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Briefcase className="w-3 h-3" />
+                            {tutor.experienceCount} {tutor.experienceCount === 1 ? 'experience' : 'experiences'}
+                          </span>
+                        )}
+                        {(tutor.educationCount ?? 0) > 0 && (
+                          <span className="flex items-center gap-1">
+                            <GraduationCap className="w-3 h-3" />
+                            {tutor.educationCount} {tutor.educationCount === 1 ? 'qualification' : 'qualifications'}
+                          </span>
+                        )}
                       </div>
                     )}
 

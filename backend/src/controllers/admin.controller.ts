@@ -842,7 +842,7 @@ export const getPublicTutors = async (req: Request, res: Response) => {
         subjects: { include: { subject: true } },
         experiences: true,
         educations: true,
-        user: { select: { email: true } },
+        user: { select: { email: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -909,8 +909,8 @@ export const getPublicTutors = async (req: Request, res: Response) => {
       };
       return {
         id: tutor.id,
-        firstName: tutor.firstName,
-        lastName: tutor.lastName,
+        firstName: tutor.firstName || (tutor.user as any)?.firstName || '',
+        lastName: tutor.lastName || (tutor.user as any)?.lastName || '',
         profileImage: tutor.profileImage,
         coverImage: tutor.coverImage,
         tagline: tutor.tagline,
@@ -960,6 +960,7 @@ export const getPublicTutorDetails = async (req: Request, res: Response) => {
         experiences: true,
         educations: true,
         availabilities: true,
+        user: { select: { firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -967,9 +968,12 @@ export const getPublicTutorDetails = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Tutor not found' });
     }
 
+    const formattedTutor = formatTutor(tutor as any) as any;
     res.json({
       tutor: {
-        ...(formatTutor(tutor as any) as any),
+        ...formattedTutor,
+        firstName: formattedTutor.firstName || (tutor.user as any)?.firstName || '',
+        lastName: formattedTutor.lastName || (tutor.user as any)?.lastName || '',
         saved: false,
       },
     });

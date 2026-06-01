@@ -145,84 +145,86 @@ const TutorDetailPage = () => {
         </a>
 
         <div className="bg-white rounded-3xl shadow overflow-hidden">
-          <div className="h-56 relative overflow-hidden bg-gradient-to-r from-[#012c54] via-indigo-700 to-slate-700">
+          {/* Cover Banner */}
+          <div className="h-48 md:h-56 relative overflow-hidden bg-gradient-to-r from-[#012c54] via-indigo-700 to-slate-700">
             {coverImage ? (
               <img src={coverImage} alt="Cover" className="h-full w-full object-cover" />
             ) : null}
           </div>
-          <div className="px-6 md:px-10 pb-10 -mt-16">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-              <div className="flex items-start gap-5">
-                <div className="h-28 w-28 rounded-3xl z-50 border-4 border-white shadow-lg bg-white overflow-hidden flex items-center justify-center text-2xl font-semibold text-primary-600">
-                  {profileImage ? (
-                    <img src={profileImage} alt={`${tutor.firstName}`} className="h-full w-full object-cover" />
-                  ) : (
-                    `${tutor.firstName?.charAt(0)}${tutor.lastName?.charAt(0)}`
-                  )}
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-slate-900">
-                    {tutorDisplayName}
-                  </h1>
-                  <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-slate-500">
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin size={16} />
-                      {tutor.city ? `${tutor.city}, ${tutor.state || tutor.country}` : tutor.country}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Shield size={16} />
-                      {tutor.languagesSpoken?.length ? tutor.languagesSpoken.join(', ') : 'Languages available'}
-                    </span>
-                  </div>
-                  {tutor.tagline && <p className="text-slate-600 mt-3 max-w-2xl">{tutor.tagline}</p>}
-                </div>
-              </div>
-              <div className="flex flex-col items-stretch gap-3">
-                {tutor.hourlyFee && (
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-center">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Hourly rate</p>
-                    <p className="text-2xl font-bold text-primary-600 mt-1">${tutor.hourlyFee.toFixed(2)}</p>
-                  </div>
-                )}
-                <div className="flex gap-3 flex-wrap">
-                  <button
-                    type="button"
-                    className="btn btn-primary inline-flex items-center gap-2"
-                    onClick={() => (isStudent ? setBookingModalOpen(true) : navigate('/login'))}
-                  >
-                    <CalendarPlus size={18} />
-                    {isStudent ? 'Hire this tutor' : 'Login to hire'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary inline-flex items-center gap-2"
-                    onClick={async () => {
-                      if (!isStudent) {
-                        navigate('/login')
-                        return
-                      }
 
-                      try {
-                        await api.post('/messages/conversations', { tutorId: tutor!.id })
-                        navigate('/student/messages')
-                      } catch (err) {
-                        console.error('Error starting conversation:', err)
-                      }
-                    }}
-                  >
-                    <MessageCircle size={18} />
-                    Message
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary inline-flex items-center gap-2"
-                    onClick={handleToggleSaved}
-                    disabled={saving}
-                  >
-                    {tutor.saved ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
-                    {tutor.saved ? 'Saved' : isStudent ? 'Save tutor' : 'Login to save'}
-                  </button>
+          {/* Content Section */}
+          <div className="px-6 md:px-10 py-8 md:py-10">
+            {/* Avatar - sits cleanly below banner */}
+            <div className="mb-6">
+              <div className="h-32 w-32 rounded-3xl border-4 border-slate-200 shadow-lg bg-white overflow-hidden flex items-center justify-center text-2xl font-semibold text-primary-600 flex-shrink-0">
+                {profileImage ? (
+                  <img src={profileImage} alt={tutorDisplayName} className="h-full w-full object-cover" />
+                ) : (
+                  `${tutor.firstName?.charAt(0) || ''}${tutor.lastName?.charAt(0) || ''}`
+                )}
+              </div>
+            </div>
+
+            {/* Header - Name and quick actions */}
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-6">
+              <div className="flex-1">
+                <h1 className="text-4xl font-bold text-slate-900 mb-4">{tutorDisplayName}</h1>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600 mb-3">
+                  {(tutor.city || tutor.country) && (
+                    <span className="inline-flex items-center gap-2">
+                      <MapPin size={18} className="text-slate-400" />
+                      <span>{tutor.city ? `${tutor.city}, ${tutor.state || tutor.country}` : tutor.country}</span>
+                    </span>
+                  )}
+                  {tutor.languagesSpoken?.length ? (
+                    <span className="inline-flex items-center gap-2">
+                      🌐
+                      <span>{tutor.languagesSpoken.join(', ')}</span>
+                    </span>
+                  ) : null}
                 </div>
+                {tutor.tagline && <p className="text-slate-600 text-lg leading-relaxed">{tutor.tagline}</p>}
+              </div>
+
+              {/* Sidebar: Price and buttons */}
+              <div className="flex flex-col gap-4 lg:sticky lg:top-8">
+                {tutor.hourlyFee ? (
+                  <div className="bg-gradient-to-br from-[#f5a11a]/10 to-[#f5a11a]/5 border border-[#f5a11a]/30 rounded-2xl px-6 py-5 text-center">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hourly rate</p>
+                    <p className="text-4xl font-bold text-[#012c54] mt-2">${tutor.hourlyFee.toFixed(2)}</p>
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-primary inline-flex items-center justify-center gap-2 py-3"
+                  onClick={() => (isStudent ? setBookingModalOpen(true) : navigate('/login'))}
+                >
+                  <CalendarPlus size={20} />
+                  {isStudent ? 'Hire this tutor' : 'Login to hire'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary inline-flex items-center justify-center gap-2"
+                  onClick={async () => {
+                    if (!isStudent) { navigate('/login'); return }
+                    try {
+                      await api.post('/messages/conversations', { tutorId: tutor!.id })
+                      navigate('/student/messages')
+                    } catch (err) { console.error('Error starting conversation:', err) }
+                  }}
+                >
+                  <MessageCircle size={20} />
+                  Message
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary inline-flex items-center justify-center gap-2"
+                  onClick={handleToggleSaved}
+                  disabled={saving}
+                >
+                  {tutor.saved ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+                  {tutor.saved ? 'Saved' : isStudent ? 'Save tutor' : 'Login to save'}
+                </button>
               </div>
             </div>
           </div>
