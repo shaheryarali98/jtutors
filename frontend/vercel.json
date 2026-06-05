@@ -6,6 +6,7 @@
     "VITE_API_URL": "https://jtutors.onrender.com/api"
   },
   "rewrites": [
+    { "source": "/google819f084b9b962599.html", "destination": "/google819f084b9b962599.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
