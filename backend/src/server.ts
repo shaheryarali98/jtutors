@@ -94,6 +94,7 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'https://jtutors.com',
+  'https://www.jtutors.com',
   'https://jtutors-staging.vercel.app',
   'https://jtutor.vercel.app',
   'http://localhost:3000',
