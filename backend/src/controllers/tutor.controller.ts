@@ -1043,15 +1043,33 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
         });
       }
 
-      const account = await stripe.accounts.create({
-        type: 'express',
-        email: tutor.user.email,
-        country: stripeCountry,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true }
+      // Some countries (e.g. IL, IN) don't support card_payments capability.
+      // Try with card_payments first; fall back to transfers-only if unsupported.
+      let account;
+      try {
+        account = await stripe.accounts.create({
+          type: 'express',
+          email: tutor.user.email,
+          country: stripeCountry,
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true }
+          }
+        });
+      } catch (capErr: any) {
+        if (capErr?.message?.includes('card_payments')) {
+          account = await stripe.accounts.create({
+            type: 'express',
+            email: tutor.user.email,
+            country: stripeCountry,
+            capabilities: {
+              transfers: { requested: true }
+            }
+          });
+        } else {
+          throw capErr;
         }
-      });
+      }
       accountId = account.id;
 
       await prisma.tutor.update({

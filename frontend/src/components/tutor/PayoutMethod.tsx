@@ -80,15 +80,12 @@ const PayoutMethod = ({ onSaveSuccess }: PayoutMethodProps) => {
         setStripeStatus(data)
 
         if (data.onboarded) {
-          // Account is fully ready
+          // Account is fully ready - stay on payout page to show success message
+          // Don't auto-advance; let user see the confirmation
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
           setPollingMessage("")
           setLoading(false)
           window.dispatchEvent(new Event("tutor-profile-updated"))
-          if (!onSaveSuccessCalled.current) {
-            onSaveSuccessCalled.current = true
-            onSaveSuccess()
-          }
           return
         }
 
@@ -254,6 +251,13 @@ const PayoutMethod = ({ onSaveSuccess }: PayoutMethodProps) => {
                   </div>
                 </div>
               </div>
+              
+              <button
+                onClick={() => onSaveSuccess()}
+                className="btn btn-primary w-full mt-4"
+              >
+                Continue to Next Step →
+              </button>
             </div>
           ) : (
             <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6">
