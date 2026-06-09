@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/set-prisma-provider.js && prisma generate",
     "start": "node dist/server.js",
-    "start:migrate": "node scripts/ensure-columns.js && node dist/server.js",
+    "start:migrate": "node scripts/ensure-columns.js && node scripts/ensure-bat-mitzvah-subject.js && node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:safe": "node scripts/prisma-migrate-safe.js",

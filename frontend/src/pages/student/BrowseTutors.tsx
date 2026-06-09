@@ -115,7 +115,19 @@ const BrowseTutors = () => {
       const url = isStudent
         ? `/student/tutors${queryString ? `?${queryString}` : ''}`
         : `/public/tutors${queryString ? `?${queryString}` : ''}`
-      const response = await api.get(url)
+      let response
+
+      try {
+        response = await api.get(url)
+      } catch (primaryError) {
+        if (!isStudent) {
+          throw primaryError
+        }
+
+        // Fallback to public tutors so the page still works if student-specific listing fails.
+        response = await api.get(`/public/tutors${queryString ? `?${queryString}` : ''}`)
+      }
+
       const normalizedTutors = (response.data.tutors || []).map((tutor: any) => {
         const normalizedSubjects = Array.isArray(tutor.subjects)
           ? tutor.subjects.map((item: any) =>

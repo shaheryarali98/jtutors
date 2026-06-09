@@ -26,6 +26,11 @@ interface PersonalInfoForm {
   timezone: string;
 }
 
+interface StripeCountryOption {
+  code: string;
+  name: string;
+}
+
 const grades = [
   "Grade 1",
   "Grade 2",
@@ -90,6 +95,8 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
   const [coverImage, setCoverImage] = useState("");
   const [uploadingCover, setUploadingCover] = useState(false);
   const [profileCompletion, setProfileCompletion] = useState(0);
+  const [stripeCountries, setStripeCountries] = useState<StripeCountryOption[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
   const { settings, fetchSettings } = usePlatformSettings();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,10 +104,28 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
 
   // Watch the email field for real-time validation
   const emailValue = watch("email", "");
+  const countryValue = watch("country", "");
 
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  useEffect(() => {
+    const fetchStripeCountries = async () => {
+      try {
+        setCountriesLoading(true);
+        const response = await api.get('/tutor/stripe/supported-countries');
+        const countries = Array.isArray(response.data?.countries) ? response.data.countries : [];
+        setStripeCountries(countries);
+      } catch (error) {
+        console.error('Error fetching Stripe countries:', error);
+      } finally {
+        setCountriesLoading(false);
+      }
+    };
+
+    fetchStripeCountries();
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -677,14 +702,46 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="label">Country *</label>
-            <input
-              type="text"
-              className="input"
-              {...register("country", { required: "Country is required" })}
-            />
+            {stripeCountries.length > 0 ? (
+              <select
+                className="input"
+                {...register("country", { required: "Country is required" })}
+              >
+                <option value="">Select your country</option>
+                {countryValue && !stripeCountries.some((entry) => entry.name === countryValue) && (
+                  <option value={countryValue}>{countryValue}</option>
+                )}
+                {stripeCountries.map((entry) => (
+                  <option key={entry.code} value={entry.name}>
+                    {entry.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                className="input"
+                list="stripe-country-options"
+                {...register("country", { required: "Country is required" })}
+              />
+            )}
+            {stripeCountries.length === 0 && (
+              <datalist id="stripe-country-options">
+                <option value="United States" />
+                <option value="Canada" />
+                <option value="Israel" />
+                <option value="United Kingdom" />
+                <option value="Australia" />
+              </datalist>
+            )}
             {errors.country && (
               <p className="error-text">{errors.country.message}</p>
             )}
+            <p className="text-sm text-slate-500 mt-1">
+              {countriesLoading
+                ? 'Loading Stripe-supported countries...'
+                : 'Pick your country so Stripe Connect can onboard the correct region.'}
+            </p>
           </div>
 
           {settings?.stateFieldEnabled !== false && (

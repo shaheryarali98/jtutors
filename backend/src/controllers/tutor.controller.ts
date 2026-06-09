@@ -7,7 +7,7 @@ import { sendEmail } from '../services/email.service';
 import { sendTemplatedEmail } from '../services/emailTemplate.service';
 import { getWalletSummary } from '../services/wallet.service';
 import { stripe } from '../services/stripe.service';
-import { toStripeCountryCode } from '../utils/country';
+import { listStripeSupportedCountries, resolveStripeCountryCode } from '../services/stripeCountry.service';
 
 const prisma = new PrismaClient();
 
@@ -1035,11 +1035,18 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
 
     // Create Stripe Connect account if doesn't exist
     if (!accountId) {
-      const stripeCountry = toStripeCountryCode(tutor.country);
+      const stripeCountry = await resolveStripeCountryCode(tutor.country);
+      if (!stripeCountry) {
+        return res.status(400).json({
+          error: 'Your tutor country is missing or not supported by Stripe Connect. Please update your country in Personal Information and try again.',
+          code: 'STRIPE_COUNTRY_UNSUPPORTED',
+        });
+      }
+
       const account = await stripe.accounts.create({
         type: 'express',
         email: tutor.user.email,
-        ...(stripeCountry ? { country: stripeCountry } : {}),
+        country: stripeCountry,
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true }
@@ -1113,6 +1120,16 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
     res.status(500).json({ 
       error: error.message || 'Error creating Stripe account. Please try again.' 
     });
+  }
+};
+
+export const getStripeSupportedCountries = async (_req: Request, res: Response) => {
+  try {
+    const countries = await listStripeSupportedCountries();
+    res.json({ countries });
+  } catch (error: any) {
+    console.error('Get Stripe supported countries error:', error);
+    res.status(500).json({ error: error.message || 'Error loading Stripe countries' });
   }
 };
 

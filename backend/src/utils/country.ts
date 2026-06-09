@@ -123,7 +123,7 @@ const COUNTRY_NAME_TO_CODE: Record<string, string> = {
   'saudi arabia': 'SA',
 };
 
-const normalizeCountryName = (value: string) =>
+export const normalizeCountryName = (value: string) =>
   value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

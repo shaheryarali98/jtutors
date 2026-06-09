@@ -70,8 +70,30 @@ const StudentDashboard = () => {
   const fetchTutors = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/student/tutors')
-      setTutors(response.data.tutors)
+      let response
+
+      try {
+        response = await api.get('/student/tutors')
+      } catch (studentError) {
+        // Fallback so students can still browse tutors if personalized endpoint fails.
+        response = await api.get('/public/tutors?limit=12')
+      }
+
+      const normalizedTutors = (response.data.tutors || []).map((tutor: any) => {
+        const normalizedSubjects = Array.isArray(tutor.subjects)
+          ? tutor.subjects.map((item: any) =>
+              typeof item === 'string' ? { subject: { name: item } } : item
+            )
+          : []
+
+        return {
+          ...tutor,
+          subjects: normalizedSubjects,
+          saved: Boolean(tutor.saved),
+        }
+      })
+
+      setTutors(normalizedTutors)
     } catch (error) {
       console.error('Error fetching tutors:', error)
       setErrorMessage('Unable to load tutors right now. Please try again in a moment.')

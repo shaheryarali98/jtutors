@@ -38,6 +38,7 @@ router.get('/profile/background-check/refresh', tutorController.refreshBackgroun
 // Stripe
 router.post('/stripe/connect', tutorController.createStripeConnectAccount);
 router.get('/stripe/status', tutorController.getStripeStatus);
+router.get('/stripe/supported-countries', tutorController.getStripeSupportedCountries);
 
 // Terms and Conditions
 router.post('/accept-terms', tutorController.acceptTerms);

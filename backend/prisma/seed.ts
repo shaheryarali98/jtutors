@@ -57,7 +57,7 @@ const subjectsHierarchy = {
         'Tax Accounting'
     ],
     'Jewish Studies': [
-        'Bar Mitzvah', 'Chassidus', 'Chumash', 'Conversational Hebrew', 'Halacha',
+        'Bar Mitzvah', 'Bat Mitzvah', 'Chassidus', 'Chumash', 'Conversational Hebrew', 'Halacha',
         'Hebrew Language', 'Jewish Law', 'Jewish Philosophy', 'Kriyah', 'Leining',
         'Mussar', 'Navih', 'Talmud', 'Tanach', 'Tefillah', 'Torah Reading'
     ],
