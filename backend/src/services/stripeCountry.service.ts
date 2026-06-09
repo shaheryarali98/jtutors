@@ -49,7 +49,7 @@ export const listStripeSupportedCountries = async (): Promise<StripeCountryOptio
     for (const spec of page.data) {
       collected.push({
         code: spec.id.toUpperCase(),
-        name: spec.name || spec.id.toUpperCase(),
+        name: (spec as any).name || spec.id.toUpperCase(),
       });
     }
 

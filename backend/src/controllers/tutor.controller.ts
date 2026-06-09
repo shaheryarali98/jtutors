@@ -1043,31 +1043,70 @@ export const createStripeConnectAccount = async (req: Request, res: Response) =>
         });
       }
 
-      // Some countries (e.g. IL, IN) don't support card_payments capability.
-      // Try with card_payments first; fall back to transfers-only if unsupported.
+      // Stripe country behavior varies:
+      // 1) Try card_payments + transfers
+      // 2) Fall back to transfers-only if card_payments is not allowed
+      // 3) Fall back to recipient agreement for cross-border payout countries
+      const baseAccountPayload = {
+        type: 'express' as const,
+        email: tutor.user.email,
+        country: stripeCountry,
+      };
+
+      const isCardCapabilityError = (message: string) =>
+        /card_payments/i.test(message) && /cannot request|not available|required/i.test(message);
+
+      const requiresRecipientAgreement = (message: string) =>
+        message.toLowerCase().includes('recipient') && message.toLowerCase().includes('service agreement');
+
       let account;
       try {
         account = await stripe.accounts.create({
-          type: 'express',
-          email: tutor.user.email,
-          country: stripeCountry,
+          ...baseAccountPayload,
           capabilities: {
             card_payments: { requested: true },
-            transfers: { requested: true }
-          }
+            transfers: { requested: true },
+          },
         });
-      } catch (capErr: any) {
-        if (capErr?.message?.includes('card_payments')) {
-          account = await stripe.accounts.create({
-            type: 'express',
-            email: tutor.user.email,
-            country: stripeCountry,
-            capabilities: {
-              transfers: { requested: true }
+      } catch (firstErr: any) {
+        const firstMessage = String(firstErr?.message || '');
+
+        if (isCardCapabilityError(firstMessage)) {
+          try {
+            account = await stripe.accounts.create({
+              ...baseAccountPayload,
+              capabilities: {
+                transfers: { requested: true },
+              },
+            });
+          } catch (secondErr: any) {
+            const secondMessage = String(secondErr?.message || '');
+            if (!requiresRecipientAgreement(secondMessage)) {
+              throw secondErr;
             }
+
+            account = await stripe.accounts.create({
+              ...baseAccountPayload,
+              capabilities: {
+                transfers: { requested: true },
+              },
+              tos_acceptance: {
+                service_agreement: 'recipient',
+              },
+            });
+          }
+        } else if (requiresRecipientAgreement(firstMessage)) {
+          account = await stripe.accounts.create({
+            ...baseAccountPayload,
+            capabilities: {
+              transfers: { requested: true },
+            },
+            tos_acceptance: {
+              service_agreement: 'recipient',
+            },
           });
         } else {
-          throw capErr;
+          throw firstErr;
         }
       }
       accountId = account.id;

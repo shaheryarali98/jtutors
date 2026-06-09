@@ -99,6 +99,7 @@ const allowedOrigins = [
   'https://jtutor.vercel.app',
   'http://localhost:3000',
   'http://localhost:3001',
+  'http://localhost:3002',
   'http://localhost:5173', // Vite default port
 ].filter(Boolean) as string[];
 
