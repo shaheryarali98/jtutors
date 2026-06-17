@@ -52,30 +52,6 @@ const grades = [
 const HAPPY_AVATAR_PLACEHOLDER_URL =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23FFD700"/><circle cx="35" cy="40" r="5" fill="%23000000"/><circle cx="65" cy="40" r="5" fill="%23000000"/><path d="M 30 65 Q 50 85 70 65" stroke="%23000000" stroke-width="4" fill="none"/></svg>';
 
-// ✅ Simple email validator - blocks ONLY the specified domains
-const blockedDomains = [
-  "yahoo.com",
-  "outlook.com",
-  "hotmail.com",
-  "live.com",
-  "icloud.com",
-  "aol.com",
-  "protonmail.com",
-  "zoho.com",
-];
-
-const isAllowedForGoogleClassroom = (email: string) => {
-  if (!email) return false;
-
-  const emailLower = email.toLowerCase();
-  const domain = emailLower.split("@")[1];
-  if (!domain) return false;
-
-  // ❌ ONLY block the specified domains
-  // ✅ ALL other domains are allowed (including creative360pro.com, creativemediatechnology.com, etc.)
-  return !blockedDomains.includes(domain);
-};
-
 const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
   const {
     register,
@@ -102,8 +78,6 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  // Watch the email field for real-time validation
-  const emailValue = watch("email", "");
   const countryValue = watch("country", "");
 
   useEffect(() => {
@@ -310,13 +284,6 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
     try {
       setLoading(true);
       setSuccess(false);
-
-      // Email validation using the simple helper function
-      if (!isAllowedForGoogleClassroom(data.email)) {
-        alert("Please use a valid email address. Yahoo, Outlook, Hotmail, Live, iCloud, AOL, ProtonMail, and Zoho emails are not accepted for Google Classroom integration.");
-        setLoading(false);
-        return;
-      }
 
       // Remove cache busting parameter before saving
       const imageToSave = profileImage.split("?")[0];
@@ -594,22 +561,8 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
           </div>
         </div>
 
-        {/* ******* Updated Email Field - Normal Style ******* */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="label">Email Address *</label>
-            {emailValue && (
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                isAllowedForGoogleClassroom(emailValue)
-                  ? "bg-green-100 text-green-800"
-                  : "bg-yellow-100 text-yellow-800"
-                }`}>
-                {isAllowedForGoogleClassroom(emailValue)
-                  ? "✓ Valid email"
-                  : "⚠️ Email not accepted for Google Classroom"}
-              </span>
-            )}
-          </div>
+          <label className="label">Email Address *</label>
           <input
             type="email"
             className="input"
@@ -618,13 +571,6 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
               pattern: {
                 value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                 message: "Invalid email address"
-              },
-              validate: {
-                isAllowedEmail: (value) => {
-                  if (!value) return true;
-                  return isAllowedForGoogleClassroom(value) ||
-                    "Yahoo, Outlook, Hotmail, Live, iCloud, AOL, ProtonMail, and Zoho emails are not accepted for Google Classroom integration.";
-                }
               }
             })}
             placeholder="your.email@example.com"
@@ -632,11 +578,7 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
           {errors.email && (
             <p className="error-text">{errors.email.message}</p>
           )}
-          <p className="text-sm text-slate-500 mt-1">
-            Please use a valid email. Yahoo, Outlook, Hotmail, Live, iCloud, AOL, ProtonMail, and Zoho emails are not accepted.
-          </p>
         </div>
-        {/* ******* End of Updated Email Field ******* */}
 
         {settings?.genderFieldEnabled !== false && (
           <div>

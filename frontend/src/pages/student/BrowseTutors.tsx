@@ -44,6 +44,16 @@ interface Tutor {
   saved?: boolean
 }
 
+interface TutorResponse {
+  tutors: Tutor[]
+  total?: number
+  totalMatchingTutors?: number
+  page?: number
+  totalPages?: number
+  isPreview?: boolean
+  previewLimit?: number
+}
+
 const BrowseTutors = () => {
   const { user } = useAuthStore()
   const isStudent = user?.role === 'STUDENT'
@@ -66,6 +76,8 @@ const BrowseTutors = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [previewMode, setPreviewMode] = useState(false)
+  const [previewLimit, setPreviewLimit] = useState(9)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -118,14 +130,14 @@ const BrowseTutors = () => {
       let response
 
       try {
-        response = await api.get(url)
+        response = await api.get<TutorResponse>(url)
       } catch (primaryError) {
         if (!isStudent) {
           throw primaryError
         }
 
         // Fallback to public tutors so the page still works if student-specific listing fails.
-        response = await api.get(`/public/tutors${queryString ? `?${queryString}` : ''}`)
+        response = await api.get<TutorResponse>(`/public/tutors${queryString ? `?${queryString}` : ''}`)
       }
 
       const normalizedTutors = (response.data.tutors || []).map((tutor: any) => {
@@ -145,9 +157,11 @@ const BrowseTutors = () => {
       })
 
       setTutors(normalizedTutors)
-      setTotalCount(response.data.total ?? normalizedTutors.length)
-      setTotalPages(response.data.totalPages ?? 1)
-      setCurrentPage(response.data.page ?? page)
+      setPreviewMode(!isStudent && Boolean(response.data.isPreview))
+      setPreviewLimit(response.data.previewLimit ?? 9)
+      setTotalCount(isStudent ? (response.data.total ?? normalizedTutors.length) : (response.data.totalMatchingTutors ?? response.data.total ?? normalizedTutors.length))
+      setTotalPages(isStudent ? (response.data.totalPages ?? 1) : 1)
+      setCurrentPage(isStudent ? (response.data.page ?? page) : 1)
     } catch (error) {
       console.error('Error fetching tutors:', error)
       setErrorMessage('Unable to load tutors right now. Please try again in a moment.')
@@ -216,6 +230,10 @@ const BrowseTutors = () => {
   }
 
   const handlePageChange = (page: number) => {
+    if (!isStudent) {
+      navigate('/register?role=student')
+      return
+    }
     setCurrentPage(page)
     fetchTutors(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -233,7 +251,7 @@ const BrowseTutors = () => {
 
   const grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'College', 'Graduate School', 'Adult Education']
   const visibleTutorCount = totalCount || tutors.length
-  const showPagination = totalPages > 1
+  const showPagination = isStudent && totalPages > 1
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(to bottom right, #e6f0f7, #fef5e7)' }}>
@@ -467,6 +485,29 @@ const BrowseTutors = () => {
           )}
         </div>
 
+        {previewMode && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center">
+            <h2 className="text-lg font-bold text-slate-900">Previewing {Math.min(tutors.length, previewLimit)} tutors</h2>
+            <p className="mt-2 text-sm text-slate-700">
+              Create a student account to unlock the full tutor directory, full profiles, messaging, and booking.
+            </p>
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                to="/register?role=student"
+                className="rounded-xl bg-[#012c54] px-5 py-3 text-sm font-semibold text-white hover:bg-[#014a7a] transition-colors"
+              >
+                Create Student Account
+              </Link>
+              <Link
+                to="/login"
+                className="rounded-xl border-2 border-[#012c54] px-5 py-3 text-sm font-semibold text-[#012c54] hover:bg-[#012c54] hover:text-white transition-colors"
+              >
+                Sign In
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Tutors Grid */}
         {loading ? (
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl p-12 text-center">
@@ -543,10 +584,10 @@ const BrowseTutors = () => {
                     {/* Name and Price */}
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex-1">
-                        <Link
-                          to={`/tutors/${tutor.id}`}
-                          className="text-xl font-bold text-slate-900 line-clamp-1 hover:text-[#012c54] transition-colors block"
-                        >
+                      <Link
+                        to={isStudent ? `/tutors/${tutor.id}` : '/register?role=student'}
+                        className="text-xl font-bold text-slate-900 line-clamp-1 hover:text-[#012c54] transition-colors block"
+                      >
                           {(tutor.firstName || tutor.lastName)
                             ? `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim()
                             : 'View Tutor Profile'}
@@ -641,10 +682,10 @@ const BrowseTutors = () => {
                         {isStudent ? 'Book Session' : 'Login to Book'}
                       </button>
                       <Link
-                        to={`/tutors/${tutor.id}`}
+                        to={isStudent ? `/tutors/${tutor.id}` : '/register?role=student'}
                         className="w-full py-2.5 border-2 border-[#012c54] text-[#012c54] rounded-xl font-semibold hover:bg-[#012c54] hover:text-white transition-colors text-center"
                       >
-                        View Full Profile
+                        {isStudent ? 'View Full Profile' : 'Create Account to View Full Profile'}
                       </Link>
                     </div>
                   </div>

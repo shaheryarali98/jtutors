@@ -84,6 +84,7 @@ const StudentProfile = () => {
   const [profileImage, setProfileImage] = useState('')
   const [uploading, setUploading] = useState(false)
   const [profileCompleted, setProfileCompleted] = useState(false)
+  const [platformAgreementChecked, setPlatformAgreementChecked] = useState(false)
   const [languages, setLanguages] = useState<string[]>([])
   const [customLanguageInput, setCustomLanguageInput] = useState('')
   const [learningPreferences, setLearningPreferences] = useState<string[]>([])
@@ -599,6 +600,17 @@ const StudentProfile = () => {
                     <p className="text-sm text-slate-600 mb-4">
                       Please review and accept our terms and conditions to continue using the platform.
                     </p>
+                    <label className="flex items-start gap-3 mb-4">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={platformAgreementChecked}
+                        onChange={(event) => setPlatformAgreementChecked(event.target.checked)}
+                      />
+                      <span className="text-sm text-slate-700">
+                        I agree that any tutor discovered, contacted or engaged through JTutors will be booked, scheduled and paid exclusively through the JTutors platform.
+                      </span>
+                    </label>
                     <button
                       type="button"
                       onClick={() => setShowTermsModal(true)}

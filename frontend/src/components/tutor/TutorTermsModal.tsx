@@ -111,6 +111,18 @@ const TutorTermsModal = ({ isOpen, onClose, onAccept }: TutorTermsModalProps) =>
             </div>
 
             <div>
+              <h4 className="text-lg font-semibold mb-2">8. Platform Conduct Restrictions</h4>
+              <p className="text-gray-700 mb-2">Without limitation, tutors may not:</p>
+              <ul className="list-disc list-inside text-gray-700 space-y-1">
+                <li>Create an account for any fraudulent, deceptive, or unauthorized purpose.</li>
+                <li>Misuse JTutors or any information obtained through the platform for personal commercial gain outside the intended use of the platform.</li>
+                <li>Advertise, promote, or offer goods or services unrelated to tutoring services available through JTutors.</li>
+                <li>Impersonate another person or entity, or permit another person to use their account, credentials, or identity.</li>
+                <li>Circumvent, interfere with, or attempt to bypass JTutors' payment, scheduling, communication, or other platform systems.</li>
+              </ul>
+            </div>
+
+            <div>
               <h3 className="text-xl font-bold mb-4 mt-8">Independent Contractor Agreement for Tutors on Jtutors.com</h3>
               <p className="text-gray-700 mb-4">
                 By creating a tutor profile on Jtutors.com, you ("Tutor") hereby agree to the following terms and conditions, acknowledging your status as an independent contractor:

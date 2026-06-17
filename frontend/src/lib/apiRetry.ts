@@ -5,8 +5,8 @@
 export async function withApiRetry<T>(
   fn: () => Promise<T>,
   onWaiting?: (attempt: number, maxAttempts: number) => void,
-  maxRetries = 3,
-  delayMs = 2500
+  maxRetries = 5,
+  delayMs = 3000
 ): Promise<T> {
   let lastError: unknown
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
