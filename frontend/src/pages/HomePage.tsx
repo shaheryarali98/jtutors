@@ -247,14 +247,6 @@ const HomePage = () => {
 
               <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
-                  to="/register?role=tutor"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-5 font-bold text-white shadow-2xl hover:scale-105 transition-all text-lg"
-                  style={{ backgroundColor: '#f5a11a' }}
-                >
-                  Become a Tutor
-                  <ChevronRight className="h-6 w-6" />
-                </Link>
-                <Link
                   to="/how-it-works-for-tutors"
                   className="inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-5 font-bold text-white bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all text-lg"
                 >
@@ -265,27 +257,11 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* Platform Highlights */}
-        <section className="bg-white py-16">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-black text-slate-900">What makes JTutors so dynamic?</h2>
-
-            <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {featureHighlights.map((feature) => (
-                <div key={feature.title} className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-left shadow-sm">
-                  <h3 className="text-lg font-bold text-slate-900">{feature.title}</h3>
-                  <p className="mt-3 text-sm text-slate-600 leading-relaxed">{feature.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Schools */}
         <section className="bg-slate-950 py-10 text-white overflow-hidden">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <p className="text-center text-sm font-bold uppercase tracking-wide text-[#f5a11a]">
-              Students and educators from communities including
+              Students and educators from institutions including
             </p>
           </div>
           <div className="school-marquee mt-7" aria-label="School and community names">
@@ -447,11 +423,26 @@ const HomePage = () => {
                 <BookOpen className="h-12 w-12 mx-auto text-slate-300 mb-4" />
                 <h3 className="text-lg font-semibold text-slate-700">Tutors Coming Soon</h3>
                 <p className="text-slate-500 mt-2">
-                  Our tutors are building their profiles. Check back soon or
-                  <Link to="/register?role=tutor" className="font-bold ml-1" style={{ color: '#f5a11a' }}>become a tutor</Link>!
+                  Our tutors are building their profiles. Check back soon!
                 </p>
               </div>
             )}
+          </div>
+        </section>
+
+        {/* Platform Highlights */}
+        <section className="bg-white py-16">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-3xl font-black text-slate-900">What makes JTutors so dynamic?</h2>
+
+            <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {featureHighlights.map((feature) => (
+                <div key={feature.title} className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-left shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900">{feature.title}</h3>
+                  <p className="mt-3 text-sm text-slate-600 leading-relaxed">{feature.description}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

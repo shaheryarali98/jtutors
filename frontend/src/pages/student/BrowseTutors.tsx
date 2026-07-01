@@ -82,7 +82,7 @@ const BrowseTutors = () => {
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [previewMode, setPreviewMode] = useState(false)
-  const [previewLimit, setPreviewLimit] = useState(9)
+  const [previewLimit, setPreviewLimit] = useState(8)
   const navigate = useNavigate()
   const filtersSignature = [
     searchTerm,
@@ -152,7 +152,7 @@ const BrowseTutors = () => {
       if (maxFee) queryParams.append('maxFee', maxFee)
       if (normalizedLocation) queryParams.append('location', normalizedLocation)
       queryParams.append('page', String(page))
-      queryParams.append('limit', '12')
+      queryParams.append('limit', isStudent ? '12' : '8')
 
       const queryString = queryParams.toString()
       const url = isStudent
@@ -189,8 +189,8 @@ const BrowseTutors = () => {
 
       setTutors(normalizedTutors)
       setPreviewMode(!isStudent && Boolean(response.data.isPreview))
-      setPreviewLimit(response.data.previewLimit ?? 9)
-      setTotalCount(isStudent ? (response.data.total ?? normalizedTutors.length) : (response.data.totalMatchingTutors ?? response.data.total ?? normalizedTutors.length))
+      setPreviewLimit(response.data.previewLimit ?? 8)
+      setTotalCount(isStudent ? (response.data.total ?? normalizedTutors.length) : normalizedTutors.length)
       setTotalPages(isStudent ? (response.data.totalPages ?? 1) : 1)
       setCurrentPage(isStudent ? (response.data.page ?? page) : 1)
     } catch (error) {

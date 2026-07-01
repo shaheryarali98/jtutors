@@ -20,7 +20,7 @@ body {
 }
 
 .school-marquee-track {
-  animation: school-marquee-scroll 90s linear infinite;
+  animation: school-marquee-scroll 180s linear infinite;
   display: inline-flex;
   min-width: max-content;
   white-space: nowrap;
