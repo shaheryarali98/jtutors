@@ -67,6 +67,93 @@ const featureHighlights = [
   },
 ]
 
+const schoolNames = [
+  'Temple Beth Sholom (Melbourne, FL)',
+  'Ramaz Upper School (New York, NY)',
+  'Torah Academy of Minneapolis (Minneapolis, MN)',
+  'Hebrew Academy of Long Beach (Woodmere, NY)',
+  'Gann Academy (Waltham, MA)',
+  'Meorot Yerushalayim (Jerusalem, Israel)',
+  'Katz Hillel Day School (Boca Raton, FL)',
+  'RPRY (Edison, NJ)',
+  'Princeton University (Princeton, NJ)',
+  'Farber Hebrew Day School (Detroit, MI)',
+  'Joseph Kushner Hebrew Academy (Livingston, NJ)',
+  'The Leffell School (Hartsdale, NY)',
+  'Harvard University (Cambridge, MA)',
+  'Torah Day School (Atlanta, GA)',
+  'Midreshet HaRova (Jerusalem, Israel)',
+  'Shalhevet School for Girls (Cedarhurst, NY)',
+  'Hillel Yeshiva (Deal, NJ)',
+  'OU-JLIC (Champaign, IL)',
+  'Columbia University (New York, NY)',
+  'Bar-Ilan University (Ramat Gan, Israel)',
+  'Bruriah High School (Elizabeth, NJ)',
+  'Chabad at Columbia University (New York, NY)',
+  'Bobov Yeshiva (Brooklyn, NY)',
+  'Maimonides School (Brookline, MA)',
+  'The Frisch School (Paramus, NJ)',
+  'Hebrew Academy (Margate, FL)',
+  'Machon Maayan (Jerusalem, Israel)',
+  'TABC (Teaneck, NJ)',
+  'Manhattan Day School (New York, NY)',
+  'Touro College (Jerusalem, Israel)',
+  'Beth El Synagogue (East Windsor, NJ)',
+  'Hillel Academy of Pittsburgh (Pittsburgh, PA)',
+  'Temple Sholom Hebrew Club (Vancouver, BC, Canada)',
+  'Westchester Hebrew High School (Mamaroneck, NY)',
+  'The Shaar (New York, NY)',
+  'Heichal HaTorah (Teaneck, NJ)',
+  'TTI / Raizel Reit (New York, NY)',
+  'Tashbar (Baltimore, MD)',
+  'Bnos Malka Academy (Queens, NY)',
+  'Sinai Academy (Brooklyn, NY)',
+  'Congregation Shearith Israel (New York, NY)',
+  'Midreshet Torat Chessed (Netanya, Israel)',
+  'Edah Studio 70 (Berkeley, CA)',
+  "Sharfman's Seminary (Jerusalem, Israel)",
+  'Maalot High School (Lakewood, NJ)',
+  'Vesoiday HaTorah Primary School (Manchester, England)',
+  'Stern College for Women (New York, NY)',
+  'Tiferes Moshe Academy (Queens, NY)',
+  "Na'aleh High School for Girls (Fair Lawn, NJ)",
+  'Bais Tzipra of Manhattan (New York, NY)',
+  'Yeshiva Ohr Yisrael (Boston, MA)',
+  'Bi-Cultural Hebrew Academy (Stamford, CT)',
+  'Congregation Bnai Shalom (Walnut Creek, CA)',
+  'Emek Hebrew Academy (Los Angeles, CA)',
+  'Yeshiva Rabbi Samson Raphael Hirsch (New York, NY)',
+  'Yeshiva of Central Queens (Queens, NY)',
+  'The Moriah School (Englewood, NJ)',
+  'Yeshiva University High School for Girls (Hollis, NY)',
+  'Westchester Day School (Westchester, NY)',
+  'Lubavitch Girls High School (Chicago, IL)',
+  'Seattle Hebrew Academy (Seattle, WA)',
+  'JEC (Elizabeth, NJ)',
+  'Congregation Beth Shalom Olney (Baltimore, MD)',
+  'Hannah Sacks Bais Yaakov (Chicago, IL)',
+  'Young Israel of Oceanside (Oceanside, NY)',
+  'Beit Rabban Day School (New York, NY)',
+  'Yeshivas Darchei Torah (Detroit, MI)',
+  'Eitz Chaim (Toronto, ON, Canada)',
+  'Abraham Joshua Heschel School (New York, NY)',
+  'Hasmonean High School for Girls (London, England)',
+  'Scheck Hillel Community Day School (Miami, FL)',
+  'Ivry Prozdor High School (New York, NY)',
+  'Mesivta Yesodei Yeshurun (Flushing, NY)',
+  'Brauser Maimonides Academy (Hollywood, FL)',
+  'Fasman Yeshiva High School (Skokie, IL)',
+  'Torah Day School of Seattle (Seattle, WA)',
+  'RYNJ (Paramus, NJ)',
+  'Yeshivat Noam (Paramus, NJ)',
+  'Atlanta Jewish Academy (Atlanta, GA)',
+  'Yeshiva University (New York, NY)',
+  'Touro College (New York, NY)',
+  'Hebrew Academy of Miami Beach (Miami Beach, FL)',
+  'Ateret Crown Hebrew Day School (Skokie, IL)',
+  'Zucker Academy (Brooklyn, NY)',
+]
+
 /*
 const popularCategories = [
   {
@@ -167,16 +254,6 @@ const HomePage = () => {
                   Become a Tutor
                   <ChevronRight className="h-6 w-6" />
                 </Link>
-                {user?.role === 'STUDENT' || !user ? (
-                  <Link
-                    to={browseTutorsUrl}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-5 font-bold text-white shadow-2xl hover:scale-105 transition-all text-lg"
-                    style={{ backgroundColor: '#012c54' }}
-                  >
-                    Find a Tutor
-                    <ChevronRight className="h-6 w-6" />
-                  </Link>
-                ) : null}
                 <Link
                   to="/how-it-works-for-tutors"
                   className="inline-flex items-center justify-center gap-2 rounded-2xl px-10 py-5 font-bold text-white bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all text-lg"
@@ -199,6 +276,27 @@ const HomePage = () => {
                   <h3 className="text-lg font-bold text-slate-900">{feature.title}</h3>
                   <p className="mt-3 text-sm text-slate-600 leading-relaxed">{feature.description}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Schools */}
+        <section className="bg-slate-950 py-10 text-white overflow-hidden">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <p className="text-center text-sm font-bold uppercase tracking-wide text-[#f5a11a]">
+              Students and educators from communities including
+            </p>
+          </div>
+          <div className="school-marquee mt-7" aria-label="School and community names">
+            <div className="school-marquee-track">
+              {[...schoolNames, ...schoolNames].map((school, index) => (
+                <span
+                  key={`${school}-${index}`}
+                  className="mx-3 inline-flex rounded-full border border-white/15 bg-white/10 px-5 py-2 text-sm font-semibold text-white/90"
+                >
+                  {school}
+                </span>
               ))}
             </div>
           </div>

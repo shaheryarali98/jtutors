@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Bookmark,
@@ -57,14 +57,19 @@ interface TutorResponse {
 const BrowseTutors = () => {
   const { user } = useAuthStore()
   const isStudent = user?.role === 'STUDENT'
+  const [searchParams, setSearchParams] = useSearchParams()
+  const getInitialPage = () => {
+    const page = Number(searchParams.get('page'))
+    return Number.isInteger(page) && page > 0 ? page : 1
+  }
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedSubject, setSelectedSubject] = useState('')
-  const [selectedGrade, setSelectedGrade] = useState('')
-  const [minFee, setMinFee] = useState('')
-  const [maxFee, setMaxFee] = useState('')
-  const [location, setLocation] = useState('')
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
+  const [selectedSubject, setSelectedSubject] = useState(searchParams.get('subject') || '')
+  const [selectedGrade, setSelectedGrade] = useState(searchParams.get('grade') || '')
+  const [minFee, setMinFee] = useState(searchParams.get('minFee') || '')
+  const [maxFee, setMaxFee] = useState(searchParams.get('maxFee') || '')
+  const [location, setLocation] = useState(searchParams.get('location') || '')
   const [showFilters, setShowFilters] = useState(false)
   const [savingTutorId, setSavingTutorId] = useState<string | null>(null)
   const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null)
@@ -73,12 +78,22 @@ const BrowseTutors = () => {
   const [errorMessage, setErrorMessage] = useState('')
   const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([])
   const [subjectsLoading, setSubjectsLoading] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage, setCurrentPage] = useState(getInitialPage)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [previewMode, setPreviewMode] = useState(false)
   const [previewLimit, setPreviewLimit] = useState(9)
   const navigate = useNavigate()
+  const filtersSignature = [
+    searchTerm,
+    selectedSubject,
+    selectedGrade,
+    minFee,
+    maxFee,
+    location,
+    isStudent ? 'student' : 'public',
+  ].join('\u001f')
+  const previousFiltersSignatureRef = useRef(filtersSignature)
 
   useEffect(() => {
     // Load subjects asynchronously without blocking the page
@@ -104,6 +119,22 @@ const BrowseTutors = () => {
     } finally {
       setSubjectsLoading(false)
     }
+  }
+
+  const buildTutorSearchParams = (page: number) => {
+    const queryParams = new URLSearchParams()
+    const normalizedSearch = searchTerm.trim()
+    const normalizedLocation = location.trim()
+
+    if (normalizedSearch) queryParams.set('search', normalizedSearch)
+    if (selectedSubject) queryParams.set('subject', selectedSubject)
+    if (selectedGrade) queryParams.set('grade', selectedGrade)
+    if (minFee) queryParams.set('minFee', minFee)
+    if (maxFee) queryParams.set('maxFee', maxFee)
+    if (normalizedLocation) queryParams.set('location', normalizedLocation)
+    queryParams.set('page', String(page))
+
+    return queryParams
   }
 
   const fetchTutors = async (page = currentPage) => {
@@ -171,13 +202,22 @@ const BrowseTutors = () => {
   }
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
+    const filtersChanged = previousFiltersSignatureRef.current !== filtersSignature
+    previousFiltersSignatureRef.current = filtersSignature
+
+    if (filtersChanged && currentPage !== 1) {
       setCurrentPage(1)
-      fetchTutors(1)
-    }, 250)
+      return
+    }
+
+    const pageToLoad = filtersChanged ? 1 : currentPage
+    const timeout = window.setTimeout(() => {
+      setSearchParams(buildTutorSearchParams(pageToLoad), { replace: filtersChanged })
+      fetchTutors(pageToLoad)
+    }, filtersChanged ? 250 : 0)
 
     return () => window.clearTimeout(timeout)
-  }, [searchTerm, selectedSubject, selectedGrade, minFee, maxFee, location, isStudent])
+  }, [searchTerm, selectedSubject, selectedGrade, minFee, maxFee, location, currentPage, isStudent])
 
   const handleSaveTutor = async (tutor: Tutor) => {
     if (!isStudent) {
@@ -235,7 +275,7 @@ const BrowseTutors = () => {
       return
     }
     setCurrentPage(page)
-    fetchTutors(page)
+    setSearchParams(buildTutorSearchParams(page))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 

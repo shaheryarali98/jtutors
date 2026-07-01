@@ -215,7 +215,7 @@ const StudentProfile = () => {
       if (!data.lastName?.trim()) missingFields.push('Last name')
       if (!data.gender) missingFields.push('Gender')
       if (!data.grade) missingFields.push('Grade')
-      if (!data.bio?.trim()) missingFields.push('Educational goals')
+      if (!data.bio?.trim()) missingFields.push('Perfect tutor details')
       if (!data.country) missingFields.push('Country')
       if (!data.city?.trim()) missingFields.push('City')
       if (!data.timezone) missingFields.push('Timezone')
@@ -488,12 +488,12 @@ const StudentProfile = () => {
                   </div>
                 </div>
                 <div className="mt-6">
-                  <label className="label">Your educational goals *</label>
+                  <label className="label">Help me find my perfect tutor *</label>
                   <textarea
                     rows={4}
                     className="input"
-                    placeholder="This information will appear in your profile page. Please specify your educational goals, learning style and anything important that you want tutors to know about you."
-                    {...register('bio', { required: 'Educational goals are required' })}
+                    placeholder="Tell us about what you're looking for in a tutor. Make sure to include the subject matter, hourly price range, preferred schedule, your educational goals and what kinds of teachers you connect best with."
+                    {...register('bio', { required: 'Perfect tutor details are required' })}
                   />
                   {errors.bio && <p className="error-text">{errors.bio.message}</p>}
                 </div>

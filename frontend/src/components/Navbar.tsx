@@ -39,7 +39,6 @@ const Navbar = () => {
     guest: [], // Empty — no dropdown links for guests
     student: [
       { to: '/student/dashboard', label: 'Dashboard' },
-      { to: '/student/tutor-requests', label: 'Find a Tutor' },
       { to: '/student/messages', label: 'Messages' },
       { to: '/student/profile', label: 'Settings' },
       { to: '/student/saved-instructors', label: 'Saved Tutors' },
@@ -262,16 +261,6 @@ const Navbar = () => {
               {/* Guest: Primary CTAs (Become Tutor only - Student registration temporarily disabled) */}
               {!user && (
                 <>
-                  {/* Student registration temporarily disabled for 2 weeks */}
-                  {/* <Link
-                    to="/register?role=student"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-center gap-2 w-full py-3 text-sm font-bold rounded-xl transition-all"
-                    style={{ color: '#012c54', backgroundColor: '#e6f0f7' }}
-                  >
-                    <User className="w-5 h-5" />
-                    Find a Tutor
-                  </Link> */}
                   <Link
                     to="/register?role=tutor"
                     onClick={() => setMobileMenuOpen(false)}

@@ -18,7 +18,6 @@ import StudentWallet from './pages/student/StudentWallet'
 import TutorDetailPage from './pages/student/TutorDetail'
 import BrowseTutors from './pages/student/BrowseTutors'
 import Messages from './pages/Messages'
-import StudentTutorRequests from './pages/student/TutorRequests'
 import BrowseStudentRequests from './pages/tutor/BrowseStudentRequests'
 import DevMockCheckout from './pages/DevMockCheckout'
 import HomePage from './pages/HomePage'
@@ -142,11 +141,7 @@ function App() {
             <Messages />
           </ProtectedRoute>
         } />
-        <Route path="/student/tutor-requests" element={
-          <ProtectedRoute role="STUDENT">
-            <StudentTutorRequests />
-          </ProtectedRoute>
-        } />
+        <Route path="/student/tutor-requests" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="/student/courses" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="/student/my-courses" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="/student/enrollment-success" element={<Navigate to="/student/dashboard" replace />} />

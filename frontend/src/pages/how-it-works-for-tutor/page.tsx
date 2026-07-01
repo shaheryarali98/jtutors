@@ -330,16 +330,6 @@ const HowItWorksTutors = () => {
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ backgroundColor: '#c48115' }} />
           </NavLink>
 
-          <NavLink
-            to="/register?role=student"
-            className="group bg-white font-bold text-lg px-9 py-4 rounded-full border-4 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105"
-            style={{ color: '#012c54', borderColor: '#012c54' }}
-          >
-            <span className="flex items-center">
-              Find a Tutor
-              <Sparkles className="ml-2 w-5 h-5 group-hover:rotate-12 transition-transform" />
-            </span>
-          </NavLink>
         </motion.div>
       </section>
       <Footer />

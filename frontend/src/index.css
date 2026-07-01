@@ -13,6 +13,32 @@ body {
   min-height: 100vh;
 }
 
+.school-marquee {
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  overflow: hidden;
+  width: 100%;
+}
+
+.school-marquee-track {
+  animation: school-marquee-scroll 90s linear infinite;
+  display: inline-flex;
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.school-marquee:hover .school-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes school-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @layer components {
   .btn {
     @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;

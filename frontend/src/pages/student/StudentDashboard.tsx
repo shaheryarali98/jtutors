@@ -218,12 +218,6 @@ const StudentDashboard = () => {
               >
                 <Search className="w-4 h-4" /> Browse Tutors
               </Link>
-              <Link
-                to="/student/tutor-requests"
-                className="inline-flex items-center gap-2 px-5 py-2.5 border border-white/30 text-white font-semibold rounded-full text-sm hover:bg-white/10 transition-colors"
-              >
-                <GraduationCap className="w-4 h-4" /> Post a Request
-              </Link>
             </div>
           </div>
           <div className="absolute -right-16 -top-16 w-64 h-64 bg-white/5 rounded-full" />
