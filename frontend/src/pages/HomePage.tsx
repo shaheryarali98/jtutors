@@ -29,7 +29,7 @@ const outcomes = [
   { icon: Medal, label: 'Achieve Long-Term Success' },
 ]
 
-const institutionChips = [
+const schoolNames = [
   'Temple Beth Sholom (Melbourne, FL)',
   'Ramaz Upper School (New York, NY)',
   'Torah Academy of Minneapolis (Minneapolis, MN)',
@@ -46,11 +46,8 @@ const institutionChips = [
   'Torah Day School (Atlanta, GA)',
   'Midreshet HaRova (Jerusalem, Israel)',
   'Shalhevet School for Girls (Cedarhurst, NY)',
-  'Hillel Yeshiva (Deal, NJ)',
-  'OU-JLIC (Champaign, IL)',
   'Columbia University (New York, NY)',
   'Bar-Ilan University (Ramat Gan, Israel)',
-  'Bruriah High School (Elizabeth, NJ)',
   'Chabad at Columbia University (New York, NY)',
   'Bobov Yeshiva (Brooklyn, NY)',
   'Maimonides School (Brookline, MA)',
@@ -461,7 +458,7 @@ const HomePage = () => {
 
             <div className="flex w-full select-none overflow-hidden">
               <div className="animate-marquee flex min-w-full shrink-0 justify-around gap-6 whitespace-nowrap pr-6">
-                {institutionChips.slice(1, 6).map((item) => (
+                {schoolNames.map((item) => (
                   <span
                     key={`ticker-a-${item}`}
                     className="rounded-full border border-slate-800/80 bg-slate-900/60 px-5 py-2 text-sm text-slate-300"
@@ -475,7 +472,7 @@ const HomePage = () => {
                 className="animate-marquee flex min-w-full shrink-0 justify-around gap-6 whitespace-nowrap pr-6"
                 aria-hidden="true"
               >
-                {institutionChips.slice(1, 6).map((item) => (
+                {schoolNames.map((item) => (
                   <span
                     key={`ticker-b-${item}`}
                     className="rounded-full border border-slate-800/80 bg-slate-900/60 px-5 py-2 text-sm text-slate-300"
