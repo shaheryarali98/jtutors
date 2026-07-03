@@ -113,6 +113,8 @@ const schoolNames = [
   'Zucker Academy (Brooklyn, NY)',
 ]
 
+const marqueeDurationSeconds = Math.max(90, schoolNames.length * 1.5)
+
 const expertTutors = [
   {
     name: 'Alan Poyurs',
@@ -332,7 +334,7 @@ const HomePage = () => {
           }
 
           .animate-marquee {
-            animation: marquee 28s linear infinite;
+            animation: marquee ${marqueeDurationSeconds}s linear infinite;
           }
         `}
       </style>
