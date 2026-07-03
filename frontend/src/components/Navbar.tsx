@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { resolveImageUrl } from '../lib/media'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Menu,
@@ -119,7 +120,7 @@ const Navbar = () => {
                   >
                     {user.profileImage ? (
                       <img
-                        src={user.profileImage}
+                        src={resolveImageUrl(user.profileImage)}
                         alt={user.email}
                         className="w-full h-full object-cover"
                       />

@@ -5,10 +5,10 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { faqs } from '../constants/faqs'
 
 const FAQ = () => {
-  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   const toggleFAQ = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index)
+    setActiveIndex((current) => (current === index ? null : index))
   }
 
   return (
@@ -36,13 +36,13 @@ const FAQ = () => {
                 <span className="font-semibold text-gray-900 pr-4">
                   {faq.question}
                 </span>
-                {openIndex === index ? (
+                {activeIndex === index ? (
                   <ChevronUp className="h-5 w-5 text-gray-600 flex-shrink-0" />
                 ) : (
                   <ChevronDown className="h-5 w-5 text-gray-600 flex-shrink-0" />
                 )}
               </button>
-              {openIndex === index && (
+              {activeIndex === index && (
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                   <p className="text-gray-700 leading-relaxed">{faq.answer}</p>
                 </div>

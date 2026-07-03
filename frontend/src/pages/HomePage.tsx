@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { faqs } from '../constants/faqs'
+import { resolveImageUrl } from '../lib/media'
 import {
   ArrowRight,
   BarChart3,
@@ -247,15 +249,6 @@ const dynamicFeatures = [
   },
 ]
 
-const faqQuestions = [
-  'What is JTutors?',
-  'What is a tutoring marketplace?',
-  'What is a tutoring platform?',
-  'What subjects are available on JTutors?',
-  'Can tutors work with groups or only individual students?',
-  'What tools does JTutors provide for tutoring?',
-]
-
 type TutorAvatarProps = {
   name: string
   image?: string
@@ -263,8 +256,16 @@ type TutorAvatarProps = {
   color?: string
 }
 
+const resolveTutorCardImage = (path?: string) => {
+  if (!path) return ''
+  if (path.startsWith('/uploads/')) {
+    return resolveImageUrl(path)
+  }
+  return path
+}
+
 const TutorAvatar = ({ name, image, initials, color = 'bg-[#123f70]' }: TutorAvatarProps) => {
-  const [src, setSrc] = useState(image ?? '')
+  const [src, setSrc] = useState(resolveTutorCardImage(image))
   const [showFallback, setShowFallback] = useState(!image)
   const [attempt, setAttempt] = useState(0)
 
@@ -275,14 +276,20 @@ const TutorAvatar = ({ name, image, initials, color = 'bg-[#123f70]' }: TutorAva
     }
 
     if (attempt === 0) {
-      setSrc(image.replace(/\.jpg$/i, '.png'))
+      setSrc(resolveTutorCardImage(image.replace(/\.jpg$/i, '.png')))
       setAttempt(1)
       return
     }
 
     if (attempt === 1) {
-      setSrc(image + '.png')
+      setSrc(resolveTutorCardImage(`${image}.jpg`))
       setAttempt(2)
+      return
+    }
+
+    if (attempt === 2) {
+      setSrc(resolveTutorCardImage(`${image}.png`))
+      setAttempt(3)
       return
     }
 
@@ -311,6 +318,12 @@ const TutorAvatar = ({ name, image, initials, color = 'bg-[#123f70]' }: TutorAva
 }
 
 const HomePage = () => {
+  const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null)
+
+  const toggleFaq = (index: number) => {
+    setActiveFaqIndex((current) => (current === index ? null : index))
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f8fc] text-[#071b36]">
       <style>
@@ -651,15 +664,28 @@ const HomePage = () => {
             </div>
 
             <div className="space-y-4">
-              {faqQuestions.map((question) => (
-                <button
-                  key={question}
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-2xl border border-[#d8e1ec] bg-white px-6 py-7 text-left shadow-[0_4px_14px_rgba(17,34,68,0.04)] transition hover:border-[#c4d1e0]"
+              {faqs.slice(0, 6).map((faq, index) => (
+                <div
+                  key={faq.question}
+                  className="overflow-hidden rounded-2xl border border-[#d8e1ec] bg-white shadow-[0_4px_14px_rgba(17,34,68,0.04)]"
                 >
-                  <span className="pr-6 text-[16px] font-semibold text-[#1f2942]">{question}</span>
-                  <ChevronDown className="h-5 w-5 shrink-0 text-[#42506b]" strokeWidth={2} />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleFaq(index)}
+                    className="flex w-full items-center justify-between px-6 py-7 text-left transition hover:border-[#c4d1e0] hover:bg-[#f9fbfe]"
+                  >
+                    <span className="pr-6 text-[16px] font-semibold text-[#1f2942]">{faq.question}</span>
+                    <ChevronDown
+                      className={`h-5 w-5 shrink-0 text-[#42506b] transition-transform ${activeFaqIndex === index ? 'rotate-180' : ''}`}
+                      strokeWidth={2}
+                    />
+                  </button>
+                  {activeFaqIndex === index && (
+                    <div className="border-t border-[#e3eaf2] bg-[#f7fafe] px-6 py-5">
+                      <p className="text-[15px] leading-7 text-[#51607a]">{faq.answer}</p>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>
