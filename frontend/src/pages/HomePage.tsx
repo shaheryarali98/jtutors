@@ -31,6 +31,13 @@ const outcomes = [
   { icon: Medal, label: 'Achieve Long-Term Success' },
 ]
 
+const heroHighlights = [
+  { icon: SearchCheck, label: 'Personally Matched Tutors' },
+  { icon: ShieldCheck, label: 'Verified & Experienced Educators' },
+  { icon: Laptop, label: 'Flexible Online or In-Person' },
+  { icon: Medal, label: 'Satisfaction Promise' },
+]
+
 const schoolNames = [
   'Temple Beth Sholom (Melbourne, FL)',
   'Ramaz Upper School (New York, NY)',
@@ -411,55 +418,80 @@ const HomePage = () => {
             </div>
           </header>
 
-          <section className="flex flex-grow flex-col justify-center bg-gradient-to-b from-[#0e2d52] via-[#133b66] to-[#0e2d52] py-10 text-white lg:py-12">
+          <section className="flex flex-grow flex-col justify-center bg-gradient-to-b from-[#0e2d52] via-[#133b66] to-[#0e2d52] text-white">
             <div
-              className="mx-auto flex w-full max-w-[1320px] items-center px-6 py-20 md:py-24 lg:py-28"
+              className="max-w-7xl mx-auto grid w-full grid-cols-1 items-center gap-12 px-6 pt-16 pb-24 lg:grid-cols-2 lg:px-8"
               style={{
                 backgroundImage:
-                  'radial-gradient(circle at 50% 40%, rgba(66,110,164,0.22) 0%, rgba(66,110,164,0) 52%)',
+                  'radial-gradient(circle at 28% 38%, rgba(71,112,166,0.24) 0%, rgba(71,112,166,0) 46%), radial-gradient(circle at 78% 36%, rgba(120,162,214,0.12) 0%, rgba(120,162,214,0) 38%)',
               }}
             >
-              <div className="mx-auto text-center space-y-8" style={{ maxWidth: '860px' }}>
-                <h1
-                  className="text-4xl font-extrabold tracking-tight text-white antialiased md:text-5xl lg:text-6xl"
-                  style={{
-                    lineHeight: '1.06',
-                    letterSpacing: '0',
-                    margin: 0,
-                  }}
-                >
-                  JTutors: Connecting Jewish
-                  <br />
-                  Tutors and Students
-                </h1>
-                <p
-                  className="mx-auto text-[16px] font-medium leading-9 text-white/88 antialiased md:text-[18px]"
-                  style={{
-                    maxWidth: '760px',
-                  }}
-                >
-                  JTutors is an innovative tutoring platform that connects students with qualified tutors
-                  for personalized learning, online or in person. Offering tutoring in all subjects with
-                  interactive online classrooms, easy scheduling, and secure payments, JTutors makes
-                  tutoring simple, flexible, and engaging.
-                </p>
+              <div className="max-w-[560px]">
+                  <h1 className="mb-6 text-4xl font-black leading-tight text-white lg:text-5xl">
+                    Personalized Tutoring.
+                    <br />
+                    Stronger Students.
+                    <br />
+                    <span className="text-[#f4ac2b]">Confident Futures.</span>
+                  </h1>
 
-                <div className="mt-8 flex flex-col items-center gap-3.5">
-                  <Link
-                    to="/browse-tutors"
-                    className="w-60 rounded-xl bg-[#f5a623] px-8 py-3.5 text-center text-base font-bold text-white shadow-[0_4px_14px_rgba(245,166,35,0.4)] transition-all duration-200 hover:scale-[1.02] hover:bg-[#e09216] active:scale-[0.98]"
-                  >
-                    Find a Tutor
-                  </Link>
+                  <p className="max-w-[520px] text-[18px] font-medium leading-8 text-white/88">
+                    JTutors connects Jewish students with expert tutors who understand their schools,
+                    their schedules, and their goals. Online or in-person. In all subjects - Secular
+                    or Judaic.
+                  </p>
 
-                  <Link
-                    to="/how-it-works-for-students"
-                    className="w-44 rounded-lg border border-white/10 bg-white/5 px-5 py-2 text-center text-sm font-medium text-slate-300 shadow-sm transition-all duration-200 hover:border-white/30 hover:bg-white/15 hover:text-white"
-                  >
-                    Learn More
-                  </Link>
+                  <div className="mt-8 mb-10 flex flex-wrap items-center gap-4">
+                    <Link
+                      to="/browse-tutors"
+                      className="inline-flex h-14 items-center justify-center rounded-xl bg-[#f5a623] px-8 text-[16px] font-bold text-white shadow-[0_10px_24px_rgba(245,166,35,0.34)] transition hover:bg-[#e39a17]"
+                    >
+                      Find My Tutor <span className="ml-2 text-[18px] leading-none">&gt;</span>
+                    </Link>
+
+                    <Link
+                      to="/how-it-works-for-students"
+                      className="inline-flex h-14 items-center justify-center rounded-xl border border-white/45 bg-white/5 px-8 text-[16px] font-semibold text-white transition hover:bg-white/10"
+                    >
+                      How It Works
+                    </Link>
+                  </div>
+
+                  <div className="mt-10 flex w-full flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                    {heroHighlights.map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <div key={item.label} className="flex items-start gap-2.5">
+                          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/14 bg-white/8">
+                            <Icon className="h-4 w-4 text-[#f5a623]" strokeWidth={2.1} />
+                          </span>
+                          <span className="text-[12px] font-medium leading-4 text-white/86">
+                            {item.label}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
+
+                <div className="w-full max-w-md mx-auto flex justify-center lg:max-w-none lg:justify-end">
+                  <div className="relative w-full max-w-[440px]">
+                  <img
+                    src="/hero-tutors.png.png"
+                    alt="Tutor and student learning together"
+                    className="w-full object-cover rounded-3xl shadow-2xl aspect-[4/3] lg:aspect-square"
+                  />
+
+                  <div className="absolute -top-3 -right-3 z-10 flex items-center gap-1 rounded-full bg-white px-4 py-2 text-xs font-bold text-black shadow-md">
+                    <span className="text-[#f5a623]">⭐</span> 4.9/5 Rated
+                  </div>
+
+                  <div className="absolute -bottom-6 left-6 z-30 flex min-w-[130px] flex-col items-center justify-center rounded-2xl bg-white p-4 shadow-xl lg:-left-6">
+                    <div className="text-[28px] font-black leading-none text-[#16365f]">500+</div>
+                    <div className="mt-1 text-[12px] font-medium leading-4 text-[#607089]">Verified Tutors</div>
+                  </div>
+                  </div>
+                </div>
             </div>
           </section>
 
