@@ -486,10 +486,9 @@ const HomePage = () => {
                     <span className="text-[#f5a623]">⭐</span> 4.9/5 Rated
                   </div>
 
-                  <div className="absolute -bottom-6 left-6 z-30 flex min-w-[130px] flex-col items-center justify-center rounded-2xl bg-white p-4 shadow-xl lg:-left-6">
-                    <div className="text-[28px] font-black leading-none text-[#16365f]">500+</div>
-                    <div className="mt-1 text-[12px] font-medium leading-4 text-[#607089]">Verified Tutors</div>
-                  </div>
+                    <div className="absolute -bottom-6 left-6 z-30 flex max-w-[220px] flex-col items-start justify-center rounded-2xl border border-gray-100 bg-white px-5 py-3 text-xs font-bold text-black shadow-xl lg:-left-6">
+                      <div>The largest resource of Jewish tutors</div>
+                    </div>
                   </div>
                 </div>
             </div>
