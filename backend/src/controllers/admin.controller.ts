@@ -765,11 +765,7 @@ export const getUserDetail = async (req: Request, res: Response) => {
 
 export const getPublicTutors = async (req: Request, res: Response) => {
   try {
-    const { subject, city, state, country, location, minFee, maxFee, grade, search, page, limit } = req.query;
-    const PREVIEW_LIMIT = 9;
-    const requestedPageSize = Math.min(50, Math.max(1, parseInt((limit as string) || '12', 10) || 12));
-    const requestedPage = Math.max(1, parseInt((page as string) || '1', 10) || 1);
-    const hasPagination = typeof page !== 'undefined' || typeof limit !== 'undefined';
+    const { subject, city, state, country, location, minFee, maxFee, grade, search } = req.query;
 
     const normalizeText = (value: unknown) =>
       typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -896,8 +892,7 @@ export const getPublicTutors = async (req: Request, res: Response) => {
     });
 
     const total = filteredTutors.length;
-    const previewTutors = filteredTutors.slice(0, PREVIEW_LIMIT);
-    const tutorsForResponse = previewTutors;
+    const tutorsForResponse = filteredTutors;
 
     const formatted = tutorsForResponse.map((tutor) => {
       const tryParse = (v: any) => {
@@ -926,13 +921,12 @@ export const getPublicTutors = async (req: Request, res: Response) => {
 
     res.json({
       tutors: formatted,
-      total: formatted.length,
+      total: total,
       totalMatchingTutors: total,
       page: 1,
       totalPages: 1,
       pageSize: formatted.length,
-      isPreview: total > PREVIEW_LIMIT || requestedPage > 1 || requestedPageSize > PREVIEW_LIMIT || hasPagination,
-      previewLimit: PREVIEW_LIMIT,
+      isPreview: false,
     });
   } catch (error) {
     console.error('Get public tutors error:', error);

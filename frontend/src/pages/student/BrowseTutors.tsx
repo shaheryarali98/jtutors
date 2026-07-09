@@ -50,8 +50,6 @@ interface TutorResponse {
   totalMatchingTutors?: number
   page?: number
   totalPages?: number
-  isPreview?: boolean
-  previewLimit?: number
 }
 
 const BrowseTutors = () => {
@@ -81,8 +79,6 @@ const BrowseTutors = () => {
   const [currentPage, setCurrentPage] = useState(getInitialPage)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  const [previewMode, setPreviewMode] = useState(false)
-  const [previewLimit, setPreviewLimit] = useState(8)
   const navigate = useNavigate()
   const filtersSignature = [
     searchTerm,
@@ -152,7 +148,7 @@ const BrowseTutors = () => {
       if (maxFee) queryParams.append('maxFee', maxFee)
       if (normalizedLocation) queryParams.append('location', normalizedLocation)
       queryParams.append('page', String(page))
-      queryParams.append('limit', isStudent ? '12' : '8')
+      if (isStudent) queryParams.append('limit', '12')
 
       const queryString = queryParams.toString()
       const url = isStudent
@@ -188,9 +184,11 @@ const BrowseTutors = () => {
       })
 
       setTutors(normalizedTutors)
-      setPreviewMode(!isStudent && Boolean(response.data.isPreview))
-      setPreviewLimit(response.data.previewLimit ?? 8)
-      setTotalCount(isStudent ? (response.data.total ?? normalizedTutors.length) : normalizedTutors.length)
+      setTotalCount(
+        isStudent
+          ? (response.data.total ?? normalizedTutors.length)
+          : (response.data.totalMatchingTutors ?? response.data.total ?? normalizedTutors.length)
+      )
       setTotalPages(isStudent ? (response.data.totalPages ?? 1) : 1)
       setCurrentPage(isStudent ? (response.data.page ?? page) : 1)
     } catch (error) {
@@ -524,29 +522,6 @@ const BrowseTutors = () => {
             <p className="text-sm text-slate-500">Page {currentPage} of {totalPages}</p>
           )}
         </div>
-
-        {previewMode && (
-          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center">
-            <h2 className="text-lg font-bold text-slate-900">Previewing {Math.min(tutors.length, previewLimit)} tutors</h2>
-            <p className="mt-2 text-sm text-slate-700">
-              Create a student account to unlock the full tutor directory, full profiles, messaging, and booking.
-            </p>
-            <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                to="/register?role=student"
-                className="rounded-xl bg-[#012c54] px-5 py-3 text-sm font-semibold text-white hover:bg-[#014a7a] transition-colors"
-              >
-                Create Student Account
-              </Link>
-              <Link
-                to="/login"
-                className="rounded-xl border-2 border-[#012c54] px-5 py-3 text-sm font-semibold text-[#012c54] hover:bg-[#012c54] hover:text-white transition-colors"
-              >
-                Sign In
-              </Link>
-            </div>
-          </div>
-        )}
 
         {/* Tutors Grid */}
         {loading ? (
