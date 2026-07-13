@@ -799,6 +799,18 @@ const HomePage = () => {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
+
+          <div className="mx-auto mt-6 max-w-7xl px-4 text-center md:px-6">
+            <p className="text-sm font-medium text-white/85">
+              Email us at{' '}
+              <a
+                href="mailto:info@jtutors.com"
+                className="underline decoration-white/40 underline-offset-4 transition hover:text-white"
+              >
+                info@jtutors.com
+              </a>
+            </p>
+          </div>
         </section>
       </main>
     </div>
