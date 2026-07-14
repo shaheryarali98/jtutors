@@ -13,7 +13,6 @@ import {
   ClipboardList,
   GraduationCapIcon,
   LockKeyhole,
-  GraduationCap,
   Laptop,
   MapPin,
   Medal,
@@ -361,13 +360,20 @@ const HomePage = () => {
 
       <main>
         <section className="flex w-full flex-col bg-white lg:min-h-[calc(100vh-88px)]">
-          <header className="h-16 w-full border-b border-[#eceff3] bg-white">
-            <div className="mx-auto flex h-full max-w-[1320px] items-center justify-between px-6">
-              <Link to="/" className="flex shrink-0 items-center gap-1">
-                <span className="text-[26px] font-black leading-none text-[#f5a11a]">J</span>
-                <span className="text-[26px] font-black leading-none text-[#0b315d]">Tutors</span>
-                <GraduationCap className="ml-1 h-5 w-5 text-[#0b315d]" strokeWidth={2.2} />
-              </Link>
+          <header className="h-20 w-full border-b border-[#eceff3] bg-white">
+              <div className="mx-auto flex h-full max-w-[1320px] items-center justify-between px-6">
+                <Link
+                  to="/"
+                  className=""
+                  style={{ background: 'transparent', border: 'none', boxShadow: 'none', padding: '0', display: 'flex', alignItems: 'center' }}
+                >
+                  <img
+                    src="/logo-trans.png"
+                    alt="JTutors Logo"
+                    className="w-auto object-contain"
+                    style={{ height: '180px', width: 'auto', objectFit: 'contain', marginTop: '-65px', marginBottom: '-65px', maxHeight: 'none', maxWidth: 'none' }}
+                  />
+                </Link>
 
               <div className="flex items-center gap-8">
                 <nav className="hidden items-center rounded-full border border-[#e8edf3] bg-[#f7f8fb] px-5 py-2 text-[11px] font-medium text-[#182535] shadow-[0_1px_4px_rgba(16,24,40,0.04)] lg:flex">
@@ -481,10 +487,6 @@ const HomePage = () => {
                     alt="Tutor and student learning together"
                     className="w-full object-cover rounded-3xl shadow-2xl aspect-[4/3] lg:aspect-square"
                   />
-
-                  <div className="absolute -top-3 -right-3 z-10 flex items-center gap-1 rounded-full bg-white px-4 py-2 text-xs font-bold text-black shadow-md">
-                    <span className="text-[#f5a623]">⭐</span> 4.9/5 Rated
-                  </div>
 
                     <div className="absolute -bottom-6 left-6 z-30 flex max-w-[220px] flex-col items-start justify-center rounded-2xl border border-gray-100 bg-white px-5 py-3 text-xs font-bold text-black shadow-xl lg:-left-6">
                       <div>The largest resource of Jewish tutors</div>

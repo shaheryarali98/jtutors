@@ -72,13 +72,17 @@ const Navbar = () => {
   return (
     <nav className="bg-white/95 backdrop-blur-xl sticky top-0 z-50 border-b border-violet-100 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center">
+        <div className="flex h-20 items-center justify-between">
+          <Link
+            to="/"
+            className=""
+            style={{ background: 'transparent', border: 'none', boxShadow: 'none', padding: '0', display: 'flex', alignItems: 'center' }}
+          >
             <img
               src="/logo-trans.png"
               alt="JTutors Logo"
-              className="h-10 w-auto object-contain"
-              style={{ height: '11rem' }}
+              className="w-auto object-contain"
+              style={{ height: '180px', width: 'auto', objectFit: 'contain', marginTop: '-65px', marginBottom: '-65px', maxHeight: 'none', maxWidth: 'none' }}
             />
           </Link>
 
