@@ -4,6 +4,7 @@ import { Search, BookOpen, GraduationCap, DollarSign, Clock, MessageCircle, Filt
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
+import { REQUEST_GRADE_OPTIONS } from '../../constants/grades'
 
 interface TutorRequest {
   id: string
@@ -79,7 +80,7 @@ const BrowseStudentRequests = () => {
     }
   }
 
-  const grades = ['K-5', '6-8', '9-12', 'College', 'Adult']
+  const grades = REQUEST_GRADE_OPTIONS
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-100">

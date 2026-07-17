@@ -94,6 +94,12 @@ const Footer = () => {
             <ChevronRight className="h-4 w-4" />
           </button>
         </form>
+        <p className="mt-6 text-center text-base font-semibold text-white">
+          Email us at{' '}
+          <a href="mailto:info@jtutors.com" className="underline underline-offset-4 hover:text-white/85">
+            info@jtutors.com
+          </a>
+        </p>
       </div>
     </footer>
   )

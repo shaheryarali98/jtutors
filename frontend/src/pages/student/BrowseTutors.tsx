@@ -20,6 +20,7 @@ import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import BookTutorModal from '../../components/student/BookTutorModal'
 import { useAuthStore } from '../../store/authStore'
+import { TUTOR_GRADE_OPTIONS } from '../../constants/grades'
 
 interface Tutor {
   id: string
@@ -287,7 +288,7 @@ const BrowseTutors = () => {
     setCurrentPage(1)
   }
 
-  const grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'College', 'Graduate School', 'Adult Education']
+  const grades = TUTOR_GRADE_OPTIONS
   const visibleTutorCount = totalCount || tutors.length
   const showPagination = isStudent && totalPages > 1
 

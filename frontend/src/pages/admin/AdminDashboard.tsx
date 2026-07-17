@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
+import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import { UserRole } from '../../store/authStore'
@@ -2580,6 +2581,7 @@ const AdminDashboard = () => {
           </div>
         )}
       </main>
+      <Footer />
 
       {/* User Detail Modal */}
       {(selectedUserDetail || loadingUserDetail) && (

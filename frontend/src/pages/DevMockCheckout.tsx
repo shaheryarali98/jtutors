@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
+import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 
 /**
  * DEV-ONLY mock checkout page.
@@ -52,8 +54,10 @@ const DevMockCheckout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg overflow-hidden">
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg overflow-hidden">
 
         {/* Header banner */}
         <div className="bg-[#012c54] px-6 py-4 text-white">
@@ -129,8 +133,10 @@ const DevMockCheckout = () => {
         <div className="px-6 pb-4 text-center text-xs text-slate-400">
           No real payment is processed. This page is disabled in production.
         </div>
+        </div>
       </div>
-    </div>
+      <Footer />
+    </>
   )
 }
 

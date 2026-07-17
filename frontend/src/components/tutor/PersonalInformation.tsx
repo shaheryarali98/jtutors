@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import api from "../../lib/api";
 import { LANGUAGE_OPTIONS } from "../../constants/options";
+import { TUTOR_GRADE_OPTIONS } from "../../constants/grades";
 import { usePlatformSettings } from "../../store/settingsStore";
 import { resolveImageUrl } from "../../lib/media";
 
@@ -31,23 +32,7 @@ interface StripeCountryOption {
   name: string;
 }
 
-const grades = [
-  "Grade 1",
-  "Grade 2",
-  "Grade 3",
-  "Grade 4",
-  "Grade 5",
-  "Grade 6",
-  "Grade 7",
-  "Grade 8",
-  "Grade 9",
-  "Grade 10",
-  "Grade 11",
-  "Grade 12",
-  "College",
-  "Graduate School",
-  "Adult Education",
-];
+const grades = TUTOR_GRADE_OPTIONS;
 
 const HAPPY_AVATAR_PLACEHOLDER_URL =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23FFD700"/><circle cx="35" cy="40" r="5" fill="%23000000"/><circle cx="65" cy="40" r="5" fill="%23000000"/><path d="M 30 65 Q 50 85 70 65" stroke="%23000000" stroke-width="4" fill="none"/></svg>';
