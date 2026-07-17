@@ -1,19 +1,18 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 import { faqs } from '../constants/faqs'
 import { resolveImageUrl } from '../lib/media'
 import {
   ArrowRight,
-  BarChart3,
   BookOpen,
-  BookOpenCheck,
   CalendarRange,
   ChevronDown,
   ChevronRight,
   ClipboardList,
   GraduationCapIcon,
   LockKeyhole,
-  GraduationCap,
   Laptop,
   MapPin,
   Medal,
@@ -23,19 +22,34 @@ import {
   Video,
 } from 'lucide-react'
 
-const outcomes = [
-  { icon: BarChart3, label: 'Improve Academic Performance' },
-  { icon: ShieldCheck, label: 'Build Confidence & Motivation' },
-  { icon: BookOpenCheck, label: 'Master Difficult Subjects' },
-  { icon: ClipboardList, label: 'Stay on Track with School & Tests' },
-  { icon: Medal, label: 'Achieve Long-Term Success' },
-]
-
 const heroHighlights = [
   { icon: SearchCheck, label: 'Personally Matched Tutors' },
   { icon: ShieldCheck, label: 'Verified & Experienced Educators' },
   { icon: Laptop, label: 'Flexible Online or In-Person' },
-  { icon: Medal, label: 'Satisfaction Promise' },
+  { icon: Medal, label: 'Right Fit Promise' },
+]
+
+const processSteps = [
+  {
+    icon: ClipboardList,
+    title: 'Tell Us About Your Student',
+    body: 'Share their grade, subjects, goals, and preferences.',
+  },
+  {
+    icon: SearchCheck,
+    title: 'We Match You with the Right Tutor',
+    body: 'We personally recommend the best fit within 24 hours.',
+  },
+  {
+    icon: CalendarRange,
+    title: 'Book & Schedule with Ease',
+    body: 'Choose a time that works. Online or in-person.',
+  },
+  {
+    icon: Laptop,
+    title: 'Start Learning & See Results',
+    body: 'Track progress and stay supported every step of the way.',
+  },
 ]
 
 const schoolNames = [
@@ -122,7 +136,7 @@ const schoolNames = [
   'Zucker Academy (Brooklyn, NY)',
 ]
 
-const marqueeDurationSeconds = Math.max(90, schoolNames.length * 1.5)
+const marqueeDurationSeconds = Math.max(300, schoolNames.length * 1.5)
 
 const expertTutors = [
   {
@@ -359,75 +373,20 @@ const HomePage = () => {
         `}
       </style>
 
+      <Navbar />
+
       <main>
-        <section className="flex w-full flex-col bg-white lg:min-h-[calc(100vh-88px)]">
-          <header className="h-16 w-full border-b border-[#eceff3] bg-white">
-            <div className="mx-auto flex h-full max-w-[1320px] items-center justify-between px-6">
-              <Link to="/" className="flex shrink-0 items-center gap-1">
-                <span className="text-[26px] font-black leading-none text-[#f5a11a]">J</span>
-                <span className="text-[26px] font-black leading-none text-[#0b315d]">Tutors</span>
-                <GraduationCap className="ml-1 h-5 w-5 text-[#0b315d]" strokeWidth={2.2} />
-              </Link>
-
-              <div className="flex items-center gap-8">
-                <nav className="hidden items-center rounded-full border border-[#e8edf3] bg-[#f7f8fb] px-5 py-2 text-[11px] font-medium text-[#182535] shadow-[0_1px_4px_rgba(16,24,40,0.04)] lg:flex">
-                  <Link to="/our-team" className="whitespace-nowrap px-4 transition hover:text-[#0B3B60]">
-                    Our Team
-                  </Link>
-                  <Link
-                    to="/how-it-works-for-students"
-                    className="flex items-center gap-1 whitespace-nowrap px-4 transition hover:text-[#0B3B60]"
-                  >
-                    <span>How it Works</span>
-                    <ChevronDown className="h-3 w-3" />
-                  </Link>
-                  <Link
-                    to="/how-it-works-for-tutors"
-                    className="whitespace-nowrap px-4 transition hover:text-[#0B3B60]"
-                  >
-                    For Tutors
-                  </Link>
-                  <Link
-                    to="/how-it-works-for-students"
-                    className="whitespace-nowrap px-4 transition hover:text-[#0B3B60]"
-                  >
-                    For Students
-                  </Link>
-                  <Link
-                    to="/browse-tutors"
-                    className="whitespace-nowrap px-4 transition hover:text-[#0B3B60]"
-                  >
-                    Browse Tutors
-                  </Link>
-                </nav>
-
-                <Link
-                  to="/login"
-                  className="hidden text-[11px] font-medium text-[#162333] transition hover:text-[#0B3B60] lg:inline-flex"
-                >
-                  Login
-                </Link>
-
-                <Link
-                  to="/register"
-                  className="hidden h-8 items-center justify-center rounded-md bg-[#f2aa2a] px-4 text-[11px] font-semibold text-white shadow-[0_4px_12px_rgba(242,170,42,0.28)] transition hover:bg-[#e29c1d] lg:inline-flex"
-                >
-                  Join JTutors
-                </Link>
-              </div>
-            </div>
-          </header>
-
-          <section className="flex flex-grow flex-col justify-center bg-gradient-to-b from-[#0e2d52] via-[#133b66] to-[#0e2d52] text-white">
+        <section className="w-full bg-white">
+          <section className="bg-gradient-to-b from-[#0e2d52] via-[#133b66] to-[#0e2d52] text-white">
             <div
-              className="max-w-7xl mx-auto grid w-full grid-cols-1 items-center gap-12 px-6 pt-16 pb-24 lg:grid-cols-2 lg:px-8"
+              className="max-w-7xl mx-auto grid w-full grid-cols-1 items-center gap-8 px-6 py-8 lg:grid-cols-2 lg:px-8 lg:py-10"
               style={{
                 backgroundImage:
                   'radial-gradient(circle at 28% 38%, rgba(71,112,166,0.24) 0%, rgba(71,112,166,0) 46%), radial-gradient(circle at 78% 36%, rgba(120,162,214,0.12) 0%, rgba(120,162,214,0) 38%)',
               }}
             >
               <div className="max-w-[560px]">
-                  <h1 className="mb-6 text-4xl font-black leading-tight text-white lg:text-5xl">
+                  <h1 className="mb-4 text-4xl font-black leading-tight text-white lg:text-5xl">
                     Personalized Tutoring.
                     <br />
                     Stronger Students.
@@ -435,13 +394,13 @@ const HomePage = () => {
                     <span className="text-[#f4ac2b]">Confident Futures.</span>
                   </h1>
 
-                  <p className="max-w-[520px] text-[18px] font-medium leading-8 text-white/88">
+                  <p className="max-w-[520px] text-[16px] font-medium leading-7 text-white/88 lg:text-[17px]">
                     JTutors connects Jewish students with expert tutors who understand their schools,
                     their schedules, and their goals. Online or in-person. In all subjects - Secular
                     or Judaic.
                   </p>
 
-                  <div className="mt-8 mb-10 flex flex-wrap items-center gap-4">
+                  <div className="mb-6 mt-6 flex flex-wrap items-center gap-4">
                     <Link
                       to="/browse-tutors"
                       className="inline-flex h-14 items-center justify-center rounded-xl bg-[#f5a623] px-8 text-[16px] font-bold text-white shadow-[0_10px_24px_rgba(245,166,35,0.34)] transition hover:bg-[#e39a17]"
@@ -457,7 +416,7 @@ const HomePage = () => {
                     </Link>
                   </div>
 
-                  <div className="mt-10 flex w-full flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                  <div className="mt-6 flex w-full flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                     {heroHighlights.map((item) => {
                       const Icon = item.icon
                       return (
@@ -475,31 +434,23 @@ const HomePage = () => {
                 </div>
 
                 <div className="w-full max-w-md mx-auto flex justify-center lg:max-w-none lg:justify-end">
-                  <div className="relative w-full max-w-[440px]">
+                  <div className="relative w-full max-w-[400px]">
                   <img
                     src="/hero-tutors.png.png"
                     alt="Tutor and student learning together"
                     className="w-full object-cover rounded-3xl shadow-2xl aspect-[4/3] lg:aspect-square"
                   />
-
-                  <div className="absolute -top-3 -right-3 z-10 flex items-center gap-1 rounded-full bg-white px-4 py-2 text-xs font-bold text-black shadow-md">
-                    <span className="text-[#f5a623]">⭐</span> 4.9/5 Rated
-                  </div>
-
-                    <div className="absolute -bottom-6 left-6 z-30 flex max-w-[220px] flex-col items-start justify-center rounded-2xl border border-gray-100 bg-white px-5 py-3 text-xs font-bold text-black shadow-xl lg:-left-6">
-                      <div>The largest resource of Jewish tutors</div>
-                    </div>
                   </div>
                 </div>
             </div>
           </section>
 
-          <div className="relative w-full overflow-hidden bg-[#030d1a] py-6">
+          <div className="relative w-full overflow-hidden bg-[#030d1a] py-4">
             <div className="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-24 bg-gradient-to-r from-[#030d1a] to-transparent" />
             <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-10 w-24 bg-gradient-to-l from-[#030d1a] to-transparent" />
 
-            <div className="mb-5 text-center text-xs font-bold uppercase tracking-widest text-[#f5a623]">
-              Students and Educators From Institutions Including
+            <div className="mb-4 px-6 text-center text-sm font-bold text-[#f5a623] md:text-base">
+              Our tutors teach in the following schools and universities.
             </div>
 
             <div className="flex w-full select-none overflow-hidden">
@@ -635,19 +586,49 @@ const HomePage = () => {
           </div>
         </section>
 
-        <section className="w-full bg-white py-14">
-          <div className="max-w-7xl mx-auto px-4 md:px-6 text-center">
-            <h2 className="text-[25px] font-black md:text-[30px]">Better Grades. More Confidence. Less Stress.</h2>
-            <p className="mt-3 text-base font-medium text-[#274260]">
-              We help your child reach their full potential with the right tutor by their side.
-            </p>
-            <div className="mx-auto mt-10 grid max-w-6xl grid-cols-2 gap-8 md:grid-cols-3 xl:grid-cols-5">
-              {outcomes.map(({ icon: Icon, label }) => (
-                <div key={label} className="flex flex-col items-center rounded-2xl border border-[#e6edf5] bg-[#fbfdff] px-5 py-6">
-                  <Icon className="h-10 w-10 text-[#064b86]" strokeWidth={1.8} />
-                  <p className="mt-4 text-sm font-black leading-6">{label}</p>
+        <section className="w-full bg-white py-16">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 overflow-hidden px-0 lg:grid-cols-[1.15fr_0.85fr] lg:px-6">
+            <div className="min-h-[360px] lg:min-h-[520px]">
+              <img
+                src="/online-tutoring-process.png"
+                alt="Online tutoring session on a computer"
+                className="h-full w-full object-cover"
+              />
+            </div>
+
+            <div className="flex items-center bg-[#f6fbff] px-6 py-10 md:px-10 lg:px-12">
+              <div className="w-full max-w-[520px]">
+                <h2 className="text-[34px] font-black leading-tight text-[#071b36] md:text-[44px]">
+                  Unlock Your
+                  <br />
+                  Academic Potential
+                </h2>
+
+                <div className="mt-8 space-y-3">
+                  {processSteps.map(({ icon: Icon, title, body }, index) => (
+                    <div key={title}>
+                      <div className="grid grid-cols-[48px_1fr] gap-4">
+                        <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-[#e8f2fb] text-[#082a52]">
+                          <Icon className="h-6 w-6" strokeWidth={1.9} />
+                          <span className="absolute -right-1 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#0b315d] text-xs font-black text-white">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="text-[19px] font-black leading-6 text-[#111827]">{title}</h3>
+                          <p className="mt-2 text-[15px] font-medium leading-6 text-[#26364c]">{body}</p>
+                        </div>
+                      </div>
+
+                      {index < processSteps.length - 1 && (
+                        <div className="ml-6 mt-3 flex h-6 items-center text-[#a5b2c2]">
+                          <ChevronDown className="h-5 w-5" strokeWidth={1.8} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </section>
@@ -722,69 +703,6 @@ const HomePage = () => {
           </div>
         </section>
 
-        <section className="w-full bg-[#264d78] py-16">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="mx-auto max-w-4xl rounded-[28px] bg-[rgba(96,138,184,0.45)] px-10 py-12 shadow-[0_18px_60px_rgba(10,30,60,0.22)] backdrop-blur-sm">
-              <h2 className="text-left text-[42px] font-black leading-tight text-white">
-                Didn&apos;t find your question here?
-              </h2>
-              <p className="mt-3 max-w-3xl text-[15px] font-medium leading-8 text-blue-100">
-                Check out our{' '}
-                <Link
-                  to="/faq"
-                  className="text-white underline decoration-white/50 underline-offset-4 transition-colors hover:text-blue-200"
-                >
-                  FAQ page
-                </Link>{' '}
-                for more answers, or send us your question and our team will respond within 24 hours.
-              </p>
-
-              <form className="mt-8 space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <input
-                    type="text"
-                    placeholder="Full name"
-                    className="h-12 rounded-2xl border border-white/30 bg-[rgba(123,161,201,0.28)] px-4 text-[15px] font-medium text-white placeholder:text-white/75 outline-none transition focus:border-white/60"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    className="h-12 rounded-2xl border border-white/30 bg-[rgba(123,161,201,0.28)] px-4 text-[15px] font-medium text-white placeholder:text-white/75 outline-none transition focus:border-white/60"
-                  />
-                </div>
-
-                <input
-                  type="text"
-                  placeholder="Question subject"
-                  className="h-12 w-full rounded-2xl border border-white/30 bg-[rgba(123,161,201,0.28)] px-4 text-[15px] font-medium text-white placeholder:text-white/75 outline-none transition focus:border-white/60"
-                />
-
-                <textarea
-                  placeholder="Describe how we can help"
-                  rows={5}
-                  className="w-full rounded-2xl border border-white/30 bg-[rgba(123,161,201,0.28)] px-4 py-4 text-[15px] font-medium text-white placeholder:text-white/75 outline-none transition focus:border-white/60"
-                />
-
-                <label className="flex items-center gap-3 pt-1 text-[14px] font-medium text-white/92">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-white/60 bg-transparent text-white accent-white"
-                  />
-                  <span>I have read and agree to all Terms & Conditions.</span>
-                </label>
-
-                <button
-                  type="submit"
-                  className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-white text-[18px] font-semibold text-[#ef9f18] transition hover:bg-[#f7fbff]"
-                >
-                  Submit your question
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </form>
-            </div>
-          </div>
-        </section>
-
         <section className="w-full bg-[#003f70] py-8 text-white">
           <div className="max-w-7xl mx-auto px-4 md:px-6 flex flex-col items-center justify-between gap-5 md:flex-row">
             <div>
@@ -801,6 +719,7 @@ const HomePage = () => {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   )
 }

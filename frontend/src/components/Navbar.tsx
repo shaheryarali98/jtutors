@@ -70,28 +70,28 @@ const Navbar = () => {
         : roleLinks.student
 
   return (
-    <nav className="bg-white/95 backdrop-blur-xl sticky top-0 z-50 border-b border-violet-100 shadow-lg">
+    <nav className="sticky top-0 z-50 border-b border-[#d7e2ee] bg-white shadow-[0_2px_12px_rgba(15,49,91,0.10)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center">
+        <div className="flex h-24 items-center justify-between">
+          <Link to="/" className="flex shrink-0 items-center" aria-label="JTutors home">
+            <span className="sr-only">JTutors home</span>
             <img
-              src="/logo-trans.png"
-              alt="JTutors Logo"
-              className="h-10 w-auto object-contain"
-              style={{ height: '11rem' }}
+              src="/logo.jpg"
+              alt="JTutors"
+              className="h-20 w-auto object-contain"
             />
           </Link>
 
 
           {/* === CENTERED: Only 2 Links === */}
-          <div className="hidden lg:flex items-center justify-center flex-1 px-8">
-            <div className="flex items-center gap-3 backdrop-blur-sm rounded-full px-6 py-2 shadow-inner" style={{ backgroundColor: 'rgba(230, 240, 247, 0.7)' }}>
+          <div className="hidden min-w-0 flex-1 items-center justify-center px-8 lg:flex">
+            <div className="flex flex-nowrap items-center gap-2 rounded-full px-5 py-2 shadow-inner" style={{ backgroundColor: 'rgba(230, 240, 247, 0.9)' }}>
               {centerLinks.map((link) => (
                 <NavLink
                   key={link.to}
                   to={link.to}
                   className={({ isActive }) =>
-                    `px-5 py-2.5 text-sm font-bold rounded-full transition-all duration-300 ${isActive
+                    `whitespace-nowrap rounded-full px-4 py-2.5 text-xs font-bold transition-all duration-300 xl:px-5 xl:text-sm ${isActive
                       ? 'text-white shadow-md'
                       : 'text-slate-700 hover:bg-white/70'
                     }`
@@ -105,7 +105,7 @@ const Navbar = () => {
           </div>
 
           {/* === RIGHT: Auth & Mobile Toggle === */}
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             {/* Desktop Auth */}
             {user ? (
               <div className="hidden lg:flex items-center gap-3">
