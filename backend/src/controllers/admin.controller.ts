@@ -6,6 +6,7 @@ import { confirmPayment, markPaymentRefunded } from '../services/payment.service
 import { getGoogleClassroomStatus } from '../services/googleClassroom.service';
 import { calculateProfileCompletion } from './tutor.controller';
 import { stripe } from '../services/stripe.service';
+import { gradeMatches } from '../utils/grade';
 import { formatTutor } from '../utils/formatters';
 
 const prisma = new PrismaClient();
@@ -793,29 +794,6 @@ export const getPublicTutors = async (req: Request, res: Response) => {
         .split(',')
         .map((entry) => entry.trim())
         .filter((entry) => entry.length > 0);
-    };
-
-    const gradeToken = (value: string) => value.replace(/\s+/g, '').toLowerCase();
-    const toGradeNumber = (token: string): number | null => {
-      if (token === 'k' || token === 'kindergarten') return 0;
-      const m = token.match(/^(?:grade)?(\d+)$/);
-      return m ? Number(m[1]) : null;
-    };
-    const gradeMatches = (storedGrade: string, requestedGrade: string) => {
-      const stored = gradeToken(storedGrade);
-      const requested = gradeToken(requestedGrade);
-      if (!stored || !requested) return false;
-      if (stored === requested) return true;
-      const reqNum = toGradeNumber(requested);
-      const storedNum = toGradeNumber(stored);
-      if (reqNum !== null && storedNum !== null) return reqNum === storedNum;
-      const rangeMatch = stored.match(/^(k|\d+)-(\d+)$/i);
-      if (rangeMatch && reqNum !== null) {
-        const min = rangeMatch[1].toLowerCase() === 'k' ? 0 : Number(rangeMatch[1]);
-        const max = Number(rangeMatch[2]);
-        return reqNum >= min && reqNum <= max;
-      }
-      return false;
     };
 
     const subjectFilter = normalizeText(subject);
