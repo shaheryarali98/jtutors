@@ -440,6 +440,10 @@ const HomePage = () => {
                     alt="Tutor and student learning together"
                     className="w-full object-cover rounded-3xl shadow-2xl aspect-[4/3] lg:aspect-square"
                   />
+
+                    <div className="absolute -bottom-6 left-6 z-30 flex max-w-[220px] flex-col items-start justify-center rounded-2xl border border-gray-100 bg-white px-5 py-3 text-xs font-bold text-black shadow-xl lg:-left-6">
+                      <div>The largest resource of Jewish tutors</div>
+                    </div>
                   </div>
                 </div>
             </div>
@@ -716,6 +720,18 @@ const HomePage = () => {
               Find My Tutor
               <ArrowRight className="h-4 w-4" />
             </Link>
+          </div>
+
+          <div className="mx-auto mt-6 max-w-7xl px-4 text-center md:px-6">
+            <p className="text-sm font-medium text-white/85">
+              Email us at{' '}
+              <a
+                href="mailto:info@jtutors.com"
+                className="underline decoration-white/40 underline-offset-4 transition hover:text-white"
+              >
+                info@jtutors.com
+              </a>
+            </p>
           </div>
         </section>
       </main>
