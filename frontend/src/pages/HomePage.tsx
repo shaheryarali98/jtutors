@@ -441,9 +441,7 @@ const HomePage = () => {
                     className="w-full object-cover rounded-3xl shadow-2xl aspect-[4/3] lg:aspect-square"
                   />
 
-                    <div className="absolute -bottom-6 left-6 z-30 flex max-w-[220px] flex-col items-start justify-center rounded-2xl border border-gray-100 bg-white px-5 py-3 text-xs font-bold text-black shadow-xl lg:-left-6">
-                      <div>The largest resource of Jewish tutors</div>
-                    </div>
+                 
                   </div>
                 </div>
             </div>
