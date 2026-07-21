@@ -6,6 +6,8 @@ import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import { usePlatformSettings } from '../../store/settingsStore'
 
+const LOCAL_BOOKING_COUPON_KEY = 'jtutors-booking-coupon'
+
 interface Booking {
   id: string
   startTime: string
@@ -49,6 +51,15 @@ interface Booking {
   } | null
 }
 
+type LocalBookingCoupon = {
+  bookingId?: string | null
+  tutorId?: string | null
+  startTime?: string | null
+  endTime?: string | null
+  couponCode?: string | null
+  discountPercent?: number
+}
+
 const formatter = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
   month: 'short',
@@ -56,6 +67,31 @@ const formatter = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
   minute: '2-digit',
 })
+
+const readLocalBookingCoupon = (): LocalBookingCoupon | null => {
+  try {
+    const raw = localStorage.getItem(LOCAL_BOOKING_COUPON_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as LocalBookingCoupon
+  } catch {
+    return null
+  }
+}
+
+const getBookingCoupon = (booking: Booking): LocalBookingCoupon | null => {
+  const stored = readLocalBookingCoupon()
+  if (!stored?.couponCode || !stored.discountPercent) return null
+
+  if (stored.bookingId && stored.bookingId === booking.id) {
+    return stored
+  }
+
+  const sameTutor = stored.tutorId && stored.tutorId === booking.tutor.id
+  const sameStart = stored.startTime && new Date(stored.startTime).toISOString() === new Date(booking.startTime).toISOString()
+  const sameEnd = stored.endTime && new Date(stored.endTime).toISOString() === new Date(booking.endTime).toISOString()
+
+  return sameTutor && sameStart && sameEnd ? stored : null
+}
 
 const StudentBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -130,7 +166,11 @@ const StudentBookings = () => {
     setPayErrors(prev => { const next = { ...prev }; delete next[booking.id]; return next })
     setPayingId(booking.id)
     try {
-      const response = await api.post('/payments/checkout', { bookingId: booking.id })
+      const coupon = getBookingCoupon(booking)
+      const response = await api.post('/payments/checkout', {
+        bookingId: booking.id,
+        couponCode: coupon?.couponCode ?? undefined,
+      })
       if (response.data?.url) {
         window.location.href = response.data.url
         return
@@ -419,9 +459,18 @@ const StudentBookings = () => {
               const end = new Date(booking.endTime)
               const needsPayment = booking.status === 'CONFIRMED' && (!booking.payment || booking.payment.paymentStatus !== 'PAID')
               const hasPendingExtraTime = booking.extraTimeCharge?.status === 'PENDING'
-              const amountDue =
+              const baseAmountDue =
                 booking.payment?.amount ??
                 Math.max(1, Math.round((booking.durationHours || 1) * tutor.hourlyFee * 100) / 100)
+              const bookingCoupon = getBookingCoupon(booking)
+              const couponDiscountPercent = bookingCoupon?.couponCode?.trim().toLowerCase() === 'backtoschool'
+                ? 50
+                : 0
+              const discountedAmountDue = couponDiscountPercent > 0
+                ? Math.max(0, baseAmountDue * (1 - couponDiscountPercent / 100))
+                : baseAmountDue
+              const studentFeeAmount = discountedAmountDue * studentFeePct / 100
+              const totalDue = discountedAmountDue + studentFeeAmount
               const displayImage = resolveImageUrl(tutor.profileImage)
 
               return (
@@ -479,9 +528,14 @@ const StudentBookings = () => {
                       <p className="text-sm text-slate-500 mt-2">
                         Amount due:{' '}
                         <span className="font-semibold text-slate-900">
-                          {(booking.payment?.currency || 'USD').toUpperCase()} {amountDue.toFixed(2)}
+                          {(booking.payment?.currency || 'USD').toUpperCase()} {discountedAmountDue.toFixed(2)}
                         </span>
                       </p>
+                      {couponDiscountPercent > 0 && (
+                        <p className="text-xs text-emerald-600 mt-1">
+                          Backtoschool coupon applied ({couponDiscountPercent}% off)
+                        </p>
+                      )}
                       {booking.payment?.paidAt && (
                         <p className="text-xs text-slate-400 mt-1">
                           Paid on {formatter.format(new Date(booking.payment.paidAt))}
@@ -582,15 +636,21 @@ const StudentBookings = () => {
                         <div className="bg-slate-50 rounded-xl p-3 text-sm text-slate-700 space-y-1 md:self-center">
                           <div className="flex justify-between gap-6">
                             <span>Session price</span>
-                            <span className="font-medium">${amountDue.toFixed(2)}</span>
+                            <span className="font-medium">${baseAmountDue.toFixed(2)}</span>
                           </div>
+                          {couponDiscountPercent > 0 && (
+                            <div className="flex justify-between gap-6 text-emerald-600">
+                              <span>Coupon discount ({couponDiscountPercent}% off)</span>
+                              <span>-${(baseAmountDue - discountedAmountDue).toFixed(2)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between gap-6 text-slate-500">
                             <span>Service fee ({studentFeePct}%)</span>
-                            <span>+${(amountDue * studentFeePct / 100).toFixed(2)}</span>
+                            <span>+${studentFeeAmount.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between gap-6 font-semibold border-t border-slate-200 pt-1 mt-1">
                             <span>Total due</span>
-                            <span>${(amountDue * (1 + studentFeePct / 100)).toFixed(2)}</span>
+                            <span>${totalDue.toFixed(2)}</span>
                           </div>
                         </div>
                         <div className="flex flex-col gap-2 md:self-center">
@@ -600,7 +660,7 @@ const StudentBookings = () => {
                             onClick={() => handlePayNow(booking)}
                             disabled={payingId === booking.id}
                           >
-                            {payingId === booking.id ? 'Redirecting…' : 'Pay with Stripe'}
+                            {payingId === booking.id ? 'Redirecting…' : `Pay $${totalDue.toFixed(2)} with Stripe`}
                           </button>
                           {payErrors[booking.id] && (
                             <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 max-w-xs">

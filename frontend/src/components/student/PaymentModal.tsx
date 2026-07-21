@@ -88,18 +88,32 @@ const PaymentForm = ({
       )}
 
       <div className="flex justify-end gap-3">
-        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={submitting}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={onCancel}
+          disabled={submitting}
+        >
           Cancel
         </button>
         <button type="submit" className="btn btn-primary" disabled={submitting}>
-        {submitting ? 'Processing…' : 'Pay with Stripe'}
+          {submitting
+            ? 'Processing...'
+            : `Pay ${currency.toUpperCase()} ${amount.toFixed(2)} with Stripe`}
         </button>
       </div>
     </form>
   )
 }
 
-const PaymentModal = ({ clientSecret, paymentId, amount, currency, onSuccess, onCancel }: PaymentModalProps) => {
+const PaymentModal = ({
+  clientSecret,
+  paymentId,
+  amount,
+  currency,
+  onSuccess,
+  onCancel,
+}: PaymentModalProps) => {
   const options: StripeElementsOptions | undefined = useMemo(() => {
     if (!clientSecret) return undefined
     return {
@@ -136,7 +150,13 @@ const PaymentModal = ({ clientSecret, paymentId, amount, currency, onSuccess, on
         <h2 className="text-xl font-semibold text-slate-900 mb-1">Complete your payment</h2>
         <p className="text-sm text-slate-500 mb-4">Secure checkout powered by Stripe.</p>
         <Elements stripe={stripePromise} options={options}>
-          <PaymentForm paymentId={paymentId} amount={amount} currency={currency} onSuccess={onSuccess} onCancel={onCancel} />
+          <PaymentForm
+            paymentId={paymentId}
+            amount={amount}
+            currency={currency}
+            onSuccess={onSuccess}
+            onCancel={onCancel}
+          />
         </Elements>
       </div>
     </div>
@@ -144,5 +164,3 @@ const PaymentModal = ({ clientSecret, paymentId, amount, currency, onSuccess, on
 }
 
 export default PaymentModal
-
-
