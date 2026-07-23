@@ -130,7 +130,7 @@ export const getMyPaymentsController = async (req: Request, res: Response) => {
 // Create Stripe Checkout Session for a booking payment (90/10 Connect split)
 export const createBookingCheckoutController = async (req: Request, res: Response) => {
   try {
-    const { bookingId } = req.body as { bookingId: string };
+    const { bookingId, couponCode } = req.body as { bookingId: string; couponCode?: string };
     const currentUser = req.user;
     if (!currentUser) return res.status(401).json({ error: 'Authentication required' });
     if (currentUser.role !== 'STUDENT') return res.status(403).json({ error: 'Only students can pay' });
@@ -159,8 +159,18 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
       0.25,
       (new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / (1000 * 60 * 60)
     );
-    const basePriceDollars = booking.payment?.amount
-      ?? Math.max(1, Math.round(durationHours * (booking.tutor.hourlyFee || 0) * 100) / 100);
+    const undiscountedBasePriceDollars = Math.max(
+      1,
+      Math.round(durationHours * (booking.tutor.hourlyFee || 0) * 100) / 100
+    );
+    const normalizedCouponCode = couponCode?.trim().toLowerCase() || '';
+    const couponDiscountPercent = normalizedCouponCode === 'backtoschool' ? 50 : 0;
+    const basePriceDollars = Math.max(
+      0.5,
+      Math.round(
+        undiscountedBasePriceDollars * (1 - couponDiscountPercent / 100) * 100
+      ) / 100
+    );
     if (basePriceDollars <= 0) return res.status(400).json({ error: 'Invalid booking amount' });
 
     // Calculate full 3-tier breakdown in cents
@@ -169,21 +179,30 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
 
     // Upsert pending payment — store studentChargeAmount as the amount, with full breakdown
     let payment = booking.payment;
+    const paymentData = {
+      amount:                basePriceDollars,
+      currency:              'USD',
+      paymentStatus:         'PENDING' as const,
+      adminCommissionAmount: bd.platformFeeCents / 100,
+      tutorAmount:           bd.tutorPayoutCents / 100,
+      studentFeeAmount:      bd.studentFeeCents / 100,
+      tutorDeductionAmount:  bd.tutorDeductionCents / 100,
+      studentChargeAmount:   bd.studentPaysCents / 100,
+    };
+
     if (!payment) {
       payment = await prisma.payment.create({
         data: {
-          booking:  { connect: { id: booking.id } },
-          student:  { connect: { id: student.id } },
-          tutor:    { connect: { id: booking.tutorId } },
-          amount:                basePriceDollars,           // base price
-          currency:              'USD',
-          paymentStatus:         'PENDING',
-          adminCommissionAmount: bd.platformFeeCents / 100,  // total platform gross
-          tutorAmount:           bd.tutorPayoutCents / 100,
-          studentFeeAmount:      bd.studentFeeCents  / 100,
-          tutorDeductionAmount:  bd.tutorDeductionCents / 100,
-          studentChargeAmount:   bd.studentPaysCents / 100,
+          booking: { connect: { id: booking.id } },
+          student: { connect: { id: student.id } },
+          tutor: { connect: { id: booking.tutorId } },
+          ...paymentData,
         },
+      });
+    } else {
+      payment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: paymentData,
       });
     }
 
@@ -202,6 +221,8 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
           tutorDeductionDollars:  bd.tutorDeductionCents / 100,
           totalDueDollars:        bd.studentPaysCents / 100,
           tutorPayoutDollars:     bd.tutorPayoutCents / 100,
+          couponDiscountPercent,
+          undiscountedBasePriceDollars,
         },
       });
     }
@@ -235,6 +256,8 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
         tutorDeductionDollars:  bd.tutorDeductionCents / 100,
         totalDueDollars:        bd.studentPaysCents / 100,
         tutorPayoutDollars:     bd.tutorPayoutCents / 100,
+        couponDiscountPercent,
+        undiscountedBasePriceDollars,
       },
     });
   } catch (error: any) {

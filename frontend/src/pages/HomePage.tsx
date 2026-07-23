@@ -678,7 +678,7 @@ const HomePage = () => {
             </div>
 
             <div className="space-y-4">
-              {faqs.slice(0, 6).map((faq, index) => (
+              {faqs.slice(0, 7).map((faq, index) => (
                 <div
                   key={faq.question}
                   className="overflow-hidden rounded-2xl border border-[#d8e1ec] bg-white shadow-[0_4px_14px_rgba(17,34,68,0.04)]"
