@@ -188,6 +188,8 @@ const publicTutorRateLimit: express.RequestHandler = (req, res, next) => {
 
 app.get('/api/public/tutors', publicTutorRateLimit, getPublicTutors);
 app.get('/api/public/tutors/:tutorId', publicTutorRateLimit, getPublicTutorDetails);
+app.get('/api/tutors', publicTutorRateLimit, getPublicTutors);
+app.get('/api/tutors/:tutorId', publicTutorRateLimit, getPublicTutorDetails);
 
 // Health check (both paths — /health and /api/health for frontend warm-up pings)
 app.get('/health', (_req, res) => {
