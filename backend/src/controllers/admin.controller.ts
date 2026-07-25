@@ -889,6 +889,7 @@ export const getPublicTutors = async (req: Request, res: Response) => {
         city: tutor.city,
         state: tutor.state,
         country: tutor.country,
+        isAtLeast21Confirmed: Boolean(tutor.isAtLeast21Confirmed),
         languagesSpoken: tryParse(tutor.languagesSpoken),
         gradesCanTeach: tryParse(tutor.gradesCanTeach),
         subjects: tutor.subjects.map((ts) => ts.subject.name),

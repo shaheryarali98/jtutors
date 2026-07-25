@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bookmark, BookmarkCheck, CalendarPlus, MapPin, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Bookmark, BookmarkCheck, CalendarPlus, CheckCircle2, MapPin, MessageCircle } from 'lucide-react'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
@@ -22,6 +22,7 @@ interface TutorDetail {
   coverImage?: string
   gradesCanTeach?: string[]
   languagesSpoken?: string[]
+  isAtLeast21Confirmed?: boolean
   experiences?: Array<{
     id: string
     jobTitle: string
@@ -265,6 +266,41 @@ const TutorDetailPage = () => {
             </div>
           </section>
         )}
+
+        <section className="bg-white rounded-3xl shadow p-6 md:p-8">
+          <h2 className="text-xl font-semibold text-slate-900 mb-4">Personal Information</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {(tutor.city || tutor.country) && (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Location</p>
+                <p className="text-sm font-medium text-slate-800">
+                  {tutor.city ? `${tutor.city}, ${tutor.state || tutor.country}` : tutor.country}
+                </p>
+              </div>
+            )}
+
+            {tutor.languagesSpoken && tutor.languagesSpoken.length > 0 && (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Languages</p>
+                <p className="text-sm font-medium text-slate-800">{tutor.languagesSpoken.join(', ')}</p>
+              </div>
+            )}
+
+            {tutor.isAtLeast21Confirmed && (
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4 md:col-span-2">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-800">21+ verified</p>
+                    <p className="text-sm text-emerald-700">
+                      This tutor has confirmed that they are at least 21 years old.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         {tutor.experiences && tutor.experiences.length > 0 && (
           <section className="bg-white rounded-3xl shadow p-6 md:p-8 space-y-5">

@@ -531,6 +531,7 @@ export const searchTutors = async (req: Request, res: Response) => {
       ...tutor,
       firstName: tutor.firstName || '',
       lastName: tutor.lastName || '',
+      isAtLeast21Confirmed: Boolean(tutor.isAtLeast21Confirmed),
       saved: savedTutorIds.has(tutor.id as string),
       experienceCount: Array.isArray(tutor.experiences) ? tutor.experiences.length : 0,
       educationCount: Array.isArray(tutor.educations) ? tutor.educations.length : 0,

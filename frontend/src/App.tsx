@@ -23,6 +23,7 @@ import DevMockCheckout from './pages/DevMockCheckout'
 import HomePage from './pages/HomePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
+import ScrollToTop from './components/ScrollToTop'
 import { User } from './store/authStore'
 
 // import HowItWorksForStudents from './pages/how-it-works-for-student/page';
@@ -36,6 +37,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<HomePage />} />
         {/* <Route path="/how-it-works-for-students" element={<HowItWorksForStudents />} /> */}
