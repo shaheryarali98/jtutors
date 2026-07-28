@@ -7,6 +7,8 @@ import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import BookTutorModal from '../../components/student/BookTutorModal'
 import { useAuthStore } from '../../store/authStore'
+import { resolveTutorProfileAccess } from '../../lib/studentProfileAccess'
+import { showAppToast } from '../../lib/toast'
 
 interface TutorDetail {
   id: string
@@ -62,24 +64,51 @@ const TutorDetailPage = () => {
   const [bookingModalOpen, setBookingModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const fetchTutor = async () => {
-    if (!tutorId) return
-    try {
-      setLoading(true)
-      const endpoint = isStudent ? `/student/tutors/${tutorId}` : `/public/tutors/${tutorId}`
-      const response = await api.get(endpoint)
-      setTutor(response.data.tutor)
-    } catch (err) {
-      console.error('Error fetching tutor details:', err)
-      setError('Unable to load tutor details right now.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    fetchTutor()
-  }, [tutorId, isStudent])
+    let cancelled = false
+
+    const verifyAccessAndFetchTutor = async () => {
+      if (!tutorId) {
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError('')
+
+      const access = await resolveTutorProfileAccess(user)
+      if (cancelled) return
+
+      if (!access.allowed) {
+        showAppToast('Please complete your profile and accept the Terms & Conditions to view tutor profiles and book sessions.')
+        navigate(access.redirectTo || '/student/profile', { replace: true })
+        return
+      }
+
+      try {
+        const endpoint = isStudent ? `/student/tutors/${tutorId}` : `/public/tutors/${tutorId}`
+        const response = await api.get(endpoint)
+        if (!cancelled) {
+          setTutor(response.data.tutor)
+        }
+      } catch (err) {
+        console.error('Error fetching tutor details:', err)
+        if (!cancelled) {
+          setError('Unable to load tutor details right now.')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    verifyAccessAndFetchTutor()
+
+    return () => {
+      cancelled = true
+    }
+  }, [tutorId, isStudent, navigate, user])
 
   const handleToggleSaved = async () => {
     if (!isStudent) {

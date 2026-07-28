@@ -24,6 +24,7 @@ import HomePage from './pages/HomePage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import ScrollToTop from './components/ScrollToTop'
+import GlobalToast from './components/GlobalToast'
 import { User } from './store/authStore'
 
 // import HowItWorksForStudents from './pages/how-it-works-for-student/page';
@@ -38,6 +39,7 @@ function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <GlobalToast />
       <Routes>
         <Route path="/" element={<HomePage />} />
         {/* <Route path="/how-it-works-for-students" element={<HowItWorksForStudents />} /> */}
@@ -62,6 +64,7 @@ function App() {
         <Route path="/change-password" element={<ChangePassword />} />
         <Route path="/browse-tutors" element={<BrowseTutors />} />
         <Route path="/tutors/:tutorId" element={<TutorDetailPage />} />
+        <Route path="/tutor/:tutorId" element={<TutorDetailPage />} />
 
         {/* Tutor Routes */}
         <Route path="/tutor/dashboard" element={

@@ -8,6 +8,7 @@ import { resolveImageUrl } from '../../lib/media'
 import { LANGUAGE_OPTIONS } from '../../constants/options'
 import { usePlatformSettings } from '../../store/settingsStore'
 import StudentTermsModal from '../../components/student/StudentTermsModal'
+import { setStudentProfileGateCache } from '../../lib/studentProfileAccess'
 
 interface StudentProfileForm {
   firstName: string
@@ -116,6 +117,11 @@ const StudentProfile = () => {
           setValue('zipcode', student.zipcode || '')
           setProfileImage(student.profileImage || '')
           setProfileCompleted(Boolean(student.profileCompleted))
+          setPlatformAgreementChecked(Boolean(student.termsAccepted))
+          setStudentProfileGateCache({
+            profileCompleted: Boolean(student.profileCompleted),
+            termsAccepted: Boolean(student.termsAccepted),
+          })
           setLanguages(
             Array.isArray(student.languagesSpoken) && student.languagesSpoken.length > 0
               ? student.languagesSpoken
@@ -249,8 +255,13 @@ const StudentProfile = () => {
       })
 
       setSuccess(response.data.message || 'Profile updated successfully')
-      setProfileCompleted(Boolean(response.data.profileCompleted))
+      const nextProfileCompleted = Boolean(response.data.profileCompleted)
+      setProfileCompleted(nextProfileCompleted)
       setProfileImage(response.data.student?.profileImage || profileImage)
+      setStudentProfileGateCache({
+        profileCompleted: nextProfileCompleted,
+        termsAccepted: platformAgreementChecked,
+      })
       window.dispatchEvent(new Event('student-profile-updated'))
       setToastVariant('success')
       setToastMessage('Your profile has been saved')
@@ -685,6 +696,11 @@ const StudentProfile = () => {
           try {
             await api.post('/student/accept-terms')
             setShowTermsModal(false)
+            setPlatformAgreementChecked(true)
+            setStudentProfileGateCache({
+              profileCompleted,
+              termsAccepted: true,
+            })
           } catch (error) {
             console.error('Error accepting terms:', error)
           }
