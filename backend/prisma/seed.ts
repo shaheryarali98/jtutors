@@ -20,6 +20,7 @@ const subjectsHierarchy = {
     ],
     'Science': [
         'Anatomy', 'Astronomy', 'Biochemistry', 'Biology', 'Biostatistics', 'Botany',
+        'Psychology', 'Abnormal psychology', 'Developmental psychology',
         'Chemical Engineering', 'Chemistry', 'Civil Engineering', 'Ecology', 'Earth Science', 'Quantum Physics',
         'Environmental Science', 'Epidemiology', 'Genetics', 'Geology', 'Mechanical Engineering',
         'Microbiology', 'Neuroscience', 'Nursing', 'Nutrition', 'Organic Chemistry',
