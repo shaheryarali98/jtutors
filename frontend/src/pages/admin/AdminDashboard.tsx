@@ -27,7 +27,14 @@ import {
   Filter,
   Ban,
   History,
+  Pencil,
+  Settings as SettingsIcon,
 } from 'lucide-react'
+import {
+  TutorProfileEditor,
+  StudentProfileEditor,
+  AccountControls,
+} from '../../components/admin/AdminProfileEditor'
 
 interface AnalyticsPayload {
   analytics: {
@@ -129,8 +136,11 @@ interface DetailedUser {
     city?: string | null
     address?: string | null
     zipcode?: string | null
+    timezone?: string | null
     languagesSpoken?: string[]
     profileImage?: string | null
+    coverImage?: string | null
+    isAtLeast21Confirmed?: boolean
     stripeAccountId?: string | null
     stripeOnboarded?: boolean
     jtutorsEmail?: string | null
@@ -174,6 +184,7 @@ interface DetailedUser {
     city?: string | null
     address?: string | null
     zipcode?: string | null
+    timezone?: string | null
     languagesSpoken?: string[]
     learningPreferences?: string[]
     introduction?: string | null
@@ -318,6 +329,7 @@ interface AdminExtraTimeCharge {
 interface SubjectItem {
   id: string
   name: string
+  parentId?: string | null
 }
 
 interface GoogleStatus {
@@ -664,6 +676,23 @@ const AdminDashboard = () => {
       setError('Unable to load user details.')
     } finally {
       setLoadingUserDetail(false)
+    }
+  }
+
+  /** Re-pull the open user's detail after an admin edit so the panel shows saved state. */
+  const refreshSelectedUserDetail = async () => {
+    const userId = selectedUserDetail?.id
+    if (!userId) return
+    try {
+      const [detailRes, usersRes] = await Promise.all([
+        api.get<{ user: DetailedUser }>(`/admin/users/${userId}/detail`),
+        api.get<{ users: AdminUser[] }>('/admin/users'),
+      ])
+      setSelectedUserDetail(detailRes.data.user)
+      setUsers(usersRes.data.users)
+    } catch (err) {
+      console.error('Error refreshing user detail:', err)
+      setError('Unable to refresh user details.')
     }
   }
 
@@ -2600,6 +2629,8 @@ const AdminDashboard = () => {
                 onUpdateProfileImage={(profileType, file) =>
                   handleUpdateProfileImage(selectedUserDetail!.id, profileType, file)
                 }
+                subjects={subjects}
+                onRefresh={refreshSelectedUserDetail}
               />
             ) : null}
           </div>
@@ -2665,7 +2696,7 @@ const AdminDashboard = () => {
 }
 
 /* ── User Detail Panel ── */
-const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSetJTutorsEmail, onUpdateProfileImage }: { user: DetailedUser; onClose: () => void; onUpdateBgStatus: (userId: string, status: string) => Promise<void>; updatingUserId: string | null; onSetJTutorsEmail: (tutorId: string, email: string) => Promise<void>; onUpdateProfileImage: (profileType: 'TUTOR' | 'STUDENT', file: File) => Promise<void> }) => {
+const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSetJTutorsEmail, onUpdateProfileImage, subjects, onRefresh }: { user: DetailedUser; onClose: () => void; onUpdateBgStatus: (userId: string, status: string) => Promise<void>; updatingUserId: string | null; onSetJTutorsEmail: (tutorId: string, email: string) => Promise<void>; onUpdateProfileImage: (profileType: 'TUTOR' | 'STUDENT', file: File) => Promise<void>; subjects: SubjectItem[]; onRefresh: () => Promise<void> }) => {
   const tutor = user.tutor
   const student = user.student
   const bg = tutor?.backgroundCheck
@@ -2674,6 +2705,7 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSe
   const canUploadStudentImage = Boolean(student)
   const [selectedTutorPhoto, setSelectedTutorPhoto] = useState<File | null>(null)
   const [selectedStudentPhoto, setSelectedStudentPhoto] = useState<File | null>(null)
+  const [editMode, setEditMode] = useState(false)
 
   return (
     <div className="max-h-[85vh] overflow-y-auto">
@@ -2765,9 +2797,24 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSe
             </div>
           </div>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl">
-          <X className="h-5 w-5 text-slate-500" />
-        </button>
+        <div className="flex items-center gap-2">
+          {(tutor || student) && (
+            <button
+              onClick={() => setEditMode((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                editMode
+                  ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  : 'bg-[#012c54] text-white hover:bg-[#012c54]/90'
+              }`}
+            >
+              <Pencil className="h-4 w-4" />
+              {editMode ? 'Done editing' : 'Edit profile'}
+            </button>
+          )}
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl">
+            <X className="h-5 w-5 text-slate-500" />
+          </button>
+        </div>
       </div>
 
       <div className="p-6 space-y-6">
@@ -2806,8 +2853,45 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSe
           )}
         </div>
 
+        {/* Admin edit mode — full control over the profile */}
+        {editMode && (
+          <>
+            <DetailSection icon={<SettingsIcon className="h-5 w-5" />} title="Account Settings">
+              <AccountControls
+                userId={user.id}
+                role={user.role}
+                emailConfirmed={Boolean(user.emailConfirmed)}
+                onRefresh={onRefresh}
+              />
+            </DetailSection>
+
+            {tutor && (
+              <DetailSection icon={<UserIcon className="h-5 w-5" />} title="Edit Tutor Profile">
+                <TutorProfileEditor
+                  key={tutor.id}
+                  tutor={tutor}
+                  userEmail={user.email}
+                  subjects={subjects}
+                  onRefresh={onRefresh}
+                />
+              </DetailSection>
+            )}
+
+            {student && (
+              <DetailSection icon={<UserIcon className="h-5 w-5" />} title="Edit Student Profile">
+                <StudentProfileEditor
+                  key={student.id}
+                  student={student}
+                  userEmail={user.email}
+                  onRefresh={onRefresh}
+                />
+              </DetailSection>
+            )}
+          </>
+        )}
+
         {/* Tutor Profile Details */}
-        {tutor && (
+        {!editMode && tutor && (
           <>
             {/* Personal Info */}
             <DetailSection icon={<UserIcon className="h-5 w-5" />} title="Personal Information">
@@ -2819,6 +2903,7 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSe
                 <DetailField label="Tagline" value={tutor.tagline} />
                 <DetailField label="Languages" value={tutor.languagesSpoken?.join(', ')} />
                 <DetailField label="Grades" value={tutor.gradesCanTeach?.join(', ')} />
+                <DetailField label="Timezone" value={tutor.timezone} />
               </div>
             </DetailSection>
 
@@ -2967,7 +3052,7 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSe
         )}
 
         {/* Student Profile Details */}
-        {student && (
+        {!editMode && student && (
           <>
             <DetailSection icon={<UserIcon className="h-5 w-5" />} title="Student Profile">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

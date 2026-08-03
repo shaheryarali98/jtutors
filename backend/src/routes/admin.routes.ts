@@ -23,6 +23,15 @@ import {
   setTutorJTutorsEmail,
   listCoursesAdmin,
   getAdminEarnings,
+  updateTutorProfileAdmin,
+  setTutorSubjectsAdmin,
+  saveTutorExperienceAdmin,
+  deleteTutorExperienceAdmin,
+  saveTutorEducationAdmin,
+  deleteTutorEducationAdmin,
+  saveTutorAvailabilityAdmin,
+  deleteTutorAvailabilityAdmin,
+  updateStudentProfileAdmin,
 } from '../controllers/admin.controller';
 
 const router = express.Router();
@@ -55,6 +64,22 @@ router.patch('/users/:userId/background-check', updateBackgroundCheckStatus);
 router.patch('/tutors/:tutorId/jtutors-email', setTutorJTutorsEmail);
 router.get('/courses', listCoursesAdmin);
 router.get('/earnings', getAdminEarnings);
+
+// Full admin edit control over tutor profiles
+router.patch('/tutors/:tutorId/profile', updateTutorProfileAdmin);
+router.put('/tutors/:tutorId/subjects', setTutorSubjectsAdmin);
+router.post('/tutors/:tutorId/experiences', saveTutorExperienceAdmin);
+router.patch('/tutors/:tutorId/experiences/:experienceId', saveTutorExperienceAdmin);
+router.delete('/tutors/:tutorId/experiences/:experienceId', deleteTutorExperienceAdmin);
+router.post('/tutors/:tutorId/educations', saveTutorEducationAdmin);
+router.patch('/tutors/:tutorId/educations/:educationId', saveTutorEducationAdmin);
+router.delete('/tutors/:tutorId/educations/:educationId', deleteTutorEducationAdmin);
+router.post('/tutors/:tutorId/availabilities', saveTutorAvailabilityAdmin);
+router.patch('/tutors/:tutorId/availabilities/:availabilityId', saveTutorAvailabilityAdmin);
+router.delete('/tutors/:tutorId/availabilities/:availabilityId', deleteTutorAvailabilityAdmin);
+
+// Admin edit control over student profiles
+router.patch('/students/:studentId/profile', updateStudentProfileAdmin);
 
 export default router;
 

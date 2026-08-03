@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 import { getAdminSettings, getFormattedAdminSettings, updateAdminSettings } from '../services/settings.service';
 import { ensureGoogleClassroomForBooking } from '../services/classSession.service';
 import { confirmPayment, markPaymentRefunded } from '../services/payment.service';
@@ -7,7 +8,7 @@ import { getGoogleClassroomStatus } from '../services/googleClassroom.service';
 import { calculateProfileCompletion } from './tutor.controller';
 import { stripe } from '../services/stripe.service';
 import { gradeMatches } from '../utils/grade';
-import { formatTutor } from '../utils/formatters';
+import { formatTutor, formatStudent } from '../utils/formatters';
 
 const prisma = new PrismaClient();
 
@@ -206,7 +207,12 @@ export const listUsers = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { role, emailConfirmed } = req.body as { role?: 'STUDENT' | 'TUTOR' | 'ADMIN'; emailConfirmed?: boolean };
+    const { role, emailConfirmed, email, password: newPassword } = req.body as {
+      role?: 'STUDENT' | 'TUTOR' | 'ADMIN';
+      emailConfirmed?: boolean;
+      email?: string;
+      password?: string;
+    };
 
     const user = await prisma.user.findUnique({
       where: { id },
@@ -220,12 +226,40 @@ export const updateUser = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : undefined;
+
+    if (normalizedEmail && normalizedEmail !== user.email) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        return res.status(400).json({ error: 'A valid email address is required' });
+      }
+
+      const emailTaken = await prisma.user.findFirst({
+        where: { email: normalizedEmail, NOT: { id } },
+        select: { id: true }
+      });
+
+      if (emailTaken) {
+        return res.status(400).json({ error: 'Email is already in use by another account' });
+      }
+    }
+
+    if (typeof newPassword === 'string' && newPassword.length > 0 && newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const hashedPassword =
+      typeof newPassword === 'string' && newPassword.length > 0
+        ? await bcrypt.hash(newPassword, 10)
+        : undefined;
+
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
         where: { id },
         data: {
           ...(role && { role }),
-          ...(typeof emailConfirmed === 'boolean' && { emailConfirmed })
+          ...(typeof emailConfirmed === 'boolean' && { emailConfirmed }),
+          ...(normalizedEmail && normalizedEmail !== user.email && { email: normalizedEmail }),
+          ...(hashedPassword && { password: hashedPassword })
         },
         include: {
           tutor: true,
@@ -267,9 +301,10 @@ export const updateUser = async (req: Request, res: Response) => {
 export const updateUserProfileImage = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { profileImage, profileType } = req.body as {
+    const { profileImage, profileType, imageKind } = req.body as {
       profileImage?: string;
       profileType?: 'TUTOR' | 'STUDENT';
+      imageKind?: 'PROFILE' | 'COVER';
     };
 
     if (!profileImage || typeof profileImage !== 'string') {
@@ -296,16 +331,20 @@ export const updateUserProfileImage = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Tutor profile not found for this user' });
       }
 
+      const isCover = imageKind === 'COVER';
+
       const updatedTutor = await prisma.tutor.update({
         where: { id: user.tutor.id },
-        data: { profileImage },
-        select: { id: true, profileImage: true },
+        data: isCover ? { coverImage: profileImage } : { profileImage },
+        select: { id: true, profileImage: true, coverImage: true },
       });
 
       return res.json({
-        message: 'Tutor profile image updated successfully',
+        message: `Tutor ${isCover ? 'cover' : 'profile'} image updated successfully`,
         profileType: 'TUTOR',
+        imageKind: isCover ? 'COVER' : 'PROFILE',
         profileImage: updatedTutor.profileImage,
+        coverImage: updatedTutor.coverImage,
       });
     }
 
@@ -1187,5 +1226,448 @@ export const getLoginHistory = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get login history error:', error);
     res.status(500).json({ error: 'Error fetching login history' });
+  }
+};
+
+/* ──────────────────────────────────────────────────────────────
+ * Admin profile management — full edit control over tutor and
+ * student profiles (personal info, languages, images, subjects,
+ * experience, education, availability).
+ * ────────────────────────────────────────────────────────────── */
+
+/** Only include a key when the client actually sent it, so PATCH stays partial. */
+const pick = <T>(body: Record<string, unknown>, key: string, transform: (value: any) => T) =>
+  Object.prototype.hasOwnProperty.call(body, key) ? { [key]: transform(body[key]) } : {};
+
+const toNullableString = (value: unknown): string | null => {
+  if (value === null || typeof value === 'undefined') return null;
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+};
+
+const toStoredArray = (value: unknown): string => {
+  if (!Array.isArray(value)) return JSON.stringify([]);
+  const cleaned = value
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : String(entry).trim()))
+    .filter((entry) => entry.length > 0);
+  return JSON.stringify(Array.from(new Set(cleaned)));
+};
+
+const toBoolean = (value: unknown): boolean =>
+  typeof value === 'string' ? value === 'true' : Boolean(value);
+
+const parseDate = (value: unknown): Date | null => {
+  if (!value) return null;
+  const date = new Date(value as string);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+export const updateTutorProfileAdmin = async (req: Request, res: Response) => {
+  try {
+    const { tutorId } = req.params;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+
+    const tutor = await prisma.tutor.findUnique({
+      where: { id: tutorId },
+      select: { id: true, userId: true },
+    });
+
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    let hourlyFee: number | undefined;
+    if (Object.prototype.hasOwnProperty.call(body, 'hourlyFee')) {
+      const raw = body.hourlyFee;
+      if (raw === null || raw === '') {
+        hourlyFee = undefined;
+      } else {
+        const parsed = Number(raw);
+        if (Number.isNaN(parsed)) {
+          return res.status(400).json({ error: 'Hourly fee must be a valid number' });
+        }
+        if (parsed < 20 || parsed > 500) {
+          return res.status(400).json({ error: 'Hourly fee must be between $20 and $500' });
+        }
+        hourlyFee = parsed;
+      }
+    }
+
+    const data = {
+      ...pick(body, 'firstName', toNullableString),
+      ...pick(body, 'lastName', toNullableString),
+      ...pick(body, 'gender', toNullableString),
+      ...pick(body, 'tagline', toNullableString),
+      ...pick(body, 'country', toNullableString),
+      ...pick(body, 'state', toNullableString),
+      ...pick(body, 'city', toNullableString),
+      ...pick(body, 'address', toNullableString),
+      ...pick(body, 'zipcode', toNullableString),
+      ...pick(body, 'timezone', toNullableString),
+      ...pick(body, 'jtutorsEmail', toNullableString),
+      ...pick(body, 'profileImage', toNullableString),
+      ...pick(body, 'coverImage', toNullableString),
+      ...pick(body, 'languagesSpoken', toStoredArray),
+      ...pick(body, 'gradesCanTeach', toStoredArray),
+      ...pick(body, 'isAtLeast21Confirmed', toBoolean),
+      ...(typeof hourlyFee === 'number' ? { hourlyFee } : {}),
+    };
+
+    // Optional user-account email change alongside the profile edit
+    const accountEmail = toNullableString(body.email);
+    if (accountEmail) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
+        return res.status(400).json({ error: 'A valid email address is required' });
+      }
+      const taken = await prisma.user.findFirst({
+        where: { email: accountEmail.toLowerCase(), NOT: { id: tutor.userId } },
+        select: { id: true },
+      });
+      if (taken) {
+        return res.status(400).json({ error: 'Email is already in use by another account' });
+      }
+      await prisma.user.update({
+        where: { id: tutor.userId },
+        data: { email: accountEmail.toLowerCase() },
+      });
+    }
+
+    const updated = await prisma.tutor.update({ where: { id: tutorId }, data });
+    const profileCompletion = await calculateProfileCompletion(tutorId);
+
+    res.json({
+      message: 'Tutor profile updated successfully',
+      tutor: formatTutor(updated as any),
+      profileCompletion,
+    });
+  } catch (error) {
+    console.error('Admin update tutor profile error:', error);
+    res.status(500).json({ error: 'Error updating tutor profile' });
+  }
+};
+
+export const setTutorSubjectsAdmin = async (req: Request, res: Response) => {
+  try {
+    const { tutorId } = req.params;
+    const { subjectIds } = req.body as { subjectIds?: string[] };
+
+    if (!Array.isArray(subjectIds)) {
+      return res.status(400).json({ error: 'subjectIds must be an array' });
+    }
+
+    const tutor = await prisma.tutor.findUnique({ where: { id: tutorId }, select: { id: true } });
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    const uniqueIds = Array.from(new Set(subjectIds.filter((id) => typeof id === 'string' && id.trim())));
+
+    const existingSubjects = await prisma.subject.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true },
+    });
+    const validIds = existingSubjects.map((subject) => subject.id);
+
+    await prisma.$transaction([
+      prisma.tutorSubject.deleteMany({ where: { tutorId } }),
+      ...(validIds.length > 0
+        ? [prisma.tutorSubject.createMany({ data: validIds.map((subjectId) => ({ tutorId, subjectId })) })]
+        : []),
+    ]);
+
+    const subjects = await prisma.tutorSubject.findMany({
+      where: { tutorId },
+      include: { subject: true },
+    });
+    const profileCompletion = await calculateProfileCompletion(tutorId);
+
+    res.json({ message: 'Tutor subjects updated successfully', subjects, profileCompletion });
+  } catch (error) {
+    console.error('Admin set tutor subjects error:', error);
+    res.status(500).json({ error: 'Error updating tutor subjects' });
+  }
+};
+
+export const saveTutorExperienceAdmin = async (req: Request, res: Response) => {
+  try {
+    const { tutorId, experienceId } = req.params;
+    const { jobTitle, company, location, startDate, endDate, isCurrent, teachingMode, description } =
+      req.body as Record<string, any>;
+
+    const tutor = await prisma.tutor.findUnique({ where: { id: tutorId }, select: { id: true } });
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    const parsedStart = parseDate(startDate);
+    if (!jobTitle || !company || !location || !parsedStart || !teachingMode) {
+      return res
+        .status(400)
+        .json({ error: 'Job title, company, location, start date and teaching mode are required' });
+    }
+
+    const current = toBoolean(isCurrent);
+    const data = {
+      jobTitle: String(jobTitle).trim(),
+      company: String(company).trim(),
+      location: String(location).trim(),
+      startDate: parsedStart,
+      endDate: current ? null : parseDate(endDate),
+      isCurrent: current,
+      teachingMode: String(teachingMode).trim(),
+      description: toNullableString(description),
+    };
+
+    const experience = experienceId
+      ? await prisma.experience.update({ where: { id: experienceId }, data })
+      : await prisma.experience.create({ data: { ...data, tutorId } });
+
+    const profileCompletion = await calculateProfileCompletion(tutorId);
+
+    res.json({
+      message: `Experience ${experienceId ? 'updated' : 'added'} successfully`,
+      experience,
+      profileCompletion,
+    });
+  } catch (error) {
+    console.error('Admin save tutor experience error:', error);
+    res.status(500).json({ error: 'Error saving experience' });
+  }
+};
+
+export const deleteTutorExperienceAdmin = async (req: Request, res: Response) => {
+  try {
+    const { tutorId, experienceId } = req.params;
+
+    const experience = await prisma.experience.findUnique({
+      where: { id: experienceId },
+      select: { id: true, tutorId: true },
+    });
+
+    if (!experience || experience.tutorId !== tutorId) {
+      return res.status(404).json({ error: 'Experience not found for this tutor' });
+    }
+
+    await prisma.experience.delete({ where: { id: experienceId } });
+    const profileCompletion = await calculateProfileCompletion(tutorId);
+
+    res.json({ message: 'Experience deleted successfully', profileCompletion });
+  } catch (error) {
+    console.error('Admin delete tutor experience error:', error);
+    res.status(500).json({ error: 'Error deleting experience' });
+  }
+};
+
+export const saveTutorEducationAdmin = async (req: Request, res: Response) => {
+  try {
+    const { tutorId, educationId } = req.params;
+    const { degreeTitle, university, location, startDate, endDate, isOngoing } = req.body as Record<
+      string,
+      any
+    >;
+
+    const tutor = await prisma.tutor.findUnique({ where: { id: tutorId }, select: { id: true } });
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    const parsedStart = parseDate(startDate);
+    if (!degreeTitle || !university || !location || !parsedStart) {
+      return res
+        .status(400)
+        .json({ error: 'Degree title, university, location and start date are required' });
+    }
+
+    const ongoing = toBoolean(isOngoing);
+    const data = {
+      degreeTitle: String(degreeTitle).trim(),
+      university: String(university).trim(),
+      location: String(location).trim(),
+      startDate: parsedStart,
+      endDate: ongoing ? null : parseDate(endDate),
+      isOngoing: ongoing,
+    };
+
+    const education = educationId
+      ? await prisma.education.update({ where: { id: educationId }, data })
+      : await prisma.education.create({ data: { ...data, tutorId } });
+
+    const profileCompletion = await calculateProfileCompletion(tutorId);
+
+    res.json({
+      message: `Education ${educationId ? 'updated' : 'added'} successfully`,
+      education,
+      profileCompletion,
+    });
+  } catch (error) {
+    console.error('Admin save tutor education error:', error);
+    res.status(500).json({ error: 'Error saving education' });
+  }
+};
+
+export const deleteTutorEducationAdmin = async (req: Request, res: Response) => {
+  try {
+    const { tutorId, educationId } = req.params;
+
+    const education = await prisma.education.findUnique({
+      where: { id: educationId },
+      select: { id: true, tutorId: true },
+    });
+
+    if (!education || education.tutorId !== tutorId) {
+      return res.status(404).json({ error: 'Education not found for this tutor' });
+    }
+
+    await prisma.education.delete({ where: { id: educationId } });
+    const profileCompletion = await calculateProfileCompletion(tutorId);
+
+    res.json({ message: 'Education deleted successfully', profileCompletion });
+  } catch (error) {
+    console.error('Admin delete tutor education error:', error);
+    res.status(500).json({ error: 'Error deleting education' });
+  }
+};
+
+export const saveTutorAvailabilityAdmin = async (req: Request, res: Response) => {
+  try {
+    const { tutorId, availabilityId } = req.params;
+    const { blockTitle, daysAvailable, startTime, endTime, breakTime, sessionDuration, numberOfSlots } =
+      req.body as Record<string, any>;
+
+    const tutor = await prisma.tutor.findUnique({ where: { id: tutorId }, select: { id: true } });
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    const days = Array.isArray(daysAvailable)
+      ? daysAvailable.filter((day: unknown) => typeof day === 'string' && day.trim())
+      : [];
+
+    const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!blockTitle || days.length === 0 || !timePattern.test(startTime) || !timePattern.test(endTime)) {
+      return res.status(400).json({
+        error: 'Block title, at least one day, and valid HH:MM start/end times are required',
+      });
+    }
+
+    if (startTime >= endTime) {
+      return res.status(400).json({ error: 'End time must be after start time' });
+    }
+
+    const data = {
+      blockTitle: String(blockTitle).trim(),
+      daysAvailable: JSON.stringify(days),
+      startTime,
+      endTime,
+      breakTime: Number(breakTime) || 0,
+      sessionDuration: Number(sessionDuration) || 60,
+      numberOfSlots: Number(numberOfSlots) || 1,
+    };
+
+    const availability = availabilityId
+      ? await prisma.availability.update({ where: { id: availabilityId }, data })
+      : await prisma.availability.create({ data: { ...data, tutorId } });
+
+    const profileCompletion = await calculateProfileCompletion(tutorId);
+
+    res.json({
+      message: `Availability ${availabilityId ? 'updated' : 'added'} successfully`,
+      availability: { ...availability, daysAvailable: days },
+      profileCompletion,
+    });
+  } catch (error) {
+    console.error('Admin save tutor availability error:', error);
+    res.status(500).json({ error: 'Error saving availability' });
+  }
+};
+
+export const deleteTutorAvailabilityAdmin = async (req: Request, res: Response) => {
+  try {
+    const { tutorId, availabilityId } = req.params;
+
+    const availability = await prisma.availability.findUnique({
+      where: { id: availabilityId },
+      select: { id: true, tutorId: true },
+    });
+
+    if (!availability || availability.tutorId !== tutorId) {
+      return res.status(404).json({ error: 'Availability not found for this tutor' });
+    }
+
+    await prisma.availability.delete({ where: { id: availabilityId } });
+    const profileCompletion = await calculateProfileCompletion(tutorId);
+
+    res.json({ message: 'Availability deleted successfully', profileCompletion });
+  } catch (error) {
+    console.error('Admin delete tutor availability error:', error);
+    res.status(500).json({ error: 'Error deleting availability' });
+  }
+};
+
+export const updateStudentProfileAdmin = async (req: Request, res: Response) => {
+  try {
+    const { studentId } = req.params;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      select: { id: true, userId: true },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student profile not found' });
+    }
+
+    const data = {
+      ...pick(body, 'firstName', toNullableString),
+      ...pick(body, 'lastName', toNullableString),
+      ...pick(body, 'gender', toNullableString),
+      ...pick(body, 'grade', toNullableString),
+      ...pick(body, 'tagline', toNullableString),
+      ...pick(body, 'bio', toNullableString),
+      ...pick(body, 'introduction', toNullableString),
+      ...pick(body, 'country', toNullableString),
+      ...pick(body, 'state', toNullableString),
+      ...pick(body, 'city', toNullableString),
+      ...pick(body, 'address', toNullableString),
+      ...pick(body, 'zipcode', toNullableString),
+      ...pick(body, 'timezone', toNullableString),
+      ...pick(body, 'profileImage', toNullableString),
+      ...pick(body, 'languagesSpoken', toStoredArray),
+      ...pick(body, 'learningPreferences', toStoredArray),
+    };
+
+    const accountEmail = toNullableString(body.email);
+    if (accountEmail) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
+        return res.status(400).json({ error: 'A valid email address is required' });
+      }
+      const taken = await prisma.user.findFirst({
+        where: { email: accountEmail.toLowerCase(), NOT: { id: student.userId } },
+        select: { id: true },
+      });
+      if (taken) {
+        return res.status(400).json({ error: 'Email is already in use by another account' });
+      }
+      await prisma.user.update({
+        where: { id: student.userId },
+        data: { email: accountEmail.toLowerCase() },
+      });
+    }
+
+    const updated = await prisma.student.update({ where: { id: studentId }, data });
+
+    const profileCompleted = calculateStudentProfileCompleted(updated);
+    if (profileCompleted !== updated.profileCompleted) {
+      await prisma.student.update({ where: { id: studentId }, data: { profileCompleted } });
+    }
+
+    res.json({
+      message: 'Student profile updated successfully',
+      student: { ...formatStudent(updated as any), profileCompleted },
+    });
+  } catch (error) {
+    console.error('Admin update student profile error:', error);
+    res.status(500).json({ error: 'Error updating student profile' });
   }
 };
