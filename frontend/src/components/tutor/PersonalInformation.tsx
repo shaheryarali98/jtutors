@@ -25,7 +25,6 @@ interface PersonalInfoForm {
   zipcode: string;
   languagesSpoken: string[];
   timezone: string;
-  isAtLeast21Confirmed: boolean;
 }
 
 interface StripeCountryOption {
@@ -106,7 +105,6 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
           setValue("city", tutor.city || "");
           setValue("zipcode", tutor.zipcode || "");
           setValue("timezone", tutor.timezone || "");
-          setValue("isAtLeast21Confirmed", Boolean(tutor.isAtLeast21Confirmed));
           setSelectedGrades(tutor.gradesCanTeach || []);
           setLanguages(
             tutor.languagesSpoken?.length ? tutor.languagesSpoken : []
@@ -626,24 +624,6 @@ const PersonalInformation = ({ onSaveSuccess }: PersonalInformationProps) => {
             placeholder="A brief description about yourself and your teaching style..."
             {...register("tagline")}
           />
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-              {...register("isAtLeast21Confirmed")}
-            />
-            <div>
-              <span className="block text-sm font-semibold text-slate-900">
-                I confirm that I am at least 21 years old
-              </span>
-              <span className="mt-1 block text-sm text-slate-500">
-                This status will be saved to your tutor profile and displayed publicly as 21+ verified.
-              </span>
-            </div>
-          </label>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">

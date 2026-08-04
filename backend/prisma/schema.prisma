@@ -88,8 +88,9 @@ model Tutor {
   address      String?
   zipcode      String?
   languagesSpoken String? // Stored as JSON string of string[]
-  timezone        String?  // IANA timezone identifier e.g. "America/New_York"
-  isAtLeast21Confirmed Boolean @default(false)
+    timezone        String?  // IANA timezone identifier e.g. "America/New_York"
+    isAtLeast21Confirmed Boolean @default(false)
+    adminVerified   Boolean  @default(false)
   
   // Profile image
   profileImage String?

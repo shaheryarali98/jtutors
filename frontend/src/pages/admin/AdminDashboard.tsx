@@ -100,6 +100,7 @@ interface AdminUser {
     lastName?: string | null
     profileCompletionPercentage?: number
     profileCompleted?: boolean
+    adminVerified?: boolean
     stripeAccountId?: string | null
     stripeOnboarded?: boolean
     jtutorsEmail?: string | null
@@ -138,9 +139,9 @@ interface DetailedUser {
     zipcode?: string | null
     timezone?: string | null
     languagesSpoken?: string[]
-    profileImage?: string | null
-    coverImage?: string | null
-    isAtLeast21Confirmed?: boolean
+      profileImage?: string | null
+      coverImage?: string | null
+      adminVerified?: boolean
     stripeAccountId?: string | null
     stripeOnboarded?: boolean
     jtutorsEmail?: string | null
@@ -676,6 +677,32 @@ const AdminDashboard = () => {
       setError('Unable to load user details.')
     } finally {
       setLoadingUserDetail(false)
+    }
+  }
+
+  const handleUpdateTutorVerification = async (userId: string, tutorId: string, adminVerified: boolean) => {
+    try {
+      setUpdatingUserId(userId)
+      await api.patch(`/admin/tutors/${tutorId}/verification`, { adminVerified })
+
+      setUsers((prev) =>
+        prev.map((entry) =>
+          entry.id === userId && entry.tutor
+            ? { ...entry, tutor: { ...entry.tutor, adminVerified } }
+            : entry
+        )
+      )
+
+      setSelectedUserDetail((prev) =>
+        prev && prev.id === userId && prev.tutor
+          ? { ...prev, tutor: { ...prev.tutor, adminVerified } }
+          : prev
+      )
+    } catch (err) {
+      console.error('Error updating tutor verification:', err)
+      setError('Unable to update tutor verification status.')
+    } finally {
+      setUpdatingUserId(null)
     }
   }
 
@@ -2620,18 +2647,19 @@ const AdminDashboard = () => {
             {loadingUserDetail ? (
               <div className="p-12 text-center text-slate-500">Loading user details…</div>
             ) : selectedUserDetail ? (
-              <UserDetailPanel
-                user={selectedUserDetail}
-                onClose={() => setSelectedUserDetail(null)}
-                onUpdateBgStatus={handleUpdateBackgroundCheckStatus}
-                updatingUserId={updatingUserId}
-                onSetJTutorsEmail={(tutorId, email) => handleSetJTutorsEmail(selectedUserDetail!.id, tutorId, email)}
-                onUpdateProfileImage={(profileType, file) =>
-                  handleUpdateProfileImage(selectedUserDetail!.id, profileType, file)
-                }
-                subjects={subjects}
-                onRefresh={refreshSelectedUserDetail}
-              />
+                <UserDetailPanel
+                  user={selectedUserDetail}
+                  onClose={() => setSelectedUserDetail(null)}
+                  onUpdateBgStatus={handleUpdateBackgroundCheckStatus}
+                  onUpdateTutorVerification={handleUpdateTutorVerification}
+                  updatingUserId={updatingUserId}
+                  onSetJTutorsEmail={(tutorId, email) => handleSetJTutorsEmail(selectedUserDetail!.id, tutorId, email)}
+                  onUpdateProfileImage={(profileType, file) =>
+                    handleUpdateProfileImage(selectedUserDetail!.id, profileType, file)
+                  }
+                  subjects={subjects}
+                  onRefresh={refreshSelectedUserDetail}
+                />
             ) : null}
           </div>
         </div>
@@ -2696,7 +2724,7 @@ const AdminDashboard = () => {
 }
 
 /* ── User Detail Panel ── */
-const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSetJTutorsEmail, onUpdateProfileImage, subjects, onRefresh }: { user: DetailedUser; onClose: () => void; onUpdateBgStatus: (userId: string, status: string) => Promise<void>; updatingUserId: string | null; onSetJTutorsEmail: (tutorId: string, email: string) => Promise<void>; onUpdateProfileImage: (profileType: 'TUTOR' | 'STUDENT', file: File) => Promise<void>; subjects: SubjectItem[]; onRefresh: () => Promise<void> }) => {
+const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, onUpdateTutorVerification, updatingUserId, onSetJTutorsEmail, onUpdateProfileImage, subjects, onRefresh }: { user: DetailedUser; onClose: () => void; onUpdateBgStatus: (userId: string, status: string) => Promise<void>; onUpdateTutorVerification: (userId: string, tutorId: string, adminVerified: boolean) => Promise<void>; updatingUserId: string | null; onSetJTutorsEmail: (tutorId: string, email: string) => Promise<void>; onUpdateProfileImage: (profileType: 'TUTOR' | 'STUDENT', file: File) => Promise<void>; subjects: SubjectItem[]; onRefresh: () => Promise<void> }) => {
   const tutor = user.tutor
   const student = user.student
   const bg = tutor?.backgroundCheck
@@ -2841,6 +2869,11 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSe
                 label="BG Check"
                 status={bg?.status || 'Not submitted'}
                 color={bg?.status === 'APPROVED' ? 'green' : bg?.status === 'REJECTED' ? 'red' : bg?.status === 'PENDING' ? 'blue' : 'slate'}
+              />
+              <StatusBadge
+                label="Verified"
+                status={tutor.adminVerified ? 'Admin verified' : 'Not verified'}
+                color={tutor.adminVerified ? 'green' : 'slate'}
               />
             </>
           )}
@@ -2987,6 +3020,18 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, updatingUserId, onSe
                 </div>
               </DetailSection>
             )}
+
+            <DetailSection icon={<Shield className="h-5 w-5" />} title="Verification">
+              <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(tutor.adminVerified)}
+                  onChange={(event) => onUpdateTutorVerification(user.id, tutor.id, event.target.checked)}
+                  disabled={updatingUserId === user.id}
+                />
+                <span className="font-medium">Mark this tutor as vetted and verified</span>
+              </label>
+            </DetailSection>
 
             {/* Background Check */}
             {bg && (

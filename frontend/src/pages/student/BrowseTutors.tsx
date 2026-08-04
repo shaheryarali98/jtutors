@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  CheckCircle2,
   Bookmark,
   BookmarkCheck,
   Briefcase,
@@ -38,7 +37,7 @@ interface Tutor {
   languagesSpoken?: string[]
   profileImage?: string
   coverImage?: string
-  isAtLeast21Confirmed?: boolean
+  adminVerified?: boolean
   experienceCount?: number
   educationCount?: number
   subjects: Array<{
@@ -72,7 +71,7 @@ const FALLBACK_TUTORS: Tutor[] = [
     languagesSpoken: ['English', 'Hebrew'],
     profileImage: '',
     coverImage: '',
-    isAtLeast21Confirmed: true,
+    adminVerified: false,
     experienceCount: 6,
     educationCount: 2,
     subjects: [
@@ -719,12 +718,6 @@ const BrowseTutors = () => {
                             <MapPin className="w-3 h-3" />
                             {tutor.city ? `${tutor.city}, ${tutor.state || tutor.country}` : tutor.country}
                           </p>
-                        )}
-                        {tutor.isAtLeast21Confirmed && (
-                          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            21+ Verified
-                          </div>
                         )}
                       </div>
                       <div className="text-right">

@@ -120,7 +120,6 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
       address,
       zipcode,
       languagesSpoken,
-      isAtLeast21Confirmed,
       profileImage,
       coverImage,
       timezone
@@ -198,10 +197,6 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
         zipcode,
         languagesSpoken: stringifyArray(languagesSpoken),
         timezone,
-        isAtLeast21Confirmed:
-          typeof isAtLeast21Confirmed === 'string'
-            ? isAtLeast21Confirmed === 'true'
-            : Boolean(isAtLeast21Confirmed),
         // Only overwrite profileImage if a non-empty value is explicitly provided
         ...(profileImage ? { profileImage } : {}),
         // Only overwrite coverImage if a non-empty value is explicitly provided

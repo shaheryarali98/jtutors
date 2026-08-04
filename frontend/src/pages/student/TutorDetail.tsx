@@ -24,7 +24,7 @@ interface TutorDetail {
   coverImage?: string
   gradesCanTeach?: string[]
   languagesSpoken?: string[]
-  isAtLeast21Confirmed?: boolean
+  adminVerified?: boolean
   experiences?: Array<{
     id: string
     jobTitle: string
@@ -315,14 +315,13 @@ const TutorDetailPage = () => {
               </div>
             )}
 
-            {tutor.isAtLeast21Confirmed && (
+            {tutor.adminVerified && (
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4 md:col-span-2">
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                   <div>
-                    <p className="text-sm font-semibold text-emerald-800">21+ verified</p>
-                    <p className="text-sm text-emerald-700">
-                      This tutor has confirmed that they are at least 21 years old.
+                    <p className="text-sm font-semibold text-emerald-800">
+                      This tutor is background-checked, vetted and verified
                     </p>
                   </div>
                 </div>

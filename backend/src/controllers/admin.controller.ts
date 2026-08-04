@@ -132,6 +132,7 @@ export const listUsers = async (req: Request, res: Response) => {
             lastName: true,
             profileCompletionPercentage: true,
             profileCompleted: true,
+            adminVerified: true,
             stripeAccountId: true,
             stripeOnboarded: true,
             jtutorsEmail: true,
@@ -928,7 +929,7 @@ export const getPublicTutors = async (req: Request, res: Response) => {
         city: tutor.city,
         state: tutor.state,
         country: tutor.country,
-        isAtLeast21Confirmed: Boolean(tutor.isAtLeast21Confirmed),
+        adminVerified: Boolean(tutor.adminVerified),
         languagesSpoken: tryParse(tutor.languagesSpoken),
         gradesCanTeach: tryParse(tutor.gradesCanTeach),
         subjects: tutor.subjects.map((ts) => ts.subject.name),
@@ -1031,6 +1032,39 @@ export const updateBackgroundCheckStatus = async (req: Request, res: Response) =
   } catch (error) {
     console.error('Update background check status error:', error);
     res.status(500).json({ error: 'Error updating background check status' });
+  }
+};
+
+export const updateTutorVerificationStatus = async (req: Request, res: Response) => {
+  try {
+    const { tutorId } = req.params;
+    const { adminVerified } = req.body as { adminVerified?: boolean };
+
+    if (typeof adminVerified !== 'boolean') {
+      return res.status(400).json({ error: 'adminVerified must be a boolean' });
+    }
+
+    const tutor = await prisma.tutor.findUnique({ where: { id: tutorId } });
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor not found' });
+    }
+
+    const updatedTutor = await prisma.tutor.update({
+      where: { id: tutorId },
+      data: { adminVerified },
+      select: {
+        id: true,
+        adminVerified: true,
+      },
+    });
+
+    return res.json({
+      message: `Tutor verification ${adminVerified ? 'enabled' : 'removed'} successfully`,
+      tutor: updatedTutor,
+    });
+  } catch (error) {
+    console.error('Update tutor verification status error:', error);
+    return res.status(500).json({ error: 'Error updating tutor verification status' });
   }
 };
 
