@@ -18,15 +18,27 @@ interface BackgroundCheckProps {
 
 const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
   const [status, setStatus] = useState<string | null>(null)
+  const [verificationRequested, setVerificationRequested] = useState(false)
+  const [verificationRequestedAt, setVerificationRequestedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     api.get('/auth/me')
       .then(res => {
-        const bgCheck = res.data.tutor?.backgroundCheck
+        const tutor = res.data.tutor
+        const bgCheck = tutor?.backgroundCheck
         if (bgCheck) setStatus(bgCheck.status)
+        setVerificationRequested(Boolean(tutor?.verificationRequested))
+        if (tutor?.verificationRequested) {
+          setVerificationRequestedAt(
+            bgCheck?.createdAt ||
+            tutor?.updatedAt ||
+            null
+          )
+        }
       })
       .catch(err => console.error('Error fetching background check status:', err))
       .finally(() => setFetching(false))
@@ -34,27 +46,36 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
 
   const handleStart = async () => {
     try {
-      setError(null)
-      setLoading(true)
-      const res = await api.post('/checkr/start-background-check')
-      
-      // Validate response contains the applyUrl
-      if (!res.data || !res.data.applyUrl) {
-        const errorMsg = res.data?.error || 'No Checkr URL received from server'
-        console.error('[BackgroundCheck] Invalid response:', res.data)
-        setError(errorMsg)
+      if (!verificationRequested) {
+        setError('Please confirm that you are 21+ and request vetted verification before starting the background check.')
         return
       }
-      
-      const { applyUrl } = res.data
-      
-      // Only set status after confirming redirect will work
-      setStatus('PENDING')
+
+      setError(null)
+      setSuccessMessage(null)
+      setLoading(true)
+      await api.patch('/tutor/profile/verification-request', { verificationRequested: true })
+      setVerificationRequested(true)
+      const submittedAt = new Date().toISOString()
+      setVerificationRequestedAt(submittedAt)
+      setStatus((currentStatus) => currentStatus || 'PENDING')
+      setSuccessMessage('Verification request submitted! Your profile is pending admin review.')
       if (onSaveSuccess) onSaveSuccess()
       window.dispatchEvent(new Event('tutor-profile-updated'))
-      
-      // Open Checkr apply link in a new tab
-      window.open(applyUrl, '_blank', 'noopener,noreferrer')
+
+      try {
+        const res = await api.post('/checkr/start-background-check')
+        const applyUrl = res.data?.applyUrl
+
+        if (applyUrl) {
+          window.open(applyUrl, '_blank', 'noopener,noreferrer')
+        } else {
+          console.warn('[BackgroundCheck] Checkr response missing applyUrl, keeping verification request success state.', res.data)
+        }
+      } catch (err: any) {
+        const errorMsg = err.response?.data?.error || err.message || ''
+        console.warn('[BackgroundCheck] Checkr unavailable, keeping verification request success state:', errorMsg)
+      }
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to start background check'
       console.error('[BackgroundCheck] Error:', err)
@@ -154,6 +175,13 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
   }
 
   const msg = statusMessage()
+  const formattedVerificationRequestDate = verificationRequestedAt
+    ? new Date(verificationRequestedAt).toLocaleDateString(undefined, {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null
 
   if (fetching) {
     return (
@@ -207,6 +235,21 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
         </div>
       )}
 
+      {successMessage && (
+        <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 flex items-start gap-3">
+          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-green-900">{successMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {verificationRequested && formattedVerificationRequestDate && (
+        <div className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">
+          Verification request submitted on {formattedVerificationRequestDate} — Pending Admin Approval
+        </div>
+      )}
+
       {/* Status Card - Only show if status exists */}
       {status && (
         <div className={`border-2 rounded-2xl p-8 ${getStatusColor('bg')} ${getStatusColor('border')} transition-all`}>
@@ -252,6 +295,21 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
                 </li>
               </ol>
 
+              <label className="mb-5 flex items-start gap-3 rounded-xl border border-orange-200 bg-white/80 px-4 py-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                  checked={verificationRequested}
+                  onChange={(event) => {
+                    setVerificationRequested(event.target.checked)
+                    if (error) setError(null)
+                  }}
+                />
+                <span>
+                  I confirm I am 21+ and request background check / vetted verification.
+                </span>
+              </label>
+
               <button
                 onClick={handleStart}
                 disabled={loading}
@@ -268,7 +326,7 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
                 ) : (
                   <>
                     <ExternalLink className="h-5 w-5" />
-                    <span>Start Background Check</span>
+                    <span>Submit Verification Request</span>
                   </>
                 )}
               </button>
@@ -289,15 +347,20 @@ const BackgroundCheck = ({ onSaveSuccess }: BackgroundCheckProps) => {
               <p className="text-slate-700 text-sm mb-4">
                 Your background check is with our admin team for review. While you wait, you can start setting up the rest of your profile.
               </p>
+              {verificationRequested && (
+                <p className="mb-4 text-sm font-medium text-blue-700">
+                  Verification request received. Admins will see that you requested vetted verification.
+                </p>
+              )}
               <button
                 onClick={handleStart}
                 disabled={loading}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-600 font-medium rounded-lg border-2 border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Opening…' : (
+                {loading ? 'Submitting…' : (
                   <>
                     <ExternalLink className="h-4 w-4" />
-                    Return to Checkr Form
+                    Resubmit Verification Request
                   </>
                 )}
               </button>

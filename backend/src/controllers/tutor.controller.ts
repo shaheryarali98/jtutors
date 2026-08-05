@@ -122,8 +122,9 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
       languagesSpoken,
       profileImage,
       coverImage,
-      timezone
-    } = req.body;
+      timezone,
+      verificationRequested
+      } = req.body;
 
     // ******* this validation block is added *******
     if (email) {
@@ -198,11 +199,15 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
         languagesSpoken: stringifyArray(languagesSpoken),
         timezone,
         // Only overwrite profileImage if a non-empty value is explicitly provided
-        ...(profileImage ? { profileImage } : {}),
-        // Only overwrite coverImage if a non-empty value is explicitly provided
-        ...(coverImage ? { coverImage } : {}),
-      }
-    });
+          ...(profileImage ? { profileImage } : {}),
+          // Only overwrite coverImage if a non-empty value is explicitly provided
+          ...(coverImage ? { coverImage } : {}),
+          ...(typeof verificationRequested === 'boolean' ? {
+            verificationRequested,
+            ...(verificationRequested ? { isAtLeast21Confirmed: true } : {}),
+          } : {}),
+        }
+      });
 
     const completion = await calculateProfileCompletion(tutor.id);
     const formattedTutor = formatTutor(updatedTutorRecord);
@@ -215,6 +220,44 @@ export const updatePersonalInfo = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Update personal info error:', error);
     res.status(500).json({ error: 'Error updating personal information' });
+  }
+  };
+
+export const updateVerificationRequest = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { verificationRequested } = req.body as { verificationRequested?: boolean };
+
+    if (typeof verificationRequested !== 'boolean') {
+      return res.status(400).json({ error: 'verificationRequested must be a boolean' });
+    }
+
+    const tutor = await prisma.tutor.findUnique({
+      where: { userId },
+    });
+
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    const updatedTutor = await prisma.tutor.update({
+      where: { id: tutor.id },
+      data: {
+        verificationRequested,
+        ...(verificationRequested ? { isAtLeast21Confirmed: true } : {}),
+      },
+    });
+
+    const completion = await calculateProfileCompletion(tutor.id);
+
+    res.json({
+      message: 'Verification request updated successfully',
+      tutor: formatTutor(updatedTutor),
+      profileCompletion: completion,
+    });
+  } catch (error) {
+    console.error('Update verification request error:', error);
+    res.status(500).json({ error: 'Error updating verification request' });
   }
 };
 export const addExperience = async (req: Request, res: Response) => {

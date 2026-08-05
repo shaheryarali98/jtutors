@@ -132,6 +132,7 @@ export const listUsers = async (req: Request, res: Response) => {
             lastName: true,
             profileCompletionPercentage: true,
             profileCompleted: true,
+            verificationRequested: true,
             adminVerified: true,
             stripeAccountId: true,
             stripeOnboarded: true,
@@ -724,7 +725,7 @@ export const getGoogleClassroomStatusAdmin = async (_req: Request, res: Response
   }
 };
 
-export const getUserDetail = async (req: Request, res: Response) => {
+  export const getUserDetail = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -1049,14 +1050,15 @@ export const updateTutorVerificationStatus = async (req: Request, res: Response)
       return res.status(404).json({ error: 'Tutor not found' });
     }
 
-    const updatedTutor = await prisma.tutor.update({
-      where: { id: tutorId },
-      data: { adminVerified },
-      select: {
-        id: true,
-        adminVerified: true,
-      },
-    });
+      const updatedTutor = await prisma.tutor.update({
+        where: { id: tutorId },
+        data: { adminVerified },
+        select: {
+          id: true,
+          verificationRequested: true,
+          adminVerified: true,
+        },
+      });
 
     return res.json({
       message: `Tutor verification ${adminVerified ? 'enabled' : 'removed'} successfully`,
@@ -1344,6 +1346,8 @@ export const updateTutorProfileAdmin = async (req: Request, res: Response) => {
       ...pick(body, 'languagesSpoken', toStoredArray),
       ...pick(body, 'gradesCanTeach', toStoredArray),
       ...pick(body, 'isAtLeast21Confirmed', toBoolean),
+      ...pick(body, 'verificationRequested', toBoolean),
+      ...pick(body, 'adminVerified', toBoolean),
       ...(typeof hourlyFee === 'number' ? { hourlyFee } : {}),
     };
 
