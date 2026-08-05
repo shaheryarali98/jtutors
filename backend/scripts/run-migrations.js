@@ -19,8 +19,8 @@ console.log('🔄 Running database migrations...');
 console.log('📁 Working directory:', process.cwd());
 
 try {
-  // Run prisma migrate deploy
-  execSync('npx prisma migrate deploy', {
+  // Run production-safe prisma migrate wrapper
+  execSync('node scripts/prisma-migrate-deploy-safe.js', {
     stdio: 'inherit',
     env: process.env
   });

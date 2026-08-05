@@ -13,7 +13,7 @@ async function ensureColumns() {
   }
 
   try {
-    execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+    execSync('node scripts/prisma-migrate-deploy-safe.js', { stdio: 'inherit' });
   } catch (err) {
     console.warn('prisma migrate deploy failed; continuing with manual patches:', err.message);
   }
@@ -25,6 +25,7 @@ async function ensureColumns() {
     await prisma.$executeRawUnsafe(`ALTER TABLE "Tutor" ADD COLUMN IF NOT EXISTS "timezone" TEXT`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "Tutor" ADD COLUMN IF NOT EXISTS "coverImage" TEXT`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "Tutor" ADD COLUMN IF NOT EXISTS "isAtLeast21Confirmed" BOOLEAN NOT NULL DEFAULT false`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Tutor" ADD COLUMN IF NOT EXISTS "adminVerified" BOOLEAN NOT NULL DEFAULT false`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "studentFeePercentage" DOUBLE PRECISION NOT NULL DEFAULT 4.5`);
     console.log('ensure-columns: All required columns present.');
