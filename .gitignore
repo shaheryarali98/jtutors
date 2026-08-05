@@ -12,6 +12,7 @@ frontend/.env
 # Build outputs
 dist/
 dist.zip
+frontend/dist.zip
 build/
 *.tsbuildinfo
 
@@ -53,6 +54,7 @@ coverage/
 *.temp
 tmp/
 temp/
+backend/uploads/
 
 .vercel
 .env*.local
