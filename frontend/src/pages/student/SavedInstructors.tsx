@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookmarkX, CalendarPlus } from 'lucide-react'
+import { BookmarkX } from 'lucide-react'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
-import BookTutorModal from '../../components/student/BookTutorModal'
 
 interface SavedTutorEntry {
   id: string
@@ -35,8 +34,6 @@ const SavedInstructors = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
-  const [selectedTutor, setSelectedTutor] = useState<SavedTutorEntry['tutor'] | null>(null)
-  const [bookingModalOpen, setBookingModalOpen] = useState(false)
 
   useEffect(() => {
     fetchSavedTutors()
@@ -65,12 +62,6 @@ const SavedInstructors = () => {
       console.error('Error removing saved tutor:', err)
       setError('Failed to remove tutor. Please try again.')
     }
-  }
-
-  const openBookingModal = (tutor: SavedTutorEntry['tutor']) => {
-    setSelectedTutor(tutor)
-    setBookingModalOpen(true)
-    setError('')
   }
 
   return (
@@ -169,20 +160,12 @@ const SavedInstructors = () => {
                     </div>
                   )}
 
-                  <div className="mt-auto pt-6 flex flex-col md:flex-row gap-3">
-                    <button
-                      type="button"
-                      className="btn btn-primary inline-flex items-center justify-center gap-2 flex-1"
-                      onClick={() => openBookingModal(tutor)}
-                    >
-                      <CalendarPlus size={18} />
-                      Hire for a session
-                    </button>
+                  <div className="mt-auto pt-6">
                     <Link
-                      to={`/student/tutor/${tutor.id}`}
-                      className="btn btn-outline inline-flex items-center justify-center flex-1"
+                      to={`/tutors/${tutor.id}`}
+                      className="flex w-full items-center justify-center rounded-xl bg-[#f5a11a] py-3 font-bold text-white shadow-md transition-colors hover:bg-[#c48115] hover:shadow-lg"
                     >
-                      View profile
+                      View Full Profile
                     </Link>
                   </div>
                 </div>
@@ -192,33 +175,6 @@ const SavedInstructors = () => {
         )}
       </div>
 
-      <BookTutorModal
-        tutor={
-          selectedTutor && {
-            id: selectedTutor.id,
-            firstName: selectedTutor.firstName,
-            lastName: selectedTutor.lastName,
-            hourlyFee: selectedTutor.hourlyFee,
-            profileImage: selectedTutor.profileImage,
-            city: selectedTutor.city,
-            state: selectedTutor.state,
-            country: selectedTutor.country,
-            tagline: selectedTutor.tagline,
-          }
-        }
-        isOpen={bookingModalOpen && !!selectedTutor}
-        onClose={() => {
-          setBookingModalOpen(false)
-          setSelectedTutor(null)
-        }}
-        onBooked={() => {
-          setBookingModalOpen(false)
-          setSelectedTutor(null)
-          setStatusMessage('Hire request sent! You can review it in “My Bookings”.')
-          setTimeout(() => setStatusMessage(''), 4000)
-        }}
-        onError={(message) => setError(message)}
-      />
       <Footer />
     </div>
   )

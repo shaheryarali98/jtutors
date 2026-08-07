@@ -5,11 +5,11 @@ import {
   Bookmark,
   BookmarkCheck,
   Briefcase,
-  CalendarPlus,
   Search,
   MapPin,
   DollarSign,
   GraduationCap,
+  ShieldCheck,
   Filter,
   X,
   Users,
@@ -18,10 +18,9 @@ import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
-import BookTutorModal from '../../components/student/BookTutorModal'
 import { useAuthStore } from '../../store/authStore'
 import { TUTOR_GRADE_OPTIONS } from '../../constants/grades'
-import { getStudentProfileGateCache, resolveTutorProfileAccess } from '../../lib/studentProfileAccess'
+import { resolveTutorProfileAccess } from '../../lib/studentProfileAccess'
 import { showAppToast } from '../../lib/toast'
 
 interface Tutor {
@@ -102,10 +101,7 @@ const BrowseTutors = () => {
   const [location, setLocation] = useState(searchParams.get('location') || '')
   const [showFilters, setShowFilters] = useState(false)
   const [savingTutorId, setSavingTutorId] = useState<string | null>(null)
-  const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null)
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
   const [navigatingTutorId, setNavigatingTutorId] = useState<string | null>(null)
-  const [studentProfileReady, setStudentProfileReady] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([])
@@ -129,41 +125,6 @@ const BrowseTutors = () => {
     // Load subjects asynchronously without blocking the page
     fetchSubjects()
   }, [])
-
-  useEffect(() => {
-    if (!isStudent) {
-      setStudentProfileReady(false)
-      return
-    }
-
-    const cached = getStudentProfileGateCache()
-    if (cached) {
-      setStudentProfileReady(Boolean(cached.profileCompleted && cached.termsAccepted))
-    }
-
-    let cancelled = false
-
-    const syncProfileGate = async () => {
-      const access = await resolveTutorProfileAccess(user)
-      if (!cancelled) {
-        setStudentProfileReady(access.allowed)
-      }
-    }
-
-    syncProfileGate()
-
-    const handleGateUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent<{ profileCompleted: boolean; termsAccepted: boolean }>
-      setStudentProfileReady(Boolean(customEvent.detail?.profileCompleted && customEvent.detail?.termsAccepted))
-    }
-
-    window.addEventListener('student-profile-gate-updated', handleGateUpdate)
-
-    return () => {
-      cancelled = true
-      window.removeEventListener('student-profile-gate-updated', handleGateUpdate)
-    }
-  }, [isStudent, user])
 
   const fetchSubjects = async () => {
     try {
@@ -329,48 +290,15 @@ const BrowseTutors = () => {
       const access = await resolveTutorProfileAccess(user)
 
       if (access.allowed) {
-        setStudentProfileReady(true)
         navigate(`/tutors/${tutorId}`)
         return
       }
 
-      setStudentProfileReady(false)
       showAppToast('Please complete your profile and accept the Terms & Conditions to view tutor profiles and book sessions.')
       navigate(access.redirectTo || '/student/profile')
     } finally {
       setNavigatingTutorId(null)
     }
-  }
-
-  const handleOpenBooking = async (tutor: Tutor) => {
-    if (!isStudent) {
-      showAppToast('Please complete your profile and accept the Terms & Conditions to view tutor profiles and book sessions.')
-      navigate('/student/profile')
-      return
-    }
-
-    const access = await resolveTutorProfileAccess(user)
-    setStudentProfileReady(access.allowed)
-
-    if (!access.allowed) {
-      showAppToast('Please complete your profile and accept the Terms & Conditions to view tutor profiles and book sessions.')
-      navigate(access.redirectTo || '/student/profile')
-      return
-    }
-
-    setSelectedTutor(tutor)
-    setIsBookingModalOpen(true)
-    setStatusMessage('')
-    setErrorMessage('')
-  }
-
-  const handleBookingSuccess = () => {
-    setIsBookingModalOpen(false)
-    setSelectedTutor(null)
-    setStatusMessage('Booking created successfully!')
-    setTimeout(() => {
-      navigate('/student/bookings')
-    }, 1500)
   }
 
   const handlePageChange = (page: number) => {
@@ -719,6 +647,12 @@ const BrowseTutors = () => {
                             {tutor.city ? `${tutor.city}, ${tutor.state || tutor.country}` : tutor.country}
                           </p>
                         )}
+                        {tutor.adminVerified && (
+                          <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                            Vetted &amp; Verified
+                          </span>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-[#012c54]">${tutor.hourlyFee}</div>
@@ -793,37 +727,16 @@ const BrowseTutors = () => {
                       </div>
                     )}
 
-                    {/* Action Buttons */}
+                    {/* Profile action */}
                     <div className="mt-auto pt-4">
-                      {isStudent && studentProfileReady ? (
-                        <div className="flex flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenBooking(tutor)}
-                            className="w-full py-3 bg-[#f5a11a] text-white rounded-xl font-bold hover:bg-[#c48115] transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                          >
-                            <CalendarPlus size={18} />
-                            Book Session
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleViewFullProfile(tutor.id)}
-                            disabled={navigatingTutorId === tutor.id}
-                            className="w-full py-2.5 border-2 border-[#012c54] text-[#012c54] rounded-xl font-semibold hover:bg-[#012c54] hover:text-white transition-colors text-center disabled:cursor-wait disabled:opacity-70"
-                          >
-                            {navigatingTutorId === tutor.id ? 'Checking profile…' : 'View Full Profile'}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleViewFullProfile(tutor.id)}
-                          disabled={navigatingTutorId === tutor.id}
-                          className="block w-full py-3 bg-[#f5a11a] text-white rounded-xl font-bold hover:bg-[#c48115] transition-colors text-center shadow-md hover:shadow-lg disabled:cursor-wait disabled:opacity-70"
-                        >
-                          {navigatingTutorId === tutor.id ? 'Checking profile…' : 'View Full Profile'}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleViewFullProfile(tutor.id)}
+                        disabled={navigatingTutorId === tutor.id}
+                        className="block w-full py-3 bg-[#f5a11a] text-white rounded-xl font-bold hover:bg-[#c48115] transition-colors text-center shadow-md hover:shadow-lg disabled:cursor-wait disabled:opacity-70"
+                      >
+                        {navigatingTutorId === tutor.id ? 'Checking profile…' : 'View Full Profile'}
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -879,17 +792,6 @@ const BrowseTutors = () => {
           </div>
         )}
       </div>
-
-      <BookTutorModal
-        tutor={selectedTutor}
-        isOpen={isBookingModalOpen && isStudent}
-        onClose={() => {
-          setIsBookingModalOpen(false)
-          setSelectedTutor(null)
-        }}
-        onBooked={handleBookingSuccess}
-        onError={(message) => setErrorMessage(message)}
-      />
 
       <Footer />
     </div>

@@ -1,9 +1,11 @@
 ﻿import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import { faqs } from '../constants/faqs'
 import { resolveImageUrl } from '../lib/media'
+import api from '../lib/api'
 import {
   ArrowRight,
   BookOpen,
@@ -138,7 +140,22 @@ const schoolNames = [
 
 const marqueeDurationSeconds = Math.max(300, schoolNames.length * 1.5)
 
-const expertTutors = [
+type ExpertTutor = {
+  id?: string
+  name: string
+  image?: string
+  initials?: string
+  bio: string
+  location: string
+  price: string
+  tags: string[]
+  more: string
+  meta: string
+  languages: string
+  color: string
+}
+
+const expertTutorFallbacks: ExpertTutor[] = [
   {
     name: 'Alan Poyurs',
     initials: 'AP',
@@ -236,6 +253,15 @@ const expertTutors = [
     color: 'bg-[#707070]',
   },
 ]
+
+const shuffleTutors = <T,>(items: T[]) => {
+  const shuffled = [...items]
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    ;[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]]
+  }
+  return shuffled
+}
 
 const dynamicFeatures = [
   {
@@ -340,6 +366,56 @@ const TutorAvatar = ({ name, image, initials, color = 'bg-[#123f70]' }: TutorAva
 
 const HomePage = () => {
   const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null)
+  const [featuredTutors, setFeaturedTutors] = useState<ExpertTutor[]>(() =>
+    shuffleTutors(expertTutorFallbacks)
+  )
+
+  useEffect(() => {
+    let active = true
+
+    const loadFeaturedTutors = async () => {
+      try {
+        const response = await api.get('/public/tutors')
+        const tutors = Array.isArray(response.data?.tutors) ? response.data.tutors : []
+        if (!active || tutors.length === 0) return
+
+        const randomized = shuffleTutors(tutors).slice(0, 8).map((tutor: any): ExpertTutor => {
+          const subjects = Array.isArray(tutor.subjects)
+            ? tutor.subjects
+                .map((entry: any) => typeof entry === 'string' ? entry : entry?.subject?.name)
+                .filter(Boolean)
+            : []
+          const location = [tutor.city, tutor.state || tutor.country].filter(Boolean).join(', ')
+          const languages = Array.isArray(tutor.languagesSpoken)
+            ? tutor.languagesSpoken.join(', ')
+            : tutor.languagesSpoken || 'English'
+
+          return {
+            id: tutor.id,
+            name: `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim() || 'JTutors Educator',
+            image: tutor.profileImage || undefined,
+            bio: tutor.tagline || 'An experienced tutor ready to help students build skills and confidence.',
+            location: location || 'Online',
+            price: `$${Number(tutor.hourlyFee || 0)}`,
+            tags: subjects.slice(0, 3),
+            more: subjects.length > 3 ? `+${subjects.length - 3} more` : '',
+            meta: tutor.experienceCount ? `${tutor.experienceCount} exp` : '',
+            languages,
+            color: 'bg-[#123f70]',
+          }
+        })
+
+        setFeaturedTutors(randomized)
+      } catch (error) {
+        console.error('Unable to load randomized featured tutors:', error)
+      }
+    }
+
+    loadFeaturedTutors()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const toggleFaq = (index: number) => {
     setActiveFaqIndex((current) => (current === index ? null : index))
@@ -510,9 +586,9 @@ const HomePage = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {expertTutors.map((tutor) => (
+              {featuredTutors.map((tutor) => (
                 <article
-                  key={tutor.name}
+                  key={tutor.id || tutor.name}
                   className="overflow-hidden rounded-3xl border border-[#dbe5ef] bg-white shadow-[0_10px_24px_rgba(15,49,91,0.10)]"
                 >
                   <div className="h-28 bg-[linear-gradient(110deg,#12345f_0%,#4d32cf_52%,#3d486d_100%)]" />
@@ -560,9 +636,11 @@ const HomePage = () => {
                           {tag}
                         </span>
                       ))}
-                      <span className="rounded-full bg-[#f0f4f8] px-3 py-1 text-[11px] font-medium text-[#617089]">
-                        {tutor.more}
-                      </span>
+                      {tutor.more && (
+                        <span className="rounded-full bg-[#f0f4f8] px-3 py-1 text-[11px] font-medium text-[#617089]">
+                          {tutor.more}
+                        </span>
+                      )}
                     </div>
 
                     <div className="mt-4 flex min-h-[20px] items-center justify-center gap-4 text-[12px] font-medium text-[#64748b]">
@@ -577,7 +655,7 @@ const HomePage = () => {
                   </div>
 
                   <Link
-                    to="/browse-tutors"
+                    to={tutor.id ? `/tutors/${tutor.id}` : '/browse-tutors'}
                     className="flex h-14 items-center justify-center border-t border-[#edf1f5] text-sm font-black text-[#0d315f] transition hover:bg-[#f8fbff]"
                   >
                     View Profile -&gt;

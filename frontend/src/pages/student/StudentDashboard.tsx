@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   Bookmark,
   BookmarkCheck,
@@ -20,7 +20,6 @@ import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
 import { usePlatformSettings } from '../../store/settingsStore'
 import { useAuthStore } from '../../store/authStore'
-import BookTutorModal from '../../components/student/BookTutorModal'
 
 interface Tutor {
   id: string
@@ -47,13 +46,10 @@ interface StudentStats {
 
 const StudentDashboard = () => {
   const { user: _user } = useAuthStore()
-  const navigate = useNavigate()
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [savingTutorId, setSavingTutorId] = useState<string | null>(null)
-  const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null)
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [stats, setStats] = useState<StudentStats>({ firstName: null, savedTutors: 0, bookings: 0, totalHours: 0 })
@@ -149,30 +145,6 @@ const StudentDashboard = () => {
     } finally {
       setSavingTutorId(null)
       setTimeout(() => setStatusMessage(''), 3000)
-    }
-  }
-
-  const handleOpenBooking = (tutor: Tutor) => {
-    setSelectedTutor(tutor)
-    setIsBookingModalOpen(true)
-    setStatusMessage('')
-    setErrorMessage('')
-  }
-
-  const handleBookingSuccess = () => {
-    setIsBookingModalOpen(false)
-    setSelectedTutor(null)
-    setStats((prev) => ({ ...prev, bookings: prev.bookings + 1 }))
-    setStatusMessage('Booking sent! Check "My Bookings" to track it.')
-    setTimeout(() => setStatusMessage(''), 4000)
-  }
-
-  const handleMessageTutor = async (tutorId: string) => {
-    try {
-      await api.post('/messages/conversations', { tutorId })
-      navigate('/student/messages')
-    } catch (error) {
-      console.error('Error starting conversation:', error)
     }
   }
 
@@ -438,25 +410,11 @@ const StudentDashboard = () => {
                       </div>
                     )}
 
-                    <div className="mt-auto pt-4 grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => handleOpenBooking(tutor)}
-                        className="flex items-center justify-center gap-1.5 py-2.5 bg-[#012c54] text-white text-sm font-semibold rounded-xl hover:bg-[#012c54]/90 transition-colors"
-                      >
-                        <CalendarPlus size={15} /> Book
-                      </button>
-                      <button
-                        onClick={() => handleMessageTutor(tutor.id)}
-                        className="flex items-center justify-center gap-1.5 py-2.5 border border-gray-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors"
-                      >
-                        <MessageCircle size={15} /> Message
-                      </button>
-                    </div>
                     <Link
-                      to={`/student/tutor/${tutor.id}`}
-                      className="mt-2 flex items-center justify-center py-2 text-xs text-slate-400 hover:text-[#012c54] transition-colors"
+                      to={`/tutors/${tutor.id}`}
+                      className="mt-auto flex items-center justify-center rounded-xl bg-[#f5a11a] py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#c48115] hover:shadow-lg"
                     >
-                      View full profile <ChevronRight className="w-3 h-3 ml-1" />
+                      View Full Profile <ChevronRight className="ml-1 h-4 w-4" />
                     </Link>
                   </div>
                 </div>
@@ -466,13 +424,6 @@ const StudentDashboard = () => {
         )}
       </div>
 
-      <BookTutorModal
-        tutor={selectedTutor}
-        isOpen={isBookingModalOpen}
-        onClose={() => { setIsBookingModalOpen(false); setSelectedTutor(null) }}
-        onBooked={handleBookingSuccess}
-        onError={(message) => setErrorMessage(message)}
-      />
       <Footer />
     </div>
   )
