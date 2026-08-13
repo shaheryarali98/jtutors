@@ -11,45 +11,45 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      String   @default("STUDENT")
-  emailConfirmed Boolean @default(false)
-  isSuspended Boolean @default(false)
-  resetToken String?
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String
+  role             String    @default("STUDENT")
+  emailConfirmed   Boolean   @default(false)
+  isSuspended      Boolean   @default(false)
+  resetToken       String?
   resetTokenExpiry DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Relations
-  tutor   Tutor?
-  student Student?
+  tutor       Tutor?
+  student     Student?
   withdrawals Withdrawal[]
   loginAudits LoginAudit[]
 }
 
 model Student {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstName String?
-  lastName  String?
-  profileImage String?
-  gender    String?
-  grade     String?
-  tagline   String?
-  bio       String?
-  country   String?
-  state     String?
-  city      String?
-  timezone  String?
-  address   String?
-  zipcode   String?
-  languagesSpoken String?
+  id                  String  @id @default(uuid())
+  userId              String  @unique
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName           String?
+  lastName            String?
+  profileImage        String?
+  gender              String?
+  grade               String?
+  tagline             String?
+  bio                 String?
+  country             String?
+  state               String?
+  city                String?
+  timezone            String?
+  address             String?
+  zipcode             String?
+  languagesSpoken     String?
   learningPreferences String?
-  introduction String?
-  profileCompleted Boolean @default(false)
+  introduction        String?
+  profileCompleted    Boolean @default(false)
 
   // Terms and Conditions
   termsAccepted   Boolean   @default(false)
@@ -61,51 +61,52 @@ model Student {
   updatedAt DateTime @updatedAt
 
   // Add more student-specific fields as needed
-  bookings Booking[]
-  payments Payment[]
-  savedTutors StudentSavedTutor[]
-  conversations Conversation[]
-  tutorRequests TutorRequest[]
-  enrollments   Enrollment[]
+  bookings         Booking[]
+  payments         Payment[]
+  savedTutors      StudentSavedTutor[]
+  conversations    Conversation[]
+  tutorRequests    TutorRequest[]
+  enrollments      Enrollment[]
   extraTimeCharges ExtraTimeCharge[]
+  tips             Tip[]
 }
 
 model Tutor {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Personal Information
-  firstName    String?
-  lastName     String?
-  gender       String?
-  gradesCanTeach String? // Stored as JSON string of string[]
-  hourlyFee    Float?
-  tagline      String?
-  country      String?
-  state        String?
-  city         String?
-  address      String?
-  zipcode      String?
-  languagesSpoken String? // Stored as JSON string of string[]
-      timezone        String?  // IANA timezone identifier e.g. "America/New_York"
-      isAtLeast21Confirmed Boolean @default(false)
-      verificationRequested Boolean @default(false)
-    adminVerified   Boolean  @default(false)
-  
+  firstName             String?
+  lastName              String?
+  gender                String?
+  gradesCanTeach        String? // Stored as JSON string of string[]
+  hourlyFee             Float?
+  tagline               String?
+  country               String?
+  state                 String?
+  city                  String?
+  address               String?
+  zipcode               String?
+  languagesSpoken       String? // Stored as JSON string of string[]
+  timezone              String? // IANA timezone identifier e.g. "America/New_York"
+  isAtLeast21Confirmed  Boolean @default(false)
+  verificationRequested Boolean @default(false)
+  adminVerified         Boolean @default(false)
+
   // Profile image
   profileImage String?
-  
+
   // Cover image (banner)
   coverImage String?
-  
+
   // JTutors provisioned email (Google Workspace)
   jtutorsEmail String?
 
   // Stripe
   stripeAccountId String?
   stripeOnboarded Boolean @default(false)
-  
+
   // Background Check
   backgroundCheckCompleted Boolean @default(false)
 
@@ -114,9 +115,9 @@ model Tutor {
   termsAcceptedAt DateTime?
 
   // Profile completion percentage
-  profileCompletionPercentage Int @default(0)
-  profileCompleted Boolean @default(false)
-  
+  profileCompletionPercentage Int     @default(0)
+  profileCompleted            Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -132,183 +133,208 @@ model Tutor {
   conversations    Conversation[]
   courses          Course[]
   extraTimeCharges ExtraTimeCharge[]
+  tips             Tip[]
 }
 
 model Experience {
-  id          String   @id @default(uuid())
-  tutorId     String
-  tutor       Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  
-  jobTitle    String
-  company     String
-  location    String
-  startDate   DateTime
-  endDate     DateTime?
-  isCurrent   Boolean  @default(false)
+  id      String @id @default(uuid())
+  tutorId String
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  jobTitle     String
+  company      String
+  location     String
+  startDate    DateTime
+  endDate      DateTime?
+  isCurrent    Boolean   @default(false)
   teachingMode String
-  description String?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  description  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Education {
-  id          String   @id @default(uuid())
-  tutorId     String
-  tutor       Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  
+  id      String @id @default(uuid())
+  tutorId String
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
   degreeTitle String
   university  String
   location    String
   startDate   DateTime
   endDate     DateTime?
-  isOngoing   Boolean  @default(false)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isOngoing   Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Subject {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  parentId  String?
-  parent    Subject?  @relation("SubjectHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children  Subject[] @relation("SubjectHierarchy")
-  tutors    TutorSubject[]
+  id       String         @id @default(uuid())
+  name     String         @unique
+  parentId String?
+  parent   Subject?       @relation("SubjectHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Subject[]      @relation("SubjectHierarchy")
+  tutors   TutorSubject[]
 }
 
 model TutorSubject {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   tutorId   String
-  tutor     Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   subjectId String
-  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
-  
+
   @@unique([tutorId, subjectId])
 }
 
 model Availability {
-  id            String   @id @default(uuid())
-  tutorId       String
-  tutor         Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  
-  blockTitle    String
-  daysAvailable String // Stored as JSON string of string[]
-  startTime     String   // Format: "HH:MM"
-  endTime       String   // Format: "HH:MM"
-  breakTime     Int      // in minutes
-  sessionDuration Int    // in minutes
-  numberOfSlots Int      @default(1)
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id      String @id @default(uuid())
+  tutorId String
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  blockTitle      String
+  daysAvailable   String // Stored as JSON string of string[]
+  startTime       String // Format: "HH:MM"
+  endTime         String // Format: "HH:MM"
+  breakTime       Int // in minutes
+  sessionDuration Int // in minutes
+  numberOfSlots   Int    @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model BackgroundCheck {
-  id                String   @id @default(uuid())
-  tutorId           String   @unique
-  tutor             Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  
+  id      String @id @default(uuid())
+  tutorId String @unique
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
   fullLegalFirstName String?
   fullLegalLastName  String?
   otherNamesUsed     String?
-  
-  addressLine1      String?
-  addressLine2      String?
-  city              String?
-  stateProvinceRegion String?
-  postalCode        String?
-  country           String?
-  livedMoreThan3Years Boolean?
-  
-  dateOfBirth       DateTime?
-  socialSecurityNumber String? // Should be encrypted in production
-  hasUSDriverLicense Boolean?
-  
-  email             String
-  consentGiven      Boolean  @default(false)
-  comments          String?
-  
-  // Checkr integration fields
-  checkrCandidateId  String?   // Checkr candidate ID
-  checkrInvitationId String?   // Checkr invitation ID
-  checkrInvitationUrl String?  // URL for candidate to complete Checkr flow
-  checkrReportId     String?   // Checkr report ID (populated after report is created)
-  checkrStatus       String?   // Raw Checkr status: pending, clear, consider, suspended, etc.
-  checkrCompletedAt  DateTime? // When Checkr finished processing
 
-  status            String   @default("PENDING") // PENDING, APPROVED, REJECTED, REVIEW, EXPIRED
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  addressLine1        String?
+  addressLine2        String?
+  city                String?
+  stateProvinceRegion String?
+  postalCode          String?
+  country             String?
+  livedMoreThan3Years Boolean?
+
+  dateOfBirth          DateTime?
+  socialSecurityNumber String? // Should be encrypted in production
+  hasUSDriverLicense   Boolean?
+
+  email        String
+  consentGiven Boolean @default(false)
+  comments     String?
+
+  // Checkr integration fields
+  checkrCandidateId   String? // Checkr candidate ID
+  checkrInvitationId  String? // Checkr invitation ID
+  checkrInvitationUrl String? // URL for candidate to complete Checkr flow
+  checkrReportId      String? // Checkr report ID (populated after report is created)
+  checkrStatus        String? // Raw Checkr status: pending, clear, consider, suspended, etc.
+  checkrCompletedAt   DateTime? // When Checkr finished processing
+
+  status String @default("PENDING") // PENDING, APPROVED, REJECTED, REVIEW, EXPIRED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Booking {
-  id         String   @id @default(uuid())
-  studentId  String
-  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  tutorId    String
-  tutor      Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  
-  startTime  DateTime
-  endTime    DateTime
-  status     String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED, COMPLETED
-  
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String  @id @default(uuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutorId   String
+  tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  startTime DateTime
+  endTime   DateTime
+  status    String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED, COMPLETED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  classSession ClassSession?
-  payment      Payment?
+  classSession     ClassSession?
+  payment          Payment?
   extraTimeCharges ExtraTimeCharge[]
+  tip              Tip?
+}
+
+model Tip {
+  id        String  @id @default(uuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutorId   String
+  tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  amount                  Float
+  currency                String    @default("USD")
+  status                  String    @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId   String?
+  stripeChargeId          String?
+  paidAt                  DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([studentId, status])
+  @@index([tutorId, status])
 }
 
 model ClassSession {
-  id          String   @id @default(uuid())
-  bookingId   String   @unique
-  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  googleClassroomId String? // Google Classroom course/class ID
+  id        String  @id @default(uuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  googleClassroomId   String? // Google Classroom course/class ID
   googleClassroomLink String?
-  googleMeetLink     String?
+  googleMeetLink      String?
 
   // Pencil Spaces
   pencilSpaceId  String?
   pencilSpaceUrl String?
-  
-  status      String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
-  completedAt DateTime?
-  actualHoursTaught Float? // Actual hours taught (for payment calculation)
-  tutorApproved Boolean @default(false)
-  adminApproved Boolean @default(false)
-  adminApprovedAt DateTime?
+
+  status             String    @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  completedAt        DateTime?
+  actualHoursTaught  Float? // Actual hours taught (for payment calculation)
+  tutorApproved      Boolean   @default(false)
+  adminApproved      Boolean   @default(false)
+  adminApprovedAt    DateTime?
   studentConfirmed   Boolean   @default(false)
   studentConfirmedAt DateTime?
-  autoReleaseAt      DateTime?  // 24h after tutor marks complete; cron auto-releases if student silent
-  paymentReleased Boolean @default(false) // Whether payment has been released to tutor
-  paymentReleasedAt DateTime?
-  
-  notes       String?
+  autoReleaseAt      DateTime? // 24h after tutor marks complete; cron auto-releases if student silent
+  paymentReleased    Boolean   @default(false) // Whether payment has been released to tutor
+  paymentReleasedAt  DateTime?
+
+  notes String?
 
   extraTimeCharge ExtraTimeCharge?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ExtraTimeCharge {
-  id            String   @id @default(uuid())
-  bookingId     String
-  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  classSessionId String  @unique
-  classSession  ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid())
+  bookingId      String
+  booking        Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  classSessionId String       @unique
+  classSession   ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
 
-  studentId     String
-  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  tutorId       String
-  tutor         Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutorId   String
+  tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
 
   scheduledHours Float
   actualHours    Float
@@ -323,7 +349,7 @@ model ExtraTimeCharge {
   stripeCheckoutSessionId String?
   stripePaymentIntentId   String?
   stripeChargeId          String?
-  status                  String @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
+  status                  String    @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
   paidAt                  DateTime?
 
   requestedAt DateTime @default(now())
@@ -335,38 +361,42 @@ model ExtraTimeCharge {
 }
 
 model Payment {
-  id          String   @id @default(uuid())
-  bookingId   String   @unique
-  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  studentId   String
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  tutorId     String
-  tutor       Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  
-  amount      Float    // Total amount paid by student
-  currency    String   @default("USD")
-  
+  id        String  @id @default(uuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutorId   String
+  tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  amount   Float // Total amount paid by student
+  currency String @default("USD")
+
   // Commission breakdown
   adminCommissionPercentage Float @default(10.0)
   adminCommissionFixed      Float @default(0.0)
   adminCommissionAmount     Float // Calculated commission
   tutorAmount               Float // Amount tutor receives
-  
+
   // Fee breakdown (all stored as dollar amounts for audit)
-  studentFeeAmount        Float @default(0)  // 4.5% of base, charged to student
-  tutorDeductionAmount    Float @default(0)  // 9.25% of base, deducted from tutor
-  studentChargeAmount     Float @default(0)  // base + studentFee = what student pays total
+  studentFeeAmount     Float @default(0) // 4.5% of base, charged to student
+  tutorDeductionAmount Float @default(0) // 9.25% of base, deducted from tutor
+  studentChargeAmount  Float @default(0) // base + studentFee = what student pays total
+
+  // First-session promotion audit fields
+  couponCode            String?
+  couponDiscountPercent Float   @default(0)
 
   // Stripe
   stripePaymentIntentId   String?
   stripeCheckoutSessionId String?
   stripeChargeId          String?
-  paymentStatus           String   @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  paymentStatus           String  @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
 
-  paidAt      DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model StudentSavedTutor {
@@ -381,36 +411,36 @@ model StudentSavedTutor {
 }
 
 model Withdrawal {
-  id          String   @id @default(uuid())
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userType    String   // "ADMIN", "TUTOR", or "STUDENT"
-  method      String?
-  
-  amount      Float
-  currency    String   @default("USD")
-  charge      Float?   @default(0)
-  netAmount   Float?   @default(0)
-  
+  id String @id @default(uuid())
+
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userType String // "ADMIN", "TUTOR", or "STUDENT"
+  method   String?
+
+  amount    Float
+  currency  String @default("USD")
+  charge    Float? @default(0)
+  netAmount Float? @default(0)
+
   // Stripe
   stripeTransferId String?
   stripePayoutId   String?
-  
-  status      String   @default("PENDING") // PENDING, APPROVED, PROCESSING, COMPLETED, REJECTED
-  requestedAt DateTime @default(now())
+
+  status      String    @default("PENDING") // PENDING, APPROVED, PROCESSING, COMPLETED, REJECTED
+  requestedAt DateTime  @default(now())
   approvedAt  DateTime?
   processedAt DateTime?
   completedAt DateTime?
-  
+
   // Approval settings
   autoApproveAfterDays Int? // null means manual approval, number means auto-approve after N days
-  approvedBy   String? // Admin user ID who approved
-  
-  notes       String?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  approvedBy           String? // Admin user ID who approved
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model LoginAudit {
@@ -423,61 +453,61 @@ model LoginAudit {
 }
 
 model AdminSettings {
-  id                          String   @id @default(uuid())
-  sendSignupConfirmation      Boolean  @default(true)
-  sendProfileCompletionEmail  Boolean  @default(true)
-  autoApproveUsers            Boolean  @default(true)
-  
+  id                         String  @id @default(uuid())
+  sendSignupConfirmation     Boolean @default(true)
+  sendProfileCompletionEmail Boolean @default(true)
+  autoApproveUsers           Boolean @default(true)
+
   // Commission Settings
-  adminCommissionPercentage   Float    @default(9.25)   // Tutor-side deduction %
-  adminCommissionFixed        Float    @default(0.0)
-  studentFeePercentage        Float    @default(4.5)    // Added on top of session price for student
-  platformCommissionPercent   Float    @default(10.0)   // Admin platform commission % taken from base price
-  
+  adminCommissionPercentage Float @default(9.25) // Tutor-side deduction %
+  adminCommissionFixed      Float @default(0.0)
+  studentFeePercentage      Float @default(4.5) // Added on top of session price for student
+  platformCommissionPercent Float @default(10.0) // Admin platform commission % taken from base price
+
   // Withdrawal Settings
-  withdrawalAutoApproveDays   Int?     // null = manual, number = auto-approve after N days (default 2 for sandbox)
-  withdrawMethods             String?  @default("[]") // JSON array of supported methods
-  withdrawFixedCharge         Float?   @default(0)
-  withdrawPercentageCharge    Float?   @default(0)
-  minimumWithdrawAmount       Float?
-  minimumBalanceForWithdraw   Float?
-  withdrawThreshold           Int?
+  withdrawalAutoApproveDays Int? // null = manual, number = auto-approve after N days (default 2 for sandbox)
+  withdrawMethods           String? @default("[]") // JSON array of supported methods
+  withdrawFixedCharge       Float?  @default(0)
+  withdrawPercentageCharge  Float?  @default(0)
+  minimumWithdrawAmount     Float?
+  minimumBalanceForWithdraw Float?
+  withdrawThreshold         Int?
 
   // Profile field visibility
-  genderFieldEnabled          Boolean  @default(true)
-  gradeFieldEnabled           Boolean  @default(true)
-  stateFieldEnabled           Boolean  @default(true)
+  genderFieldEnabled Boolean @default(true)
+  gradeFieldEnabled  Boolean @default(true)
+  stateFieldEnabled  Boolean @default(true)
 
   // Branding & email
-  emailLogo                   String?
-  emailSenderName             String?
-  emailSenderEmail            String?
-  emailFooterCopyright        String?
-  emailSenderSignature        String?
-  emailFooterColor            String?  @default("#F5F5F5")
+  emailLogo            String?
+  emailSenderName      String?
+  emailSenderEmail     String?
+  emailFooterCopyright String?
+  emailSenderSignature String?
+  emailFooterColor     String? @default("#F5F5F5")
 
   // Default avatars
-  defaultStudentImage         String?
-  defaultTutorImage           String?
-  adminPaymentInfo            String?
-  
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  defaultStudentImage String?
+  defaultTutorImage   String?
+  adminPaymentInfo    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model EmailTemplate {
-  id          String   @id @default(uuid())
-  name        String   @unique // SIGNUP_SUCCESS, PROFILE_COMPLETE, EMAIL_VERIFICATION, FORGOT_PASSWORD, CLASS_APPROVED, PAYMENT_RECEIVED, WITHDRAWAL_APPROVED, etc.
-  subject     String
-  htmlBody    String   @default("")
-  textBody    String   @default("")
-  isActive    Boolean  @default(true)
-  
+  id       String  @id @default(uuid())
+  name     String  @unique // SIGNUP_SUCCESS, PROFILE_COMPLETE, EMAIL_VERIFICATION, FORGOT_PASSWORD, CLASS_APPROVED, PAYMENT_RECEIVED, WITHDRAWAL_APPROVED, etc.
+  subject  String
+  htmlBody String  @default("")
+  textBody String  @default("")
+  isActive Boolean @default(true)
+
   // Template variables documentation (stored as JSON string)
-  variables   String?  // JSON array of available variables like {{userName}}, {{email}}, etc.
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  variables String? // JSON array of available variables like {{userName}}, {{email}}, etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ==================
@@ -485,34 +515,34 @@ model EmailTemplate {
 // ==================
 
 model Conversation {
-  id        String   @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   studentId String
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   tutorId   String
-  tutor     Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  
+  tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
   lastMessageAt DateTime @default(now())
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  messages  Message[]
+  messages Message[]
 
   @@unique([studentId, tutorId])
 }
 
 model Message {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  
-  senderId       String   // User ID of sender
-  senderRole     String   // STUDENT or TUTOR
-  content        String
-  read           Boolean  @default(false)
-  
-  createdAt      DateTime @default(now())
+
+  senderId   String // User ID of sender
+  senderRole String // STUDENT or TUTOR
+  content    String
+  read       Boolean @default(false)
+
+  createdAt DateTime @default(now())
 }
 
 // ==================
@@ -520,23 +550,23 @@ model Message {
 // ==================
 
 model TutorRequest {
-  id          String   @id @default(uuid())
-  studentId   String
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
-  title       String
-  description String
-  subject     String?
-  grade       String?
-  budgetMin   Float?
-  budgetMax   Float?
+  id        String  @id @default(uuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  title             String
+  description       String
+  subject           String?
+  grade             String?
+  budgetMin         Float?
+  budgetMax         Float?
   preferredSchedule String? // e.g., "Weekday evenings", "Weekend mornings"
-  sessionType String?      // ONLINE, IN_PERSON, EITHER
-  
-  status      String   @default("OPEN") // OPEN, CLOSED, FULFILLED
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sessionType       String? // ONLINE, IN_PERSON, EITHER
+
+  status String @default("OPEN") // OPEN, CLOSED, FULFILLED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ==================
@@ -544,57 +574,56 @@ model TutorRequest {
 // ==================
 
 model Course {
-  id          String   @id @default(uuid())
-  tutorId     String
-  tutor       Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  id      String @id @default(uuid())
+  tutorId String
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
 
   title       String
   description String
-  price       Float            // per enrollment / per course
-  schedule    String?          // human-readable e.g. "Tuesdays 6–8 PM"
-  meetingLink String?          // Google Meet / Classroom URL
-  meetingType String?          // GOOGLE_MEET, GOOGLE_CLASSROOM, ZOOM, OTHER
+  price       Float // per enrollment / per course
+  schedule    String? // human-readable e.g. "Tuesdays 6–8 PM"
+  meetingLink String? // Google Meet / Classroom URL
+  meetingType String? // GOOGLE_MEET, GOOGLE_CLASSROOM, ZOOM, OTHER
   maxStudents Int?
 
   // DRAFT → PUBLISHED → ARCHIVED
-  status      String   @default("DRAFT")
+  status String @default("DRAFT")
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   enrollments Enrollment[]
 }
 
 model Enrollment {
-  id                    String   @id @default(uuid())
-  courseId              String
-  course                Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  studentId             String
-  student               Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  courseId  String
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   // PENDING → PAID | CANCELLED | REFUNDED
-  status                String   @default("PENDING")
+  status String @default("PENDING")
 
   // Stripe Checkout
-  stripeSessionId         String?
-  stripePaymentIntentId   String?
+  stripeSessionId       String?
+  stripePaymentIntentId String?
 
   // Amounts (dollar values)
-  amount                Float    // studentChargeAmount = base + student fee (what Stripe charges)
-  tutorAmount           Float    // tutor payout = base - adminCommission - tutorDeduction
-  platformAmount        Float    // total platform fee = studentFee + adminCommission + tutorDeduction
+  amount         Float // studentChargeAmount = base + student fee (what Stripe charges)
+  tutorAmount    Float // tutor payout = base - adminCommission - tutorDeduction
+  platformAmount Float // total platform fee = studentFee + adminCommission + tutorDeduction
 
   // Detailed fee breakdown
-  basePriceAmount       Float?   // base course price
-  studentFeeAmount      Float?   // 4.5% added to student charge
-  adminCommissionAmount Float?   // 10% admin platform commission
-  tutorDeductionAmount  Float?   // 9.25% tutor-side deduction
-  studentChargeAmount   Float?   // = amount (kept for clarity)
+  basePriceAmount       Float? // base course price
+  studentFeeAmount      Float? // 4.5% added to student charge
+  adminCommissionAmount Float? // 10% admin platform commission
+  tutorDeductionAmount  Float? // 9.25% tutor-side deduction
+  studentChargeAmount   Float? // = amount (kept for clarity)
 
-  paidAt                DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@unique([courseId, studentId])
 }
-

@@ -48,6 +48,8 @@ async function ensureProductionColumns() {
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "tutorDeductionAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "studentChargeAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "stripeCheckoutSessionId" TEXT`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponDiscountPercent" DOUBLE PRECISION NOT NULL DEFAULT 0`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "basePriceAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "studentFeeAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "adminCommissionAmount" DOUBLE PRECISION`);
@@ -82,6 +84,30 @@ async function ensureProductionColumns() {
     await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExtraTimeCharge_studentId_status_idx" ON "ExtraTimeCharge"("studentId", "status")`);
     await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExtraTimeCharge_tutorId_status_idx" ON "ExtraTimeCharge"("tutorId", "status")`);
     await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExtraTimeCharge_bookingId_idx" ON "ExtraTimeCharge"("bookingId")`);
+    await _patchPrisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Tip" (
+        "id" TEXT NOT NULL,
+        "bookingId" TEXT NOT NULL,
+        "studentId" TEXT NOT NULL,
+        "tutorId" TEXT NOT NULL,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "currency" TEXT NOT NULL DEFAULT 'USD',
+        "status" TEXT NOT NULL DEFAULT 'PENDING',
+        "stripeCheckoutSessionId" TEXT,
+        "stripePaymentIntentId" TEXT,
+        "stripeChargeId" TEXT,
+        "paidAt" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Tip_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "Tip_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "Tip_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "Tip_tutorId_fkey" FOREIGN KEY ("tutorId") REFERENCES "Tutor"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
+    await _patchPrisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Tip_bookingId_key" ON "Tip"("bookingId")`);
+    await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Tip_studentId_status_idx" ON "Tip"("studentId", "status")`);
+    await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Tip_tutorId_status_idx" ON "Tip"("tutorId", "status")`);
     console.log('✅ DB columns verified/patched');
   } catch (err: any) {
     console.error('⚠️ Column patch error (non-fatal):', err.message);
@@ -157,11 +183,11 @@ app.use('/api/tutor-requests', tutorRequestRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 
-// Dev-only bypass routes (never enabled in production)
-if (process.env.NODE_ENV !== 'production' && process.env.DEV_BYPASS_STRIPE === 'true') {
+// Dev-only mock checkout confirmations (never enabled in production).
+if (process.env.NODE_ENV !== 'production') {
   const devRoutes = require('./routes/dev.routes').default;
   app.use('/api/dev', devRoutes);
-  console.log('[DEV] Stripe bypass routes enabled at /api/dev');
+  console.log('[DEV] Mock checkout routes enabled at /api/dev');
 }
 
 // Public API: approved tutors (no auth required)

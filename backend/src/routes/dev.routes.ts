@@ -95,4 +95,30 @@ router.post('/confirm-extra-time', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/dev/confirm-tip  { tipId }
+// Marks a local test tip PAID without contacting Stripe.
+router.post('/confirm-tip', async (req: Request, res: Response) => {
+  const { tipId } = req.body as { tipId: string };
+  if (!tipId) return res.status(400).json({ error: 'tipId is required' });
+
+  try {
+    const tip = await prisma.tip.findUnique({ where: { id: tipId } });
+    if (!tip) return res.status(404).json({ error: 'Tip not found' });
+    if (tip.status === 'PAID') return res.json({ ok: true, already: true });
+
+    const updated = await prisma.tip.update({
+      where: { id: tipId },
+      data: {
+        status: 'PAID',
+        stripePaymentIntentId: 'dev_bypass',
+        paidAt: new Date(),
+      },
+    });
+
+    return res.json({ ok: true, tip: updated });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

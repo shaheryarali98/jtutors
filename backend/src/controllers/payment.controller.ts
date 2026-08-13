@@ -1,9 +1,56 @@
 import { Request, Response } from 'express';
 import { createPayment, confirmPayment, getPayment, getPaymentsByUser, calculateCommission } from '../services/payment.service';
-import { createBookingCheckoutSession, createExtraTimeCheckoutSession, calculatePaymentBreakdown, PaymentBreakdown } from '../services/stripe.service';
+import { createBookingCheckoutSession, createExtraTimeCheckoutSession, createTipCheckoutSession, calculatePaymentBreakdown, PaymentBreakdown, stripe } from '../services/stripe.service';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+const FIRST_SESSION_COUPONS = new Map([
+  ['jtutorsfivetowns', 'JTutorsFiveTowns'],
+  ['jtutorssar', 'JTutorsSAR'],
+  ['jtutorshillel', 'JTutorsHillel'],
+  ['jtutorslakewood', 'JTutorsLakewood'],
+  ['jtutorsyeshivatnoam', 'JtutorsYeshivatNoam'],
+]);
+
+const getFirstSessionCoupon = (couponCode?: string) => {
+  const canonicalCode = FIRST_SESSION_COUPONS.get(couponCode?.trim().toLowerCase() || '');
+  return canonicalCode ? { canonicalCode, discountPercent: 50 } : null;
+};
+
+const hasPaidTutoringSession = async (studentId: string) => {
+  const payment = await prisma.payment.findFirst({
+    where: { studentId, paymentStatus: 'PAID' },
+    select: { id: true },
+  });
+  return Boolean(payment);
+};
+
+export const validateBookingCouponController = async (req: Request, res: Response) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser) return res.status(401).json({ error: 'Authentication required' });
+
+    const coupon = getFirstSessionCoupon(String(req.body?.couponCode || ''));
+    if (!coupon) return res.status(400).json({ error: 'Invalid coupon code.' });
+
+    const student = await prisma.student.findUnique({ where: { userId: currentUser.userId } });
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+    if (await hasPaidTutoringSession(student.id)) {
+      return res.status(400).json({ error: 'This offer is only available for your first tutoring session.' });
+    }
+
+    return res.json({
+      valid: true,
+      couponCode: coupon.canonicalCode,
+      discountPercent: coupon.discountPercent,
+      message: '50% off your first tutoring session applied!',
+    });
+  } catch (error: any) {
+    console.error('Validate booking coupon error:', error);
+    return res.status(500).json({ error: 'Unable to validate coupon right now.' });
+  }
+};
 
 export const createPaymentController = async (req: Request, res: Response) => {
   try {
@@ -163,8 +210,14 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
       1,
       Math.round(durationHours * (booking.tutor.hourlyFee || 0) * 100) / 100
     );
-    const normalizedCouponCode = couponCode?.trim().toLowerCase() || '';
-    const couponDiscountPercent = normalizedCouponCode === 'backtoschool' ? 50 : 0;
+    const coupon = getFirstSessionCoupon(couponCode);
+    if (couponCode?.trim() && !coupon) {
+      return res.status(400).json({ error: 'Invalid coupon code.' });
+    }
+    if (coupon && await hasPaidTutoringSession(student.id)) {
+      return res.status(400).json({ error: 'This offer is only available for your first tutoring session.' });
+    }
+    const couponDiscountPercent = coupon?.discountPercent ?? 0;
     const basePriceDollars = Math.max(
       0.5,
       Math.round(
@@ -188,6 +241,8 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
       studentFeeAmount:      bd.studentFeeCents / 100,
       tutorDeductionAmount:  bd.tutorDeductionCents / 100,
       studentChargeAmount:   bd.studentPaysCents / 100,
+      couponCode:            coupon?.canonicalCode ?? null,
+      couponDiscountPercent,
     };
 
     if (!payment) {
@@ -414,6 +469,116 @@ export const createExtraTimeCheckoutController = async (req: Request, res: Respo
   } catch (error: any) {
     console.error('Create extra-time checkout error:', error);
     return res.status(500).json({ error: error.message || 'Error starting extra-time checkout' });
+  }
+};
+
+export const createTipCheckoutController = async (req: Request, res: Response) => {
+  try {
+    const { bookingId } = req.params;
+    const amount = Number(req.body?.amount);
+    const currentUser = req.user;
+
+    if (!currentUser) return res.status(401).json({ error: 'Authentication required' });
+    if (currentUser.role !== 'STUDENT') return res.status(403).json({ error: 'Only students can tip tutors' });
+    if (!Number.isFinite(amount) || amount < 1 || amount > 500) {
+      return res.status(400).json({ error: 'Tip amount must be between $1 and $500' });
+    }
+
+    const student = await prisma.student.findUnique({ where: { userId: currentUser.userId } });
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        classSession: true,
+        tip: true,
+        tutor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            stripeAccountId: true,
+            stripeOnboarded: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (booking.studentId !== student.id) return res.status(403).json({ error: 'Unauthorized' });
+
+    const completedAt = booking.classSession?.completedAt;
+    if (booking.classSession?.status !== 'COMPLETED' || !completedAt) {
+      return res.status(400).json({ error: 'Tips can only be added after a completed session' });
+    }
+
+    const tippingDeadline = new Date(completedAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+    if (new Date() > tippingDeadline) {
+      return res.status(400).json({ error: 'The seven-day tipping window has expired' });
+    }
+    if (booking.tip?.status === 'PAID') {
+      return res.status(400).json({ error: 'A tip has already been sent for this session' });
+    }
+
+    const localMockCheckout = process.env.NODE_ENV !== 'production' && (!stripe || process.env.DEV_BYPASS_STRIPE === 'true');
+    if (!localMockCheckout && (!booking.tutor.stripeAccountId || !booking.tutor.stripeOnboarded)) {
+      return res.status(400).json({ error: 'Tutor has not completed Stripe onboarding' });
+    }
+
+    const normalizedAmount = Math.round(amount * 100) / 100;
+    const tip = await prisma.tip.upsert({
+      where: { bookingId: booking.id },
+      create: {
+        bookingId: booking.id,
+        studentId: student.id,
+        tutorId: booking.tutorId,
+        amount: normalizedAmount,
+        currency: 'USD',
+        status: 'PENDING',
+      },
+      update: {
+        amount: normalizedAmount,
+        currency: 'USD',
+        status: 'PENDING',
+        stripeCheckoutSessionId: null,
+        stripePaymentIntentId: null,
+        stripeChargeId: null,
+        paidAt: null,
+      },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const tutorName = `${booking.tutor.firstName || 'Tutor'} ${booking.tutor.lastName || ''}`.trim();
+
+    if (localMockCheckout) {
+      return res.json({
+        url: `${frontendUrl}/dev/mock-checkout?type=tip&id=${tip.id}&title=${encodeURIComponent(`Tip for ${tutorName}`)}&amount=${normalizedAmount.toFixed(2)}&returnUrl=${encodeURIComponent('/student/bookings?tip_paid=1')}`,
+        sessionId: 'dev_bypass',
+        tip,
+      });
+    }
+
+    const session = await createTipCheckoutSession({
+      amountCents: Math.round(normalizedAmount * 100),
+      tutorName,
+      tutorStripeAccountId: booking.tutor.stripeAccountId!,
+      tipId: tip.id,
+      bookingId: booking.id,
+      studentId: student.id,
+      tutorId: booking.tutorId,
+      successUrl: `${frontendUrl}/student/bookings?tip_paid=1&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${frontendUrl}/student/bookings?tip_cancelled=1`,
+    });
+
+    const updatedTip = await prisma.tip.update({
+      where: { id: tip.id },
+      data: { stripeCheckoutSessionId: session.id },
+    });
+
+    return res.json({ url: session.url, sessionId: session.id, tip: updatedTip });
+  } catch (error: any) {
+    console.error('Create tip checkout error:', error);
+    return res.status(500).json({ error: error.message || 'Error starting tip checkout' });
   }
 };
 

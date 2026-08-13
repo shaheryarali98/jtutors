@@ -98,6 +98,26 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   // Booking checkout — save breakdown fields from session metadata
+  if (meta.tipId) {
+    try {
+      await prisma.tip.update({
+        where: { id: meta.tipId },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          stripeCheckoutSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId || undefined,
+        },
+      });
+      console.log(`[Stripe Webhook] Tip confirmed: ${meta.tipId}`);
+    } catch (error: any) {
+      console.error(`[Stripe Webhook] Error confirming tip ${meta.tipId}:`, error);
+      throw error;
+    }
+    return;
+  }
+
+  // Extra-time checkout
   if (meta.extraTimeChargeId) {
     try {
       await prisma.extraTimeCharge.update({

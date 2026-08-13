@@ -7,6 +7,13 @@ import { resolveImageUrl } from '../../lib/media'
 import { usePlatformSettings } from '../../store/settingsStore'
 
 const LOCAL_BOOKING_COUPON_KEY = 'jtutors-booking-coupon'
+const FIRST_SESSION_COUPON_CODES = new Set([
+  'jtutorsfivetowns',
+  'jtutorssar',
+  'jtutorshillel',
+  'jtutorslakewood',
+  'jtutorsyeshivatnoam',
+])
 
 interface Booking {
   id: string
@@ -34,6 +41,7 @@ interface Booking {
     paymentReleased?: boolean
     studentConfirmed?: boolean
     autoReleaseAt?: string | null
+    completedAt?: string | null
   } | null
   payment?: {
     id: string
@@ -41,6 +49,8 @@ interface Booking {
     currency: string
     paymentStatus: string
     paidAt?: string | null
+    couponCode?: string | null
+    couponDiscountPercent?: number
   } | null
   extraTimeCharge?: {
     id: string
@@ -48,6 +58,13 @@ interface Booking {
     extraHours: number
     studentChargeAmount: number
     requestedAt: string
+  } | null
+  tip?: {
+    id: string
+    amount: number
+    currency: string
+    status: string
+    paidAt?: string | null
   } | null
 }
 
@@ -108,6 +125,8 @@ const StudentBookings = () => {
   const [payingId, setPayingId] = useState<string | null>(null)
   const [payErrors, setPayErrors] = useState<Record<string, string>>({})
   const [extraAmountInputs, setExtraAmountInputs] = useState<Record<string, string>>({})
+  const [tipInputs, setTipInputs] = useState<Record<string, string>>({})
+  const [tippingId, setTippingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [searchParams, setSearchParams] = useSearchParams()
@@ -138,6 +157,14 @@ const StudentBookings = () => {
     } else if (searchParams.get('extra_paid') === '1') {
       setInfo('Extra-time payment successful!')
       searchParams.delete('extra_paid'); searchParams.delete('session_id')
+      setSearchParams(searchParams, { replace: true })
+    } else if (searchParams.get('tip_paid') === '1') {
+      setInfo('Thank you! Your tip was sent directly to your tutor.')
+      searchParams.delete('tip_paid'); searchParams.delete('session_id')
+      setSearchParams(searchParams, { replace: true })
+    } else if (searchParams.get('tip_cancelled') === '1') {
+      setInfo('Tip checkout was cancelled. No charge was made.')
+      searchParams.delete('tip_cancelled')
       setSearchParams(searchParams, { replace: true })
     } else if (searchParams.get('cancelled') === '1') {
       setInfo('Payment was cancelled. You can try again anytime.')
@@ -224,6 +251,37 @@ const StudentBookings = () => {
 
   const handleJoinSpace = (pencilSpaceUrl: string) => {
     window.open(pencilSpaceUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleTipTutor = async (booking: Booking) => {
+    const amount = Number(tipInputs[booking.id])
+    if (!Number.isFinite(amount) || amount < 1 || amount > 500) {
+      setPayErrors((prev) => ({ ...prev, [`tip-${booking.id}`]: 'Enter a tip between $1 and $500.' }))
+      return
+    }
+
+    setTippingId(booking.id)
+    setPayErrors((prev) => {
+      const next = { ...prev }
+      delete next[`tip-${booking.id}`]
+      return next
+    })
+
+    try {
+      const response = await api.post(`/payments/tips/${booking.id}/checkout`, { amount })
+      if (response.data?.url) {
+        window.location.href = response.data.url
+        return
+      }
+      setPayErrors((prev) => ({ ...prev, [`tip-${booking.id}`]: 'Unable to start tip checkout.' }))
+    } catch (err: any) {
+      setPayErrors((prev) => ({
+        ...prev,
+        [`tip-${booking.id}`]: err.response?.data?.error || 'Unable to send this tip right now.',
+      }))
+    } finally {
+      setTippingId(null)
+    }
   }
 
   const handleCancelBooking = async (bookingId: string) => {
@@ -459,19 +517,33 @@ const StudentBookings = () => {
               const end = new Date(booking.endTime)
               const needsPayment = booking.status === 'CONFIRMED' && (!booking.payment || booking.payment.paymentStatus !== 'PAID')
               const hasPendingExtraTime = booking.extraTimeCharge?.status === 'PENDING'
-              const baseAmountDue =
-                booking.payment?.amount ??
-                Math.max(1, Math.round((booking.durationHours || 1) * tutor.hourlyFee * 100) / 100)
               const bookingCoupon = getBookingCoupon(booking)
-              const couponDiscountPercent = bookingCoupon?.couponCode?.trim().toLowerCase() === 'backtoschool'
-                ? 50
-                : 0
+              const persistedCouponCode = booking.payment?.couponCode?.trim().toLowerCase() || ''
+              const localCouponCode = bookingCoupon?.couponCode?.trim().toLowerCase() || ''
+              const couponDiscountPercent =
+                booking.payment?.couponDiscountPercent ||
+                (FIRST_SESSION_COUPON_CODES.has(localCouponCode) ? 50 : 0)
+              const hasFirstSessionCoupon =
+                couponDiscountPercent > 0 &&
+                (FIRST_SESSION_COUPON_CODES.has(persistedCouponCode) || FIRST_SESSION_COUPON_CODES.has(localCouponCode))
+              const undiscountedSessionAmount =
+                Math.max(1, Math.round((booking.durationHours || 1) * tutor.hourlyFee * 100) / 100)
+              const baseAmountDue = hasFirstSessionCoupon
+                ? undiscountedSessionAmount
+                : booking.payment?.amount ?? undiscountedSessionAmount
               const discountedAmountDue = couponDiscountPercent > 0
                 ? Math.max(0, baseAmountDue * (1 - couponDiscountPercent / 100))
                 : baseAmountDue
               const studentFeeAmount = discountedAmountDue * studentFeePct / 100
               const totalDue = discountedAmountDue + studentFeeAmount
               const displayImage = resolveImageUrl(tutor.profileImage)
+              const completedAt = booking.classSession?.status === 'COMPLETED'
+                ? new Date(booking.classSession.completedAt || booking.endTime)
+                : null
+              const tipWindowOpen = completedAt
+                ? Date.now() <= completedAt.getTime() + 7 * 24 * 60 * 60 * 1000
+                : false
+              const sessionBaseAmount = booking.payment?.amount ?? booking.durationHours * tutor.hourlyFee
 
               return (
                 <div key={booking.id} className="bg-white rounded-3xl shadow p-6">
@@ -533,7 +605,7 @@ const StudentBookings = () => {
                       </p>
                       {couponDiscountPercent > 0 && (
                         <p className="text-xs text-emerald-600 mt-1">
-                          Backtoschool coupon applied ({couponDiscountPercent}% off)
+                          First-session coupon applied ({couponDiscountPercent}% off)
                         </p>
                       )}
                       {booking.payment?.paidAt && (
@@ -622,6 +694,76 @@ const StudentBookings = () => {
                           File a dispute
                         </a>
                       </div>
+                    </div>
+                  )}
+
+                  {booking.classSession?.status === 'COMPLETED' && (
+                    <div className="mt-4 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5">
+                      {booking.tip?.status === 'PAID' ? (
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="font-semibold text-emerald-800">Thank you for supporting your tutor!</p>
+                            <p className="mt-1 text-sm text-emerald-700">
+                              Your ${(booking.tip.amount || 0).toFixed(2)} tip was sent successfully.
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">TIP SENT</span>
+                        </div>
+                      ) : tipWindowOpen ? (
+                        <div>
+                          <p className="font-semibold text-slate-900">Show your appreciation</p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            Tipping is completely optional. Choose a percentage or enter any amount; the tip goes to your tutor.
+                          </p>
+                          <div className="mt-4 flex flex-wrap items-center gap-2">
+                            {[10, 15, 20].map((percentage) => {
+                              const amount = Math.max(1, Math.round(sessionBaseAmount * percentage) / 100)
+                              return (
+                                <button
+                                  key={percentage}
+                                  type="button"
+                                  onClick={() => setTipInputs((prev) => ({ ...prev, [booking.id]: amount.toFixed(2) }))}
+                                  className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                                    tipInputs[booking.id] === amount.toFixed(2)
+                                      ? 'border-[#f5a11a] bg-[#f5a11a] text-white'
+                                      : 'border-amber-200 bg-white text-slate-700 hover:border-[#f5a11a]'
+                                  }`}
+                                >
+                                  {percentage}% (${amount.toFixed(2)})
+                                </button>
+                              )
+                            })}
+                            <div className="relative w-36">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">$</span>
+                              <input
+                                type="number"
+                                min="1"
+                                max="500"
+                                step="0.01"
+                                value={tipInputs[booking.id] ?? ''}
+                                onChange={(event) => setTipInputs((prev) => ({ ...prev, [booking.id]: event.target.value }))}
+                                placeholder="Custom"
+                                className="input pl-7"
+                                aria-label={`Custom tip for ${tutor.firstName}`}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleTipTutor(booking)}
+                              disabled={tippingId === booking.id}
+                              className="rounded-xl bg-[#012c54] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#023a70] disabled:opacity-60"
+                            >
+                              {tippingId === booking.id ? 'Opening checkout…' : 'Send Tip'}
+                            </button>
+                          </div>
+                          {payErrors[`tip-${booking.id}`] && (
+                            <p className="mt-2 text-xs font-medium text-rose-600">{payErrors[`tip-${booking.id}`]}</p>
+                          )}
+                          <p className="mt-3 text-xs text-slate-500">Available for seven days after the completed session.</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-500">The seven-day tipping window for this session has ended.</p>
+                      )}
                     </div>
                   )}
 

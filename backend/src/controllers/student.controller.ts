@@ -790,6 +790,7 @@ export const getMyBookings = async (req: Request, res: Response) => {
         },
         classSession: true,
         payment: true,
+        tip: true,
         extraTimeCharges: {
           orderBy: {
             requestedAt: 'desc',

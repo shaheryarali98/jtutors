@@ -326,3 +326,50 @@ export const createExtraTimeCheckoutSession = async (options: {
   });
 };
 
+// Tips are separate from session charges and carry no JTutors commission.
+export const createTipCheckoutSession = async (options: {
+  amountCents: number;
+  tutorName: string;
+  tutorStripeAccountId: string;
+  tipId: string;
+  bookingId: string;
+  studentId: string;
+  tutorId: string;
+  successUrl: string;
+  cancelUrl: string;
+}): Promise<Stripe.Checkout.Session> => {
+  if (!stripe) throw new Error('Stripe is not configured');
+
+  return stripe.checkout.sessions.create({
+    mode: 'payment',
+    line_items: [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Tip for ${options.tutorName}`,
+            description: 'Optional post-session tutor tip',
+          },
+          unit_amount: options.amountCents,
+        },
+        quantity: 1,
+      },
+    ],
+    payment_intent_data: {
+      transfer_data: {
+        destination: options.tutorStripeAccountId,
+      },
+    },
+    success_url: options.successUrl,
+    cancel_url: options.cancelUrl,
+    metadata: {
+      type: 'tip',
+      tipId: options.tipId,
+      bookingId: options.bookingId,
+      studentId: options.studentId,
+      tutorId: options.tutorId,
+      amountCents: String(options.amountCents),
+    },
+  });
+};
+

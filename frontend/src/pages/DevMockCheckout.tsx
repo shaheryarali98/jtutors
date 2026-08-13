@@ -10,7 +10,7 @@ import Footer from '../components/Footer'
  * payment flow without a Stripe account or CLI.
  *
  * URL params:
- *   type        'enrollment' | 'payment' | 'extra-time'
+ *   type        'enrollment' | 'payment' | 'extra-time' | 'tip'
  *   id          enrollmentId or paymentId
  *   title       human-readable product name
  *   amount      number (USD)
@@ -20,7 +20,7 @@ const DevMockCheckout = () => {
   const [params] = useSearchParams()
   const navigate = useNavigate()
 
-  const type = params.get('type') as 'enrollment' | 'payment' | 'extra-time' | null
+  const type = params.get('type') as 'enrollment' | 'payment' | 'extra-time' | 'tip' | null
   const id = params.get('id') || ''
   const title = params.get('title') || 'Tutoring Session'
   const amount = parseFloat(params.get('amount') || '0')
@@ -39,6 +39,9 @@ const DevMockCheckout = () => {
       } else if (type === 'extra-time') {
         await api.post('/dev/confirm-extra-time', { extraTimeChargeId: id })
         navigate('/student/bookings?extra_paid=1', { replace: true })
+      } else if (type === 'tip') {
+        await api.post('/dev/confirm-tip', { tipId: id })
+        navigate(returnUrl, { replace: true })
       } else {
         await api.post('/dev/confirm-payment', { paymentId: id })
         navigate(returnUrl, { replace: true })

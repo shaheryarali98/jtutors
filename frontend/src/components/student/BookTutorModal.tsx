@@ -41,6 +41,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
   const [discountPercent, setDiscountPercent] = useState(0)
   const [couponFeedback, setCouponFeedback] = useState('')
   const [couponFeedbackType, setCouponFeedbackType] = useState<'success' | 'error' | ''>('')
+  const [validatingCoupon, setValidatingCoupon] = useState(false)
 
   useEffect(() => {
     if (isOpen && tutor?.id) {
@@ -145,26 +146,28 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
     })}`
   }
 
-  const handleApplyCoupon = () => {
-    const normalizedCode = couponCode.trim().toLowerCase()
-
-    if (!normalizedCode) {
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
       setDiscountPercent(0)
       setCouponFeedback('Please enter a coupon code.')
       setCouponFeedbackType('error')
       return
     }
 
-    if (normalizedCode === 'backtoschool') {
-      setDiscountPercent(50)
-      setCouponFeedback('50% off applied!')
+    setValidatingCoupon(true)
+    try {
+      const response = await api.post('/payments/coupons/validate', { couponCode: couponCode.trim() })
+      setCouponCode(response.data.couponCode)
+      setDiscountPercent(response.data.discountPercent)
+      setCouponFeedback(response.data.message)
       setCouponFeedbackType('success')
-      return
+    } catch (err: any) {
+      setDiscountPercent(0)
+      setCouponFeedback(err.response?.data?.error || 'Unable to validate coupon right now.')
+      setCouponFeedbackType('error')
+    } finally {
+      setValidatingCoupon(false)
     }
-
-    setDiscountPercent(0)
-    setCouponFeedback('Invalid coupon code.')
-    setCouponFeedbackType('error')
   }
 
   return (
@@ -287,14 +290,20 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
                     className="input flex-1"
                     placeholder="Enter coupon code"
                     value={couponCode}
-                    onChange={(event) => setCouponCode(event.target.value)}
+                    onChange={(event) => {
+                      setCouponCode(event.target.value)
+                      setDiscountPercent(0)
+                      setCouponFeedback('')
+                      setCouponFeedbackType('')
+                    }}
                   />
                   <button
                     type="button"
                     onClick={handleApplyCoupon}
+                    disabled={validatingCoupon}
                     className="inline-flex items-center justify-center rounded-xl bg-[#012c54] px-5 py-3 font-semibold text-white transition-colors hover:bg-[#014a7a]"
                   >
-                    Apply
+                    {validatingCoupon ? 'Checking...' : 'Apply'}
                   </button>
                 </div>
                 {couponFeedback && (
