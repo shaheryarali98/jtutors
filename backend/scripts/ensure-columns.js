@@ -31,6 +31,7 @@ async function ensureColumns() {
     await prisma.$executeRawUnsafe(`ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "studentFeePercentage" DOUBLE PRECISION NOT NULL DEFAULT 4.5`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`);
     await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponDiscountPercent" DOUBLE PRECISION NOT NULL DEFAULT 0`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponDiscountAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`);
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "Tip" (
         "id" TEXT NOT NULL,

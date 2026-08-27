@@ -13,9 +13,16 @@ const FIRST_SESSION_COUPONS = new Map([
   ['jtutorsyeshivatnoam', 'JtutorsYeshivatNoam'],
 ]);
 
-const getFirstSessionCoupon = (couponCode?: string) => {
-  const canonicalCode = FIRST_SESSION_COUPONS.get(couponCode?.trim().toLowerCase() || '');
-  return canonicalCode ? { canonicalCode, discountPercent: 50 } : null;
+const getBookingCoupon = (couponCode?: string) => {
+  const normalizedCode = couponCode?.trim().toLowerCase() || '';
+  const canonicalCode = FIRST_SESSION_COUPONS.get(normalizedCode);
+  if (canonicalCode) {
+    return { canonicalCode, discountPercent: 50, discountAmount: 0, firstSessionOnly: true };
+  }
+  if (normalizedCode === 'rachel') {
+    return { canonicalCode: 'rachel', discountPercent: 0, discountAmount: 10, firstSessionOnly: false };
+  }
+  return null;
 };
 
 const hasPaidTutoringSession = async (studentId: string) => {
@@ -31,12 +38,12 @@ export const validateBookingCouponController = async (req: Request, res: Respons
     const currentUser = req.user;
     if (!currentUser) return res.status(401).json({ error: 'Authentication required' });
 
-    const coupon = getFirstSessionCoupon(String(req.body?.couponCode || ''));
+    const coupon = getBookingCoupon(String(req.body?.couponCode || ''));
     if (!coupon) return res.status(400).json({ error: 'Invalid coupon code.' });
 
     const student = await prisma.student.findUnique({ where: { userId: currentUser.userId } });
     if (!student) return res.status(404).json({ error: 'Student profile not found' });
-    if (await hasPaidTutoringSession(student.id)) {
+    if (coupon.firstSessionOnly && await hasPaidTutoringSession(student.id)) {
       return res.status(400).json({ error: 'This offer is only available for your first tutoring session.' });
     }
 
@@ -44,7 +51,10 @@ export const validateBookingCouponController = async (req: Request, res: Respons
       valid: true,
       couponCode: coupon.canonicalCode,
       discountPercent: coupon.discountPercent,
-      message: '50% off your first tutoring session applied!',
+      discountAmount: coupon.discountAmount,
+      message: coupon.discountAmount > 0
+        ? '$10 off applied!'
+        : '50% off your first tutoring session applied!',
     });
   } catch (error: any) {
     console.error('Validate booking coupon error:', error);
@@ -197,7 +207,9 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
     if (booking.studentId !== student.id) return res.status(403).json({ error: 'Unauthorized' });
     if (booking.payment?.paymentStatus === 'PAID') return res.status(400).json({ error: 'Already paid' });
 
-    const devBypass = process.env.DEV_BYPASS_STRIPE === 'true';
+    const devBypass =
+      process.env.NODE_ENV !== 'production' &&
+      (process.env.DEV_BYPASS_STRIPE === 'true' || !stripe);
     if (!devBypass && (!booking.tutor.stripeAccountId || !booking.tutor.stripeOnboarded)) {
       return res.status(400).json({ error: 'Tutor has not completed Stripe onboarding' });
     }
@@ -210,18 +222,19 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
       1,
       Math.round(durationHours * (booking.tutor.hourlyFee || 0) * 100) / 100
     );
-    const coupon = getFirstSessionCoupon(couponCode);
+    const coupon = getBookingCoupon(couponCode);
     if (couponCode?.trim() && !coupon) {
       return res.status(400).json({ error: 'Invalid coupon code.' });
     }
-    if (coupon && await hasPaidTutoringSession(student.id)) {
+    if (coupon?.firstSessionOnly && await hasPaidTutoringSession(student.id)) {
       return res.status(400).json({ error: 'This offer is only available for your first tutoring session.' });
     }
     const couponDiscountPercent = coupon?.discountPercent ?? 0;
+    const couponDiscountAmount = coupon?.discountAmount ?? 0;
     const basePriceDollars = Math.max(
       0.5,
       Math.round(
-        undiscountedBasePriceDollars * (1 - couponDiscountPercent / 100) * 100
+        (undiscountedBasePriceDollars * (1 - couponDiscountPercent / 100) - couponDiscountAmount) * 100
       ) / 100
     );
     if (basePriceDollars <= 0) return res.status(400).json({ error: 'Invalid booking amount' });
@@ -243,6 +256,7 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
       studentChargeAmount:   bd.studentPaysCents / 100,
       couponCode:            coupon?.canonicalCode ?? null,
       couponDiscountPercent,
+      couponDiscountAmount,
     };
 
     if (!payment) {
@@ -277,6 +291,7 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
           totalDueDollars:        bd.studentPaysCents / 100,
           tutorPayoutDollars:     bd.tutorPayoutCents / 100,
           couponDiscountPercent,
+          couponDiscountAmount,
           undiscountedBasePriceDollars,
         },
       });
@@ -312,6 +327,7 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
         totalDueDollars:        bd.studentPaysCents / 100,
         tutorPayoutDollars:     bd.tutorPayoutCents / 100,
         couponDiscountPercent,
+        couponDiscountAmount,
         undiscountedBasePriceDollars,
       },
     });

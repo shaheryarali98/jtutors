@@ -14,6 +14,7 @@ const FIRST_SESSION_COUPON_CODES = new Set([
   'jtutorslakewood',
   'jtutorsyeshivatnoam',
 ])
+const FIXED_DISCOUNT_COUPON_CODES = new Set(['rachel'])
 
 interface Booking {
   id: string
@@ -51,6 +52,7 @@ interface Booking {
     paidAt?: string | null
     couponCode?: string | null
     couponDiscountPercent?: number
+    couponDiscountAmount?: number
   } | null
   extraTimeCharge?: {
     id: string
@@ -75,6 +77,7 @@ type LocalBookingCoupon = {
   endTime?: string | null
   couponCode?: string | null
   discountPercent?: number
+  discountAmount?: number
 }
 
 const formatter = new Intl.DateTimeFormat(undefined, {
@@ -523,16 +526,25 @@ const StudentBookings = () => {
               const couponDiscountPercent =
                 booking.payment?.couponDiscountPercent ||
                 (FIRST_SESSION_COUPON_CODES.has(localCouponCode) ? 50 : 0)
-              const hasFirstSessionCoupon =
-                couponDiscountPercent > 0 &&
-                (FIRST_SESSION_COUPON_CODES.has(persistedCouponCode) || FIRST_SESSION_COUPON_CODES.has(localCouponCode))
+              const couponDiscountAmount =
+                booking.payment?.couponDiscountAmount ||
+                bookingCoupon?.discountAmount ||
+                (FIXED_DISCOUNT_COUPON_CODES.has(localCouponCode) ? 10 : 0)
+              const hasCoupon =
+                (couponDiscountPercent > 0 || couponDiscountAmount > 0) &&
+                (
+                  FIRST_SESSION_COUPON_CODES.has(persistedCouponCode) ||
+                  FIRST_SESSION_COUPON_CODES.has(localCouponCode) ||
+                  FIXED_DISCOUNT_COUPON_CODES.has(persistedCouponCode) ||
+                  FIXED_DISCOUNT_COUPON_CODES.has(localCouponCode)
+                )
               const undiscountedSessionAmount =
                 Math.max(1, Math.round((booking.durationHours || 1) * tutor.hourlyFee * 100) / 100)
-              const baseAmountDue = hasFirstSessionCoupon
+              const baseAmountDue = hasCoupon
                 ? undiscountedSessionAmount
                 : booking.payment?.amount ?? undiscountedSessionAmount
-              const discountedAmountDue = couponDiscountPercent > 0
-                ? Math.max(0, baseAmountDue * (1 - couponDiscountPercent / 100))
+              const discountedAmountDue = hasCoupon
+                ? Math.max(0, baseAmountDue * (1 - couponDiscountPercent / 100) - couponDiscountAmount)
                 : baseAmountDue
               const studentFeeAmount = discountedAmountDue * studentFeePct / 100
               const totalDue = discountedAmountDue + studentFeeAmount
@@ -603,9 +615,9 @@ const StudentBookings = () => {
                           {(booking.payment?.currency || 'USD').toUpperCase()} {discountedAmountDue.toFixed(2)}
                         </span>
                       </p>
-                      {couponDiscountPercent > 0 && (
+                      {hasCoupon && (
                         <p className="text-xs text-emerald-600 mt-1">
-                          First-session coupon applied ({couponDiscountPercent}% off)
+                          Coupon applied {couponDiscountPercent > 0 ? `(${couponDiscountPercent}% off)` : '($10 off)'}
                         </p>
                       )}
                       {booking.payment?.paidAt && (
@@ -780,9 +792,9 @@ const StudentBookings = () => {
                             <span>Session price</span>
                             <span className="font-medium">${baseAmountDue.toFixed(2)}</span>
                           </div>
-                          {couponDiscountPercent > 0 && (
+                          {hasCoupon && (
                             <div className="flex justify-between gap-6 text-emerald-600">
-                              <span>Coupon discount ({couponDiscountPercent}% off)</span>
+                              <span>Coupon discount {couponDiscountPercent > 0 ? `(${couponDiscountPercent}% off)` : ''}</span>
                               <span>-${(baseAmountDue - discountedAmountDue).toFixed(2)}</span>
                             </div>
                           )}

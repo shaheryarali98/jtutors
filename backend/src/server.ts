@@ -50,6 +50,7 @@ async function ensureProductionColumns() {
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "stripeCheckoutSessionId" TEXT`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponDiscountPercent" DOUBLE PRECISION NOT NULL DEFAULT 0`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponDiscountAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "basePriceAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "studentFeeAmount" DOUBLE PRECISION`);
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "Enrollment" ADD COLUMN IF NOT EXISTS "adminCommissionAmount" DOUBLE PRECISION`);

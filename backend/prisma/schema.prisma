@@ -387,6 +387,7 @@ model Payment {
   // First-session promotion audit fields
   couponCode            String?
   couponDiscountPercent Float   @default(0)
+  couponDiscountAmount  Float   @default(0)
 
   // Stripe
   stripePaymentIntentId   String?

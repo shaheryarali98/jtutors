@@ -39,6 +39,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [couponCode, setCouponCode] = useState('')
   const [discountPercent, setDiscountPercent] = useState(0)
+  const [couponDiscountAmount, setCouponDiscountAmount] = useState(0)
   const [couponFeedback, setCouponFeedback] = useState('')
   const [couponFeedbackType, setCouponFeedbackType] = useState<'success' | 'error' | ''>('')
   const [validatingCoupon, setValidatingCoupon] = useState(false)
@@ -52,6 +53,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
       setLoadingSlots(true)
       setCouponCode('')
       setDiscountPercent(0)
+      setCouponDiscountAmount(0)
       setCouponFeedback('')
       setCouponFeedbackType('')
 
@@ -105,6 +107,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
             endTime: bookingEnd.toISOString(),
             couponCode: couponCode.trim(),
             discountPercent,
+            discountAmount: couponDiscountAmount,
           })
         )
       } else {
@@ -127,7 +130,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
     ? Math.max(0, (new Date(selectedSlot.end).getTime() - new Date(selectedSlot.start).getTime()) / 3_600_000)
     : 0
   const baseSessionPrice = tutor.hourlyFee * sessionHours
-  const discountAmount = baseSessionPrice * (discountPercent / 100)
+  const discountAmount = baseSessionPrice * (discountPercent / 100) + couponDiscountAmount
   const finalSessionPrice = Math.max(0, baseSessionPrice - discountAmount)
 
   const getSlotLabel = (slot: AvailabilitySlot) => {
@@ -149,6 +152,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
       setDiscountPercent(0)
+      setCouponDiscountAmount(0)
       setCouponFeedback('Please enter a coupon code.')
       setCouponFeedbackType('error')
       return
@@ -159,10 +163,12 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
       const response = await api.post('/payments/coupons/validate', { couponCode: couponCode.trim() })
       setCouponCode(response.data.couponCode)
       setDiscountPercent(response.data.discountPercent)
+      setCouponDiscountAmount(response.data.discountAmount || 0)
       setCouponFeedback(response.data.message)
       setCouponFeedbackType('success')
     } catch (err: any) {
       setDiscountPercent(0)
+      setCouponDiscountAmount(0)
       setCouponFeedback(err.response?.data?.error || 'Unable to validate coupon right now.')
       setCouponFeedbackType('error')
     } finally {
@@ -273,9 +279,12 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
                     <span>Base price</span>
                     <span>${baseSessionPrice.toFixed(2)}</span>
                   </div>
-                  {discountPercent > 0 && (
+                  {discountAmount > 0 && (
                     <div className="flex items-center justify-between gap-4 text-emerald-700">
-                      <span>Coupon discount ({discountPercent}% off)</span>
+                      <span>
+                        Coupon discount
+                        {discountPercent > 0 && ` (${discountPercent}% off)`}
+                      </span>
                       <span>- ${discountAmount.toFixed(2)}</span>
                     </div>
                   )}
@@ -293,6 +302,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
                     onChange={(event) => {
                       setCouponCode(event.target.value)
                       setDiscountPercent(0)
+                      setCouponDiscountAmount(0)
                       setCouponFeedback('')
                       setCouponFeedbackType('')
                     }}
