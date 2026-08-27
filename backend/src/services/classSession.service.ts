@@ -1,5 +1,11 @@
 import { PrismaClient } from '@prisma/client';
-import { createOrGetPencilUser, createPencilSpace, isPencilSpacesEnabled } from './pencilSpaces.service';
+import {
+  createPencilSpace,
+  ensurePencilSpaceMembers,
+  ensurePencilUserForStudent,
+  ensurePencilUserForTutor,
+  isPencilSpacesEnabled,
+} from './pencilSpaces.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
 
 const prisma = new PrismaClient();
@@ -8,6 +14,81 @@ export interface CreateClassSessionData {
   bookingId: string;
   className?: string;
 }
+
+/**
+ * Resolve the one Pencil Space shared by a tutor/student pair.
+ *
+ * Spaces are deliberately keyed to the PAIR, not to a booking: every session
+ * the same tutor and student have together reopens the same room, so the
+ * whiteboard, files and notes carry over from one day to the next.
+ *
+ * A new Space is only created the first time a pair meets. The tutor is set as
+ * owner and host so they hold host controls by default; the student joins as a
+ * participant.
+ */
+export const ensurePencilSpaceForPair = async (
+  tutorId: string,
+  studentId: string,
+  className?: string
+): Promise<{ id: string; url: string }> => {
+  // Reuse the pair's existing Space if any earlier session already has one.
+  const existing = await prisma.classSession.findFirst({
+    where: {
+      pencilSpaceId: { not: null },
+      pencilSpaceUrl: { not: null },
+      booking: { tutorId, studentId },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { pencilSpaceId: true, pencilSpaceUrl: true },
+  });
+
+  if (existing?.pencilSpaceId && existing?.pencilSpaceUrl) {
+    // Spaces created before host support are owned by the API-key account with
+    // no tutor host, so make sure the pair is attached correctly before reuse.
+    try {
+      const [tutorPencilId, studentPencilId] = await Promise.all([
+        ensurePencilUserForTutor(tutorId),
+        ensurePencilUserForStudent(studentId),
+      ]);
+      await ensurePencilSpaceMembers(existing.pencilSpaceId, tutorPencilId, studentPencilId);
+    } catch (error) {
+      // Never block the session on a membership repair.
+      console.error('Could not sync Pencil Space members:', error);
+    }
+
+    return { id: existing.pencilSpaceId, url: existing.pencilSpaceUrl };
+  }
+
+  const [tutor, student] = await Promise.all([
+    prisma.tutor.findUnique({
+      where: { id: tutorId },
+      select: { firstName: true, lastName: true },
+    }),
+    prisma.student.findUnique({
+      where: { id: studentId },
+      select: { firstName: true, lastName: true },
+    }),
+  ]);
+
+  const tutorName = `${tutor?.firstName || ''} ${tutor?.lastName || ''}`.trim() || 'Tutor';
+  const studentName = `${student?.firstName || ''} ${student?.lastName || ''}`.trim() || 'Student';
+
+  // Pencil user ids are persisted on our side, so both keep a stable identity.
+  const [tutorPencilId, studentPencilId] = await Promise.all([
+    ensurePencilUserForTutor(tutorId),
+    ensurePencilUserForStudent(studentId),
+  ]);
+
+  const space = await createPencilSpace({
+    title: className || `${tutorName} & ${studentName}`,
+    ownerUserId: tutorPencilId,
+    hostUserIds: [tutorPencilId],
+    participantUserIds: [studentPencilId],
+    externalId: `jtutors-pair-${tutorId}-${studentId}`,
+  });
+
+  return { id: space.id, url: space.url };
+};
 
 // Create class session with Pencil Spaces only.
 export const createClassSession = async (data: CreateClassSessionData) => {
@@ -30,29 +111,15 @@ export const createClassSession = async (data: CreateClassSessionData) => {
 
   if (isPencilSpacesEnabled()) {
     try {
-      const spaceName = className || `Session: ${booking.tutor.user.email} & ${booking.student.user.email}`;
-      const space = await createPencilSpace(spaceName);
+      const space = await ensurePencilSpaceForPair(
+        booking.tutorId,
+        booking.studentId,
+        className
+      );
       pencilSpaceId = space.id;
       pencilSpaceUrl = space.url;
-
-      // Pre-register both users in Pencil Spaces (fire-and-forget errors — join URL
-      // generation will handle it at session time)
-      await Promise.allSettled([
-        createOrGetPencilUser(
-          booking.tutor.user.email,
-          booking.tutor.firstName || '',
-          booking.tutor.lastName || '',
-          'teacher'
-        ),
-        createOrGetPencilUser(
-          booking.student.user.email,
-          booking.student.firstName || '',
-          booking.student.lastName || '',
-          'student'
-        ),
-      ]);
     } catch (error) {
-      console.error('Error creating Pencil Space:', error);
+      console.error('Error resolving Pencil Space:', error);
       // Session still gets created; join will be unavailable until Pencil Spaces is configured.
     }
   }

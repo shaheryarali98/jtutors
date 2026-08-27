@@ -57,6 +57,9 @@ model Student {
 
   stripeCustomerId String?
 
+  // Pencil Spaces API user id (persisted: the API does not de-dupe on externalId)
+  pencilUserId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -102,6 +105,9 @@ model Tutor {
 
   // JTutors provisioned email (Google Workspace)
   jtutorsEmail String?
+
+  // Pencil Spaces API user id (persisted: the API does not de-dupe on externalId)
+  pencilUserId String?
 
   // Stripe
   stripeAccountId String?

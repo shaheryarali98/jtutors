@@ -8,7 +8,11 @@ import {
   getAllClassSessions,
   studentConfirmSession,
 } from '../services/classSession.service';
-import { createOrGetPencilUser, getPencilJoinUrl } from '../services/pencilSpaces.service';
+import {
+  ensurePencilUserForStudent,
+  ensurePencilUserForTutor,
+  getPencilJoinUrl,
+} from '../services/pencilSpaces.service';
 import { PrismaClient } from '@prisma/client';
 import { calculatePaymentBreakdown } from '../services/stripe.service';
 
@@ -328,29 +332,14 @@ export const getJoinUrlController = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'You are not a participant of this session' });
     }
 
-    // Resolve the requesting user's email/name for Pencil Spaces
-    let email: string;
-    let firstName: string;
-    let lastName: string;
+    // Resolve the requesting user's persisted Pencil identity. Tutors keep their
+    // Teacher account (and therefore host controls); students keep theirs.
+    // Admins observe through the tutor's account.
+    const pencilUserId = isStudent
+      ? await ensurePencilUserForStudent(classSession.booking.studentId)
+      : await ensurePencilUserForTutor(classSession.booking.tutorId);
 
-    if (isStudent) {
-      email = classSession.booking.student.user.email;
-      firstName = classSession.booking.student.firstName || '';
-      lastName = classSession.booking.student.lastName || '';
-    } else if (isTutor) {
-      email = classSession.booking.tutor.user.email;
-      firstName = classSession.booking.tutor.firstName || '';
-      lastName = classSession.booking.tutor.lastName || '';
-    } else {
-      // Admin — use tutor side as default observer
-      email = classSession.booking.tutor.user.email;
-      firstName = classSession.booking.tutor.firstName || '';
-      lastName = classSession.booking.tutor.lastName || '';
-    }
-
-    const userRoleForPencil = isStudent ? 'student' : 'teacher';
-    const pencilUser = await createOrGetPencilUser(email, firstName, lastName, userRoleForPencil as 'student' | 'teacher');
-    const joinUrl = await getPencilJoinUrl(pencilUser.id, classSession.pencilSpaceUrl);
+    const joinUrl = await getPencilJoinUrl(pencilUserId, classSession.pencilSpaceUrl);
 
     res.json({ joinUrl });
   } catch (error: any) {
@@ -388,15 +377,11 @@ export const createSpaceForSessionController = async (req: Request, res: Respons
       return res.json({ pencilSpaceUrl: classSession.pencilSpaceUrl, message: 'Space already exists' });
     }
 
-    const { createPencilSpace, createOrGetPencilUser: regUser } = await import('../services/pencilSpaces.service');
+    const { ensurePencilSpaceForPair } = await import('../services/classSession.service');
     const booking = classSession.booking;
-    const spaceName = `Session: ${booking.tutor.user.email} & ${booking.student.user.email}`;
-    const space = await createPencilSpace(spaceName);
 
-    await Promise.allSettled([
-      regUser(booking.tutor.user.email, booking.tutor.firstName || '', booking.tutor.lastName || '', 'teacher'),
-      regUser(booking.student.user.email, booking.student.firstName || '', booking.student.lastName || '', 'student'),
-    ]);
+    // Reuses the pair's existing Space when they have already met before.
+    const space = await ensurePencilSpaceForPair(booking.tutorId, booking.studentId);
 
     const updated = await prisma.classSession.update({
       where: { id },
