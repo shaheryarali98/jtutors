@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { sendEmail } from './email.service';
+import { EmailDeliveryResult, sendEmail } from './email.service';
 
 const prisma = new PrismaClient();
 
@@ -23,7 +23,7 @@ export const sendTemplatedEmail = async (
   templateName: string,
   to: string,
   variables: TemplateVariables
-): Promise<void> => {
+): Promise<EmailDeliveryResult> => {
   const template = await prisma.emailTemplate.findUnique({
     where: { name: templateName },
   });
@@ -37,12 +37,11 @@ export const sendTemplatedEmail = async (
       ? `<p>Hi ${userName},</p><p>You requested to reset your password. Click the link below to reset it:</p><p><a href="${resetLink}">Reset Password</a></p><p>This link will expire in 1 hour. If you didn't request this, please ignore this email.</p><p>Best regards,<br/>The JTutors Team</p>`
       : `<p>Hello,</p><p>This is a notification from JTutors.</p>`;
     const fallbackSubject = resetLink ? 'Reset Your Password - JTutors' : 'Notification from JTutors';
-    await sendEmail({
+    return sendEmail({
       to,
       subject: fallbackSubject,
       html: fallbackHtml,
     });
-    return;
   }
 
   const subject = replaceVariables(template.subject, variables);
@@ -51,7 +50,7 @@ export const sendTemplatedEmail = async (
     ? replaceVariables(template.textBody, variables)
     : undefined;
 
-  await sendEmail({
+  return sendEmail({
     to,
     subject,
     html: htmlBody,

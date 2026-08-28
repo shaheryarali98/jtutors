@@ -21,6 +21,7 @@ import courseRoutes from './routes/course.routes';
 import enrollmentRoutes from './routes/enrollment.routes';
 import { handleStripeWebhook } from './controllers/stripe.webhook.controller';
 import { initializeDefaultTemplates } from './services/emailTemplate.service';
+import { verifyEmailTransport } from './services/email.service';
 import { startCronJobs } from './services/cron.service';
 import { PrismaClient } from '@prisma/client';
 import { getPublicTutorDetails, getPublicTutors } from './controllers/admin.controller';
@@ -254,6 +255,7 @@ ensureProductionColumns().then(() => {
     } catch (err) {
       console.warn('Failed to initialize email templates:', err);
     }
+    await verifyEmailTransport();
     startCronJobs();
   });
 });

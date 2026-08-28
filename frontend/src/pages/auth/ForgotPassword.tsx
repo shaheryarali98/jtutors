@@ -16,6 +16,7 @@ const ForgotPassword = () => {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [retryMsg, setRetryMsg] = useState('')
+  const [developmentResetLink, setDevelopmentResetLink] = useState('')
 
   const onSubmit = async (data: ForgotPasswordForm) => {
     try {
@@ -23,12 +24,14 @@ const ForgotPassword = () => {
       setError('')
       setSuccess('')
       setRetryMsg('')
+      setDevelopmentResetLink('')
       const response = await withApiRetry(
         () => api.post('/auth/forgot-password', { email: data.email }),
         (attempt, total) => setRetryMsg(`Server is starting up\u2026 (attempt ${attempt + 1} of ${total})`)
       )
       setRetryMsg('')
       setSuccess(response.data.message || 'Password reset link has been sent to your email')
+      setDevelopmentResetLink(response.data.resetLink || '')
     } catch (err: any) {
       setRetryMsg('')
       console.error('Forgot password error:', err)
@@ -60,7 +63,16 @@ const ForgotPassword = () => {
           {success && (
             <div className="bg-green-50 border border-green-100 text-green-700 px-4 py-3 rounded-lg mt-6">
               <p className="font-medium">{success}</p>
-              <p className="text-sm mt-1">Check your email for the reset link. The link will expire in 1 hour.</p>
+              {developmentResetLink ? (
+                <a
+                  href={developmentResetLink}
+                  className="mt-2 inline-block break-all text-sm font-semibold underline"
+                >
+                  Open local password reset page
+                </a>
+              ) : (
+                <p className="text-sm mt-1">Check your email for the reset link. The link will expire in 1 hour.</p>
+              )}
             </div>
           )}
 

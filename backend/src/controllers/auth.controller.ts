@@ -303,21 +303,33 @@ export const forgotPassword = async (req: Request, res: Response) => {
     });
 
     // Build reset link
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3001').replace(/\/$/, '');
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
     // Send email with reset link
+    let emailDelivered = false;
     try {
-      await sendTemplatedEmail('FORGOT_PASSWORD', email, {
+      const delivery = await sendTemplatedEmail('FORGOT_PASSWORD', email, {
         userName: user.email,
         email: user.email,
         resetLink: resetLink
       });
+      emailDelivered = delivery.delivered;
     } catch (emailErr) {
       console.error('Failed to send password reset email:', emailErr);
     }
 
+    // Local development can continue testing without real mailbox credentials.
+    // Never expose reset tokens unless development mode is explicitly enabled.
+    if (process.env.NODE_ENV === 'development' && !emailDelivered) {
+      return res.status(200).json({
+        message: 'Email delivery is not configured locally. Use the development reset link below.',
+        resetLink
+      });
+    }
+
     // Always return success for security
-    res.status(200).json({ 
+    return res.status(200).json({
       message: 'If an account exists with this email, a password reset link has been sent.' 
     });
   } catch (error) {
