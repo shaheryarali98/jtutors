@@ -5,6 +5,7 @@ import { getAdminSettings, getFormattedAdminSettings, updateAdminSettings } from
 import { ensureGoogleClassroomForBooking } from '../services/classSession.service';
 import { confirmPayment, markPaymentRefunded } from '../services/payment.service';
 import { getGoogleClassroomStatus } from '../services/googleClassroom.service';
+import { getEmailStatus } from '../services/email.service';
 import { calculateProfileCompletion } from './tutor.controller';
 import { stripe } from '../services/stripe.service';
 import { gradeMatches } from '../utils/grade';
@@ -722,6 +723,16 @@ export const getGoogleClassroomStatusAdmin = async (_req: Request, res: Response
   } catch (error) {
     console.error('Get Google Classroom status error:', error);
     res.status(500).json({ error: 'Error fetching Google Classroom status' });
+  }
+};
+
+export const getEmailStatusAdmin = async (_req: Request, res: Response) => {
+  try {
+    const status = await getEmailStatus();
+    res.json({ status });
+  } catch (error) {
+    console.error('Get email status error:', error);
+    res.status(500).json({ error: 'Error fetching email status' });
   }
 };
 

@@ -7,6 +7,7 @@ import {
   Menu,
   X,
   LogOut,
+  LogIn,
   Sparkles,
   BookOpen,
   KeyRound,
@@ -263,9 +264,18 @@ const Navbar = () => {
                 </NavLink>
               ))}
 
-              {/* Guest: Primary CTAs (Become Tutor only - Student registration temporarily disabled) */}
+              {/* Guest: Login + primary CTA (Student registration temporarily disabled) */}
               {!user && (
                 <>
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-2 w-full py-3 font-bold text-sm rounded-xl border-2 transition-all hover:bg-slate-50"
+                    style={{ borderColor: '#012c54', color: '#012c54' }}
+                  >
+                    <LogIn className="w-5 h-5" />
+                    Login
+                  </Link>
                   <Link
                     to="/register?role=tutor"
                     onClick={() => setMobileMenuOpen(false)}

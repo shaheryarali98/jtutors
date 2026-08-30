@@ -44,6 +44,49 @@ const createTransporter = () => {
   };
 };
 
+/**
+ * Non-secret view of the SMTP configuration, for the admin integrations panel.
+ * Reports which required keys are missing and whether the server can actually
+ * connect — never returns credential values.
+ */
+export const getEmailStatus = async (): Promise<{
+  configured: boolean;
+  missingKeys: string[];
+  host: string | null;
+  port: string | null;
+  user: string | null;
+  from: string | null;
+  connection: 'ok' | 'failed' | 'not_configured';
+  error?: string;
+}> => {
+  const { transporter, missingKeys } = createTransporter();
+
+  const base = {
+    configured: missingKeys.length === 0,
+    missingKeys,
+    host: process.env.SMTP_HOST || null,
+    port: process.env.SMTP_PORT || null,
+    // Mailbox address is not a secret and is needed to spot typos.
+    user: process.env.SMTP_USER || null,
+    from: process.env.MAIL_FROM || null,
+  };
+
+  if (!transporter) {
+    return { ...base, connection: 'not_configured' as const };
+  }
+
+  try {
+    await transporter.verify();
+    return { ...base, connection: 'ok' as const };
+  } catch (error) {
+    return {
+      ...base,
+      connection: 'failed' as const,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
 export const verifyEmailTransport = async (): Promise<boolean> => {
   const { transporter, missingKeys } = createTransporter();
   if (!transporter) {
