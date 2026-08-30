@@ -88,6 +88,49 @@ const StudentWallet = () => {
     loadWithdrawals()
   }, [])
 
+  // A card that needs 3-D Secure sends the shopper off to their bank and back
+  // here with ?setup_intent_client_secret=... Resolve that on return so the
+  // card actually shows up instead of silently appearing to have done nothing.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const clientSecret = params.get('setup_intent_client_secret')
+    if (!clientSecret || !stripePromise) return
+
+    let cancelled = false
+
+    const resolveReturn = async () => {
+      try {
+        const stripe = await stripePromise
+        if (!stripe || cancelled) return
+
+        const { setupIntent, error } = await stripe.retrieveSetupIntent(clientSecret)
+        if (cancelled) return
+
+        if (error) {
+          setCardFeedback(error.message || 'We could not confirm your card. Please try again.')
+        } else if (setupIntent?.status === 'succeeded') {
+          setCardFeedback('Card saved successfully!')
+          loadWithdrawals()
+        } else if (setupIntent?.status === 'requires_payment_method') {
+          setCardFeedback('That card could not be authorised. Please try a different card.')
+        } else {
+          setCardFeedback('Card setup is still processing. Refresh in a moment.')
+        }
+      } catch (err) {
+        console.error('Error resolving card setup:', err)
+        if (!cancelled) setCardFeedback('We could not confirm your card. Please try again.')
+      } finally {
+        // Drop the Stripe params so a refresh does not replay this.
+        window.history.replaceState({}, '', '/student/wallet')
+      }
+    }
+
+    resolveReturn()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   useEffect(() => {
     if (settings && !selectedMethod) {
       setSelectedMethod(settings.withdrawMethods[0] || '')
@@ -532,19 +575,43 @@ const AddCardForm = ({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!stripe || !elements) return
+    if (!stripe || !elements || saving) return
+
     setSaving(true)
     setErr('')
-    const { error } = await stripe.confirmSetup({
-      elements,
-      confirmParams: { return_url: window.location.href },
-      redirect: 'if_required',
-    })
-    if (error) {
-      setErr(error.message || 'Failed to save card.')
-      setSaving(false)
-    } else {
+
+    try {
+      // Validate the card fields first so an incomplete form reports what is
+      // missing instead of being sent to Stripe for confirmation.
+      const { error: submitError } = await elements.submit()
+      if (submitError) {
+        setErr(submitError.message || 'Please check your card details and try again.')
+        return
+      }
+
+      const { error } = await stripe.confirmSetup({
+        elements,
+        confirmParams: { return_url: `${window.location.origin}/student/wallet` },
+        redirect: 'if_required',
+      })
+
+      if (error) {
+        setErr(error.message || 'Failed to save card.')
+        return
+      }
+
       onSuccess()
+    } catch (submitException: any) {
+      // confirmSetup can reject outright (expired/!invalid client secret, network
+      // drop, blocked 3-D Secure frame). Without this the button used to stay on
+      // "Saving…" forever with Cancel disabled, trapping the user.
+      console.error('Save card error:', submitException)
+      setErr(
+        submitException?.message ||
+          'Something went wrong saving your card. Please close this and try again.'
+      )
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -553,7 +620,8 @@ const AddCardForm = ({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
       <PaymentElement />
       {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="flex gap-3 justify-end">
-        <button type="button" className="btn btn-secondary text-sm" onClick={onCancel} disabled={saving}>
+        {/* Never disabled — the user must always be able to back out. */}
+        <button type="button" className="btn btn-secondary text-sm" onClick={onCancel}>
           Cancel
         </button>
         <button type="submit" className="btn btn-primary text-sm" disabled={saving}>
