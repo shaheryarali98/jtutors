@@ -572,10 +572,17 @@ const AddCardForm = ({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
   const elements = useElements()
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const [ready, setReady] = useState(false)
+  const [loadError, setLoadError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!stripe || !elements || saving) return
+
+    if (!ready) {
+      setErr('The card form has not finished loading yet. Please wait a moment.')
+      return
+    }
 
     setSaving(true)
     setErr('')
@@ -617,14 +624,37 @@ const AddCardForm = ({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement />
+      {!ready && !loadError && (
+        <p className="text-sm text-slate-500">Loading secure card form…</p>
+      )}
+
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="font-semibold">The secure card form could not load.</p>
+          <p className="mt-1">{loadError}</p>
+        </div>
+      )}
+
+      {/* onLoadError fires when Stripe.js refuses to mount — most commonly a
+          publishable key whose mode does not match the SetupIntent. Without it
+          the user just sees an empty box and no explanation. */}
+      <PaymentElement
+        onReady={() => setReady(true)}
+        onLoadError={(event: any) => {
+          console.error('PaymentElement failed to load:', event)
+          setLoadError(
+            event?.error?.message ||
+              'Please refresh and try again. If it keeps happening, contact support.'
+          )
+        }}
+      />
       {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="flex gap-3 justify-end">
         {/* Never disabled — the user must always be able to back out. */}
         <button type="button" className="btn btn-secondary text-sm" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="btn btn-primary text-sm" disabled={saving}>
+        <button type="submit" className="btn btn-primary text-sm" disabled={saving || !ready}>
           {saving ? 'Saving…' : 'Save card'}
         </button>
       </div>

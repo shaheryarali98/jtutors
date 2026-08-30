@@ -726,6 +726,31 @@ export const getGoogleClassroomStatusAdmin = async (_req: Request, res: Response
   }
 };
 
+export const getStripeStatusAdmin = async (_req: Request, res: Response) => {
+  try {
+    const secret = process.env.STRIPE_SECRET_KEY || '';
+    const mode = secret.startsWith('sk_live_')
+      ? 'live'
+      : secret.startsWith('sk_test_')
+        ? 'test'
+        : 'not_configured';
+
+    // The frontend publishable key must be in this same mode, or Stripe.js
+    // refuses to mount the card form and the student sees an empty box.
+    res.json({
+      status: {
+        configured: mode !== 'not_configured',
+        mode,
+        expectedPublishableKeyPrefix:
+          mode === 'live' ? 'pk_live_' : mode === 'test' ? 'pk_test_' : null,
+      },
+    });
+  } catch (error) {
+    console.error('Get stripe status error:', error);
+    res.status(500).json({ error: 'Error fetching Stripe status' });
+  }
+};
+
 export const getEmailStatusAdmin = async (_req: Request, res: Response) => {
   try {
     const status = await getEmailStatus();

@@ -19,6 +19,7 @@ import {
   refundPaymentAdmin,
   getGoogleClassroomStatusAdmin,
   getEmailStatusAdmin,
+  getStripeStatusAdmin,
   getUserDetail,
   updateBackgroundCheckStatus,
   updateTutorVerificationStatus,
@@ -62,6 +63,7 @@ router.post('/payments/:id/refund', refundPaymentAdmin);
 
 router.get('/integrations/google-classroom/status', getGoogleClassroomStatusAdmin);
 router.get('/integrations/email/status', getEmailStatusAdmin);
+router.get('/integrations/stripe/status', getStripeStatusAdmin);
 router.get('/users/:id/detail', getUserDetail);
 router.patch('/users/:userId/background-check', updateBackgroundCheckStatus);
 router.patch('/tutors/:tutorId/verification', updateTutorVerificationStatus);
