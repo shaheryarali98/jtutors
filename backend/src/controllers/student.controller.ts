@@ -628,7 +628,13 @@ export const getTutorDetails = async (req: Request, res: Response) => {
 export const createBooking = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const { tutorId, startTime, endTime } = req.body;
+    const { tutorId, startTime, endTime, paymentMethodId, couponCode } = req.body as {
+      tutorId?: string;
+      startTime?: string;
+      endTime?: string;
+      paymentMethodId?: string;
+      couponCode?: string;
+    };
 
     if (!tutorId || !startTime || !endTime) {
       return res.status(400).json({ error: 'Tutor, start time, and end time are required' });
@@ -693,6 +699,33 @@ export const createBooking = async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'This time slot is already booked. Please choose another time.' });
     }
 
+    // Card capture: the student saves a card up front, but nothing is charged
+    // until the tutor accepts. Verify the card really belongs to this student
+    // before storing it against the booking.
+    let verifiedPaymentMethodId: string | null = null;
+    if (paymentMethodId) {
+      const { stripe } = await import('../services/stripe.service');
+      const stripeCustomerId = (student as any).stripeCustomerId as string | null;
+
+      if (!stripe) {
+        return res.status(500).json({ error: 'Stripe is not configured' });
+      }
+      if (!stripeCustomerId) {
+        return res.status(400).json({ error: 'No payment profile found. Please re-add your card.' });
+      }
+
+      try {
+        const method = await stripe.paymentMethods.retrieve(paymentMethodId);
+        if (method.customer !== stripeCustomerId) {
+          return res.status(400).json({ error: 'That payment method does not belong to your account.' });
+        }
+        verifiedPaymentMethodId = method.id;
+      } catch (stripeError) {
+        console.error('Payment method verification failed:', stripeError);
+        return res.status(400).json({ error: 'We could not verify that card. Please try adding it again.' });
+      }
+    }
+
     const booking = await prisma.booking.create({
       data: {
         studentId: student.id,
@@ -700,6 +733,8 @@ export const createBooking = async (req: Request, res: Response) => {
         startTime: start,
         endTime: end,
         status: 'PENDING',
+        stripePaymentMethodId: verifiedPaymentMethodId,
+        couponCode: couponCode?.trim() || null,
       },
       include: {
         tutor: {

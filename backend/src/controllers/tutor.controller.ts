@@ -8,6 +8,7 @@ import { sendTemplatedEmail } from '../services/emailTemplate.service';
 import { getWalletSummary } from '../services/wallet.service';
 import { stripe } from '../services/stripe.service';
 import { listStripeSupportedCountries, resolveStripeCountryCode } from '../services/stripeCountry.service';
+import type { chargeBookingOnConfirmation } from '../services/bookingPayment.service';
 
 const prisma = new PrismaClient();
 
@@ -1506,6 +1507,22 @@ export const confirmBooking = async (req: Request, res: Response) => {
       data: { status: 'CONFIRMED' },
     });
 
+    // The student's card was captured at booking time but not charged.
+    // Accepting is the point money moves. A failure here does not undo the
+    // confirmation — the student keeps the manual "Pay now" fallback.
+    let chargeResult: Awaited<ReturnType<typeof chargeBookingOnConfirmation>> | null = null;
+    try {
+      const { chargeBookingOnConfirmation } = await import('../services/bookingPayment.service');
+      chargeResult = await chargeBookingOnConfirmation(id);
+      if (chargeResult.status === 'PAID') {
+        console.log(`Booking ${id} charged automatically on confirmation.`);
+      } else {
+        console.warn(`Booking ${id} not auto-charged:`, chargeResult.reason);
+      }
+    } catch (chargeError) {
+      console.error('Auto-charge on confirmation failed:', chargeError);
+    }
+
     // Notify student
     try {
       const studentEmail = booking.student?.user.email;
@@ -1522,7 +1539,13 @@ export const confirmBooking = async (req: Request, res: Response) => {
       console.error('Error sending confirmation email:', emailError);
     }
 
-    res.json({ message: 'Booking confirmed successfully.', booking: updated });
+    res.json({
+      message: 'Booking confirmed successfully.',
+      booking: updated,
+      payment: chargeResult
+        ? { status: chargeResult.status, ...('reason' in chargeResult ? { reason: chargeResult.reason } : {}) }
+        : null,
+    });
   } catch (error) {
     console.error('Confirm booking error:', error);
     res.status(500).json({ error: 'Error confirming booking' });

@@ -264,6 +264,11 @@ model Booking {
   endTime   DateTime
   status    String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED, COMPLETED
 
+  // Card captured at booking time. Nothing is charged until the tutor accepts,
+  // at which point this payment method is charged off-session.
+  stripePaymentMethodId String?
+  couponCode            String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

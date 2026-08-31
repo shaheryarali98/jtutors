@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
+import BookingCardCapture, {
+  CardCaptureHandle,
+  SavedCard,
+} from './BookingCardCapture'
 
 type TutorSummary = {
   id: string
@@ -43,6 +47,11 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
   const [couponFeedback, setCouponFeedback] = useState('')
   const [couponFeedbackType, setCouponFeedbackType] = useState<'success' | 'error' | ''>('')
   const [validatingCoupon, setValidatingCoupon] = useState(false)
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([])
+  const [selectedCardId, setSelectedCardId] = useState('new')
+  const [setupClientSecret, setSetupClientSecret] = useState<string | null>(null)
+  const [cardSetupError, setCardSetupError] = useState('')
+  const cardCaptureRef = useRef<CardCaptureHandle>(null)
 
   useEffect(() => {
     if (isOpen && tutor?.id) {
@@ -56,6 +65,29 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
       setCouponDiscountAmount(0)
       setCouponFeedback('')
       setCouponFeedbackType('')
+      setSavedCards([])
+      setSelectedCardId('new')
+      setSetupClientSecret(null)
+      setCardSetupError('')
+
+      // Card is captured now but not charged until the tutor accepts.
+      api
+        .get('/student/payment-methods')
+        .then((res) => {
+          const cards: SavedCard[] = res.data?.paymentMethods ?? []
+          setSavedCards(cards)
+          if (cards.length > 0) setSelectedCardId(cards[0].id)
+        })
+        .catch(() => setSavedCards([]))
+
+      api
+        .post('/student/payment-methods/setup-intent')
+        .then((res) => setSetupClientSecret(res.data?.clientSecret ?? null))
+        .catch((err) =>
+          setCardSetupError(
+            err.response?.data?.error || 'Unable to prepare the card form. Please try again.'
+          )
+        )
 
       api
         .get(`/student/tutors/${tutor.id}`, { params: { _t: Date.now() } })
@@ -90,11 +122,18 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
       const bookingStart = new Date(slots[selectedSlotIdx].start)
       const bookingEnd = new Date(slots[selectedSlotIdx].end)
 
+      if (!cardCaptureRef.current) {
+        throw new Error('The card form is not ready yet. Please wait a moment and try again.')
+      }
+      const paymentMethodId = await cardCaptureRef.current.resolvePaymentMethod()
+
       const response = await api.post('/student/bookings', {
         tutorId: tutor.id,
         startTime: bookingStart.toISOString(),
         endTime: bookingEnd.toISOString(),
         notes: notes.trim() || undefined,
+        paymentMethodId,
+        couponCode: discountPercent > 0 || couponDiscountAmount > 0 ? couponCode.trim() : undefined,
       })
 
       if (discountPercent > 0 && couponCode.trim()) {
@@ -328,6 +367,29 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
               </div>
             </div>
 
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+              <div>
+                <label className="label mb-0">Payment method *</label>
+                <p className="text-xs text-slate-500 mt-1">
+                  Your card is saved now but <strong>not charged</strong>. You are only charged
+                  once {tutor.firstName} accepts this session.
+                </p>
+              </div>
+
+              {cardSetupError ? (
+                <p className="text-sm text-red-600">{cardSetupError}</p>
+              ) : (
+                <BookingCardCapture
+                  ref={cardCaptureRef}
+                  savedCards={savedCards}
+                  clientSecret={setupClientSecret}
+                  selectedCardId={selectedCardId}
+                  onSelectCard={setSelectedCardId}
+                  disabled={submitting}
+                />
+              )}
+            </div>
+
             <div>
               <label className="label">Share any goals or context (optional)</label>
               <textarea
@@ -358,7 +420,12 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
                 type="submit"
                 className="btn btn-primary"
                 disabled={
-                  submitting || loadingSlots || slots.length === 0 || selectedSlotIdx === null
+                  submitting ||
+                  loadingSlots ||
+                  slots.length === 0 ||
+                  selectedSlotIdx === null ||
+                  Boolean(cardSetupError) ||
+                  (!setupClientSecret && savedCards.length === 0)
                 }
               >
                 {submitting ? 'Sending hire request...' : 'Confirm hire request'}
