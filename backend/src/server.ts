@@ -32,6 +32,25 @@ const _patchPrisma = new PrismaClient();
 async function ensureProductionColumns() {
   const dbUrl = process.env.DATABASE_URL || '';
   if (dbUrl.startsWith('file:')) return; // skip SQLite (local dev)
+
+  // These columns are read by both admin booking/payment queries and written
+  // when a student submits a hire request. Patch each independently so an
+  // unrelated legacy schema mismatch cannot prevent booking recovery.
+  const criticalBookingPatches = [
+    ['Booking.stripePaymentMethodId', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripePaymentMethodId" TEXT`],
+    ['Booking.couponCode', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`],
+  ] as const;
+
+  for (const [label, sql] of criticalBookingPatches) {
+    try {
+      await _patchPrisma.$executeRawUnsafe(sql);
+      console.log(`DB patch verified: ${label}`);
+    } catch (err: any) {
+      // Keep startup alive, but identify the exact patch in Render logs.
+      console.error(`DB patch failed: ${label}:`, err.message);
+    }
+  }
+
   try {
     await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isSuspended" BOOLEAN NOT NULL DEFAULT false`);
     // Original columns
