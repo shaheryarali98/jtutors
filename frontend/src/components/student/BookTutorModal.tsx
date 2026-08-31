@@ -216,13 +216,13 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
       <div
-        className="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden"
+        className="bg-white w-full max-w-xl rounded-2xl shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] my-auto"
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">
               Hire {tutor.firstName} for a session
@@ -242,7 +242,9 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-6">
+        {/* The card form makes this modal taller than most viewports, so the
+            body scrolls while the header and action bar stay put. */}
+        <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1 min-h-0">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center text-lg font-semibold text-primary-600">
               {displayImage ? (
@@ -407,7 +409,8 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-2">
+            {/* Sticky so Confirm stays reachable without scrolling to the end. */}
+            <div className="flex justify-end gap-3 pt-3 pb-1 sticky bottom-0 bg-white border-t border-slate-100 -mx-6 px-6">
               <button
                 type="button"
                 className="btn btn-secondary"
