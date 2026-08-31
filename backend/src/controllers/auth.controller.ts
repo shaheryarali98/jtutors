@@ -11,6 +11,35 @@ import { sendTemplatedEmail } from '../services/emailTemplate.service';
 const prisma = new PrismaClient();
 type UserRole = 'STUDENT' | 'TUTOR' | 'ADMIN';
 
+/**
+ * Resolve a user id from an email regardless of capitalisation.
+ *
+ * Signup stored the address exactly as typed, so someone who registered as
+ * "Dalia@gmail.com" could never log in as "dalia@gmail.com" — the lookup
+ * missed and they were told "Invalid credentials". Password resets missed the
+ * same way and silently sent nothing. Exact match is tried first (fast, uses
+ * the unique index); the case-insensitive scan is only a fallback for rows
+ * created before addresses were normalised. Raw SQL because Prisma's
+ * `mode: 'insensitive'` is Postgres-only and local dev runs SQLite.
+ */
+export const findUserIdByEmail = async (email: unknown): Promise<string | null> => {
+  const trimmed = typeof email === 'string' ? email.trim() : '';
+  if (!trimmed) return null;
+
+  const exact = await prisma.user.findUnique({ where: { email: trimmed }, select: { id: true } });
+  if (exact) return exact.id;
+
+  try {
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "User" WHERE LOWER(email) = LOWER(${trimmed}) LIMIT 1
+    `;
+    return rows.length > 0 ? rows[0].id : null;
+  } catch (error) {
+    console.error('Case-insensitive email lookup failed:', error);
+    return null;
+  }
+};
+
 export const register = async (req: Request, res: Response) => {
   try {
     const errors = validationResult(req);
@@ -27,10 +56,12 @@ export const register = async (req: Request, res: Response) => {
         .json({ error: "Role must be STUDENT, TUTOR or ADMIN" });
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    // Store addresses lowercased so capitalisation can never split one person
+    // across two accounts.
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+    // Check if user already exists (ignoring capitalisation)
+    const existingUser = await findUserIdByEmail(normalizedEmail);
 
     if (existingUser) {
       return res
@@ -60,7 +91,7 @@ export const register = async (req: Request, res: Response) => {
     // Create user with corresponding role profile
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         role: normalizedRole,
         emailConfirmed: isAdmin, // ADMIN = true, others = false
@@ -164,14 +195,17 @@ export const login = async (req: Request, res: Response) => {
 
     const { email, password } = req.body;
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        tutor: true,
-        student: true
-      }
-    });
+    // Find user (capitalisation-insensitive)
+    const userId = await findUserIdByEmail(email);
+    const user = userId
+      ? await prisma.user.findUnique({
+          where: { id: userId },
+          include: {
+            tutor: true,
+            student: true
+          }
+        })
+      : null;
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -277,10 +311,11 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
     const { email } = req.body;
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email }
-    });
+    // Find user by email (capitalisation-insensitive)
+    const forgotUserId = await findUserIdByEmail(email);
+    const user = forgotUserId
+      ? await prisma.user.findUnique({ where: { id: forgotUserId } })
+      : null;
 
     // For security, don't reveal if email exists or not
     if (!user) {
@@ -347,10 +382,11 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     const { email, token, password } = req.body;
 
-    // Find user by email and token
-    const user = await prisma.user.findUnique({
-      where: { email }
-    });
+    // Find user by email and token (capitalisation-insensitive)
+    const resetUserId = await findUserIdByEmail(email);
+    const user = resetUserId
+      ? await prisma.user.findUnique({ where: { id: resetUserId } })
+      : null;
 
     if (!user) {
       return res.status(400).json({ error: 'Invalid reset link' });
