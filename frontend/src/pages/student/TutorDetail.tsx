@@ -127,7 +127,8 @@ const TutorDetailPage = () => {
       setTutor((prev) => (prev ? { ...prev, saved: !prev.saved } : prev))
     } catch (err) {
       console.error('Error updating saved tutor:', err)
-      setError('Unable to update saved status. Please try again.')
+      // Transient: a failed save must not replace the loaded profile.
+      showAppToast('Unable to update saved status. Please try again.', 'error')
     } finally {
       setSaving(false)
     }
@@ -398,7 +399,9 @@ const TutorDetailPage = () => {
         isOpen={bookingModalOpen}
         onClose={() => setBookingModalOpen(false)}
         onBooked={() => setBookingModalOpen(false)}
-        onError={(message) => setError(message)}
+        // A failed booking is transient — surface it without tearing down the
+        // tutor page, which previously showed a misleading "Tutor not available".
+        onError={(message) => showAppToast(message, 'error')}
       />
       <Footer />
     </div>
