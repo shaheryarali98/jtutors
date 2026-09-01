@@ -308,6 +308,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       languagesSpoken,
       learningLocationPreferences,
       introduction,
+      termsAccepted,
     } = req.body;
 
     const student = await prisma.student.findUnique({
@@ -383,6 +384,13 @@ export const updateProfile = async (req: Request, res: Response) => {
         learningPreferences: learningPreferenceArray.length ? JSON.stringify(learningPreferenceArray) : null,
         introduction,
         profileCompleted: nowCompleted,
+        // The profile form has always sent this, but it was dropped here, so
+        // the flag only ever lived in the browser's sessionStorage cache. The
+        // student could browse tutors on the machine where they saved and was
+        // bounced to this form on every other device.
+        ...(termsAccepted === true && !student.termsAccepted
+          ? { termsAccepted: true, termsAcceptedAt: new Date() }
+          : {}),
       },
       include: {
         user: true,
@@ -410,6 +418,9 @@ export const updateProfile = async (req: Request, res: Response) => {
       message: 'Profile updated successfully',
       student: formatStudent(updatedStudent as any),
       profileCompleted: nowCompleted,
+      // Report what was actually stored so the client caches the server's
+      // truth rather than the state of a checkbox.
+      termsAccepted: updatedStudent.termsAccepted,
     });
   } catch (error) {
     console.error('Update student profile error:', error);

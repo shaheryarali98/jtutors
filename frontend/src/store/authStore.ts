@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { clearStudentProfileGateCache } from '../lib/studentProfileAccess'
 
 export type UserRole = 'ADMIN' | 'TUTOR' | 'STUDENT'
 
@@ -25,8 +26,15 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
-      setAuth: (user, token) => set({ user, token }),
-      logout: () => set({ user: null, token: null }),
+      setAuth: (user, token) => {
+        // Never carry the previous account's gate state into a new session.
+        clearStudentProfileGateCache()
+        set({ user, token })
+      },
+      logout: () => {
+        clearStudentProfileGateCache()
+        set({ user: null, token: null })
+      },
     }),
     {
       name: 'auth-storage',

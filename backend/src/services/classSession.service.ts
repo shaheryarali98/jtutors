@@ -447,7 +447,10 @@ export const getAllClassSessions = async (status?: string) => {
         },
       },
     },
-    orderBy: { createdAt: 'desc' },
+    // Sort by the session time the admin table actually displays. Sorting by
+    // the row's createdAt bore no relation to those dates, so the list looked
+    // randomly ordered. createdAt stays as a tiebreaker for identical slots.
+    orderBy: [{ booking: { startTime: 'desc' } }, { createdAt: 'desc' }],
   });
 };
 

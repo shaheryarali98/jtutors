@@ -1,12 +1,39 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
-  
+
   # Don't rewrite if it's a real file
   RewriteCond %{REQUEST_FILENAME} !-f
   # Don't rewrite if it's a real directory
   RewriteCond %{REQUEST_FILENAME} !-d
-  
+
   # Rewrite all requests to index.html for SPA routing
   RewriteRule ^(.*)$ index.html [L,QSA]
+</IfModule>
+
+# Caching.
+#
+# index.html was previously served with no Cache-Control at all, so browsers
+# applied heuristic caching and kept loading a stale build — the same account
+# would work on one machine and fail on another that still had the old bundle.
+# The HTML must always be revalidated; the hashed asset filenames underneath it
+# can then be cached hard, because a new build produces new filenames.
+<IfModule mod_headers.c>
+  # Never cache the entry point or the service-worker-ish files.
+  <FilesMatch "\.(html|json)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  # /assets/* is content-hashed by Vite, so it is safe to cache indefinitely.
+  SetEnvIf Request_URI "^/assets/" JT_IMMUTABLE=1
+  Header set Cache-Control "public, max-age=31536000, immutable" env=JT_IMMUTABLE
+
+  # Unhashed images and icons in the site root: cache for a day only, so a
+  # replaced logo shows up without a year-long wait.
+  SetEnvIf Request_URI "^/assets/" JT_NOT_ROOT_STATIC=1
+  <FilesMatch "\.(png|jpe?g|gif|svg|ico|webp|woff2?)$">
+    Header set Cache-Control "public, max-age=86400" env=!JT_NOT_ROOT_STATIC
+  </FilesMatch>
 </IfModule>

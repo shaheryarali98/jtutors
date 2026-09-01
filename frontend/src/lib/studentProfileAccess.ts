@@ -117,7 +117,16 @@ export const resolveTutorProfileAccess = async (user: User | null) => {
       redirectTo: gate.allowed ? null : '/student/profile',
     }
   } catch (error) {
+    // A network blip or a 5xx must not bounce a student who has completed
+    // their profile. Only an explicit 401/403 means they genuinely lack
+    // access; anything else fails open and lets the page load.
+    const status = (error as { response?: { status?: number } })?.response?.status
     console.error('Unable to verify student profile completion:', error)
-    return { allowed: false, redirectTo: '/student/profile' }
+
+    if (status === 401 || status === 403) {
+      return { allowed: false, redirectTo: '/student/profile' }
+    }
+
+    return { allowed: true, redirectTo: null }
   }
 }

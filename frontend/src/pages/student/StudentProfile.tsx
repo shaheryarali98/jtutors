@@ -260,7 +260,9 @@ const StudentProfile = () => {
       setProfileImage(response.data.student?.profileImage || profileImage)
       setStudentProfileGateCache({
         profileCompleted: nextProfileCompleted,
-        termsAccepted: platformAgreementChecked,
+        // Trust the server's stored value, not the checkbox — caching the
+        // checkbox is what made the gate pass here and fail on other devices.
+        termsAccepted: Boolean(response.data.termsAccepted),
       })
       window.dispatchEvent(new Event('student-profile-updated'))
       setToastVariant('success')
