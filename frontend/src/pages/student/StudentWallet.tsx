@@ -639,6 +639,7 @@ const AddCardForm = ({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
           publishable key whose mode does not match the SetupIntent. Without it
           the user just sees an empty box and no explanation. */}
       <PaymentElement
+        options={{ defaultValues: { billingDetails: { address: { country: 'US' } } } }}
         onReady={() => setReady(true)}
         onLoadError={(event: any) => {
           console.error('PaymentElement failed to load:', event)

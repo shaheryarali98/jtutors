@@ -135,6 +135,16 @@ const bookingMatchesAvailability = (
 ) => availabilities.some((availability) => matchesAvailabilityBlock(availability, start, end, timeZone));
 
 // Convert a local calendar date + minutes-from-midnight to a UTC Date in a given timezone.
+//
+// This compares whole timestamps rather than just minute-of-day, and iterates
+// until it converges. The previous single-pass version corrected only the
+// minute-of-day, which broke in two ways that never showed up in a zone like
+// Asia/Karachi that has no DST and a positive offset:
+//   - it could land on the wrong calendar DAY whenever the naive UTC probe
+//     crossed midnight in the target zone (US early-morning blocks did this,
+//     since America/* offsets are negative)
+//   - it was an hour out on US spring-forward days, because the offset it
+//     sampled was the one in effect before the transition
 const localToUtc = (
   year: number,
   month: number,
@@ -144,13 +154,19 @@ const localToUtc = (
 ): Date => {
   const h = Math.floor(minutesFromMidnight / 60);
   const m = minutesFromMidnight % 60;
-  // Treat the local time as UTC as a first approximation
-  const roughUtc = new Date(Date.UTC(year, month - 1, day, h, m));
-  // Find what local time that UTC instant maps to in the target timezone
-  const localParts = getZonedDateParts(roughUtc, timeZone);
-  const localMinutes = localParts.hour * 60 + localParts.minute;
-  // Shift by the difference so the result reads as the intended local time
-  return new Date(roughUtc.getTime() + (minutesFromMidnight - localMinutes) * 60_000);
+  const target = Date.UTC(year, month - 1, day, h, m);
+
+  let utc = new Date(target);
+  // Two passes are enough for every real zone; the third is a safety margin.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = getZonedDateParts(utc, timeZone);
+    const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+    const drift = target - asUtc;
+    if (drift === 0) break;
+    utc = new Date(utc.getTime() + drift);
+  }
+
+  return utc;
 };
 
 const generateBookableSlots = (

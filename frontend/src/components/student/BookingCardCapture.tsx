@@ -139,6 +139,9 @@ const Inner = forwardRef<CardCaptureHandle, Props>(
               </div>
             )}
             <PaymentElement
+              // US-based marketplace: default the billing country so US payers
+              // are not asked to change it. Stripe still lets them pick another.
+              options={{ defaultValues: { billingDetails: { address: { country: 'US' } } } }}
               onReady={() => setReady(true)}
               onLoadError={(event: any) => {
                 console.error('Booking PaymentElement failed to load:', event)
