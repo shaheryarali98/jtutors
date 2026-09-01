@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import api from '../../lib/api'
 import { resolveImageUrl } from '../../lib/media'
@@ -105,6 +105,40 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
     }
   }, [isOpen, tutor?.id])
 
+  // Inside a day group the date is already the group heading, so show time only.
+  const getSlotTimeLabel = (slot: AvailabilitySlot) => {
+    const start = new Date(slot.start)
+    const end = new Date(slot.end)
+    const t = (d: Date) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    return `${t(start)} – ${t(end)}`
+  }
+
+  // Slots arrive covering a rolling 14-day window. Grouping by calendar day
+  // makes every day of that window visible in the dropdown rather than the
+  // student scrolling one long flat list.
+  const slotsByDay = useMemo(() => {
+    const groups = new Map<string, { key: string; label: string; slots: Array<{ slot: AvailabilitySlot; idx: number }> }>()
+
+    slots.forEach((slot, idx) => {
+      const start = new Date(slot.start)
+      const key = start.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          label: start.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'short',
+            day: 'numeric',
+          }),
+          slots: [],
+        })
+      }
+      groups.get(key)!.slots.push({ slot, idx })
+    })
+
+    return Array.from(groups.values())
+  }, [slots])
+
   if (!isOpen || !tutor) {
     return null
   }
@@ -172,21 +206,6 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
   const discountAmount = baseSessionPrice * (discountPercent / 100) + couponDiscountAmount
   const finalSessionPrice = Math.max(0, baseSessionPrice - discountAmount)
 
-  const getSlotLabel = (slot: AvailabilitySlot) => {
-    const start = new Date(slot.start)
-    const end = new Date(slot.end)
-    return `${start.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })} • ${start.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })} – ${end.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })}`
-  }
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -282,10 +301,14 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
                   onChange={(e) => setSelectedSlotIdx(Number(e.target.value))}
                   required
                 >
-                  {slots.map((slot, idx) => (
-                    <option key={slot.start} value={idx}>
-                      {getSlotLabel(slot)}
-                    </option>
+                  {slotsByDay.map((group) => (
+                    <optgroup key={group.key} label={group.label}>
+                      {group.slots.map(({ slot, idx }) => (
+                        <option key={slot.start} value={idx}>
+                          {getSlotTimeLabel(slot)}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>

@@ -223,9 +223,25 @@ const generateBookableSlots = (
     }
   }
 
+  // Keep every day of the rolling window represented. A flat cap of 30 meant a
+  // tutor with a wide daily block filled the whole list from the first three or
+  // four days, so the later days of the fortnight were never offered. Capping
+  // per day instead keeps the horizon visible while bounding the payload.
+  const MAX_SLOTS_PER_DAY = 12;
+  const MAX_SLOTS_TOTAL = 200;
+  const perDayCount = new Map<string, number>();
+
   return slots
     .sort((a, b) => a.start.localeCompare(b.start))
-    .slice(0, 30);
+    .filter((slot) => {
+      const dayKey = getZonedDateParts(new Date(slot.start), safeZone);
+      const key = `${dayKey.year}-${dayKey.month}-${dayKey.day}`;
+      const seen = perDayCount.get(key) ?? 0;
+      if (seen >= MAX_SLOTS_PER_DAY) return false;
+      perDayCount.set(key, seen + 1);
+      return true;
+    })
+    .slice(0, MAX_SLOTS_TOTAL);
 };
 
 const sanitizeStringArray = (value: unknown): string[] => {

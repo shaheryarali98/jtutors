@@ -241,8 +241,15 @@ const TutorSessions = () => {
     }
   }
 
-  const byNewest = (a: TutorSession, b: TutorSession) =>
-    new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+  // Sessions that have already happened drop below the ones still to come;
+  // newest first within each group.
+  const byNewest = (a: TutorSession, b: TutorSession) => {
+    const now = Date.now()
+    const aPast = new Date(a.endTime ?? a.startTime).getTime() < now
+    const bPast = new Date(b.endTime ?? b.startTime).getTime() < now
+    if (aPast !== bPast) return aPast ? 1 : -1
+    return new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+  }
 
   const hasFilters = Boolean(
     searchTerm ||

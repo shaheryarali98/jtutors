@@ -384,7 +384,15 @@ const StudentBookings = () => {
 
         return true
       })
-      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+      // Sessions that have already happened drop below the ones still to come;
+      // newest first within each group.
+      .sort((a, b) => {
+        const now = Date.now()
+        const aPast = new Date(a.endTime ?? a.startTime).getTime() < now
+        const bPast = new Date(b.endTime ?? b.startTime).getTime() < now
+        if (aPast !== bPast) return aPast ? 1 : -1
+        return new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      })
   }, [bookings, dateFrom, dateTo, dismissedIds, paymentFilter, searchTerm, showHidden, statusFilter, timeFilter])
 
   return (
