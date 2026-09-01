@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import api from '../lib/api'
+import { applyServerCacheVersion } from '../lib/clientCache'
 
 export interface PlatformSettings {
   sendSignupConfirmation: boolean
@@ -50,6 +51,9 @@ export const usePlatformSettings = create<PlatformSettingsState>((set, get) => (
       set({ loading: true, error: '' })
       const response = await api.get<{ settings: PlatformSettings }>('/settings/public')
       set({ settings: response.data.settings, loading: false })
+      // If an admin has bumped the cache version, drop stale app state and
+      // reload once. Signed-in sessions are preserved.
+      applyServerCacheVersion((response.data.settings as any)?.clientCacheVersion)
     } catch (error) {
       console.error('Error fetching platform settings:', error)
       set({ error: 'Unable to load platform settings', loading: false })

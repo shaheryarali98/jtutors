@@ -732,6 +732,38 @@ export const getGoogleClassroomStatusAdmin = async (_req: Request, res: Response
  * two each student is missing so it is obvious whether it is genuinely an
  * incomplete profile or the lost terms flag.
  */
+/**
+ * Force every browser to drop its cached app state and reload once.
+ *
+ * Bumps clientCacheVersion, which the app reads from /settings/public on each
+ * load. Clients whose stored value differs clear their cached app state and
+ * reload. Sign-in is deliberately preserved, so nobody is logged out.
+ */
+export const bumpClientCacheVersionAdmin = async (_req: Request, res: Response) => {
+  try {
+    const settings = await prisma.adminSettings.findFirst({ select: { id: true } });
+    if (!settings) {
+      return res.status(404).json({ error: 'Admin settings not found' });
+    }
+
+    const updated = await prisma.adminSettings.update({
+      where: { id: settings.id },
+      data: { clientCacheVersion: { increment: 1 } },
+      select: { clientCacheVersion: true },
+    });
+
+    console.log(`Client cache version bumped to ${updated.clientCacheVersion}.`);
+
+    res.json({
+      message: 'All browsers will refresh their cached data on their next page load.',
+      clientCacheVersion: updated.clientCacheVersion,
+    });
+  } catch (error) {
+    console.error('Bump client cache version error:', error);
+    res.status(500).json({ error: 'Error bumping client cache version' });
+  }
+};
+
 export const getBlockedStudentsAdmin = async (_req: Request, res: Response) => {
   try {
     const students = await prisma.student.findMany({

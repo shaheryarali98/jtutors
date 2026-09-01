@@ -1825,6 +1825,8 @@ const AdminDashboard = () => {
                   <p className="text-sm text-slate-500">Control platform behaviour and commission rates.</p>
                 </div>
 
+                <ClientCacheRefreshCard />
+
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900 mb-4">Email Settings</h3>
@@ -3149,6 +3151,53 @@ const UserDetailPanel = ({ user, onClose, onUpdateBgStatus, onUpdateTutorVerific
           <div className="text-center text-slate-500 py-8">
             This user has not created a profile yet.
           </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Pushes a cache refresh to every browser without anyone clearing anything. */
+const ClientCacheRefreshCard = () => {
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState('')
+  const [failed, setFailed] = useState(false)
+
+  const handleRefresh = async () => {
+    if (!window.confirm('Force every signed-in browser to reload fresh data on their next page load?')) return
+    setBusy(true)
+    setResult('')
+    setFailed(false)
+    try {
+      const res = await api.post<{ message: string; clientCacheVersion: number }>('/admin/cache/refresh-clients')
+      setResult(`${res.data.message} (version ${res.data.clientCacheVersion})`)
+    } catch (err: any) {
+      setFailed(true)
+      setResult(err?.response?.data?.error || 'Unable to refresh client caches.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+      <h3 className="text-base font-semibold text-slate-900">Refresh everyone&apos;s app data</h3>
+      <p className="mt-1 text-sm text-slate-600 max-w-2xl">
+        Clears cached app data in every user&apos;s browser on their next page load. Use it after a
+        fix when people are still seeing stale information. Nobody is signed out and nobody needs to
+        clear their own browser.
+      </p>
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={busy}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#012c54] text-white text-sm font-medium hover:bg-[#012c54]/90 disabled:opacity-50"
+        >
+          {busy ? 'Refreshing…' : 'Refresh all users'}
+        </button>
+        {result && (
+          <span className={`text-sm ${failed ? 'text-red-600' : 'text-green-600'}`}>{result}</span>
         )}
       </div>
     </div>

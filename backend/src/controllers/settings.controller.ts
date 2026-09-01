@@ -31,6 +31,9 @@ export const getPublicSettings = async (_req: Request, res: Response) => {
         emailFooterColor: settings.emailFooterColor,
         defaultStudentImage: settings.defaultStudentImage,
         defaultTutorImage: settings.defaultTutorImage,
+        // Browsers compare this to the value they stored. A bump makes every
+        // client drop its cached app state and reload once.
+        clientCacheVersion: (settings as any).clientCacheVersion ?? 1,
         hourlyFee: {
           min: 20,
           max: 500,

@@ -21,6 +21,7 @@ const STATEMENTS = [
   ['Student.stripeCustomerId', `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "stripeCustomerId" TEXT`],
   ['Student.pencilUserId', `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "pencilUserId" TEXT`],
   ['AdminSettings.studentFeePercentage', `ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "studentFeePercentage" DOUBLE PRECISION NOT NULL DEFAULT 4.5`],
+  ['AdminSettings.clientCacheVersion', `ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "clientCacheVersion" INTEGER NOT NULL DEFAULT 1`],
   ['Booking.stripePaymentMethodId', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripePaymentMethodId" TEXT`],
   ['Booking.couponCode', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`],
   ['Payment.couponCode', `ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`],

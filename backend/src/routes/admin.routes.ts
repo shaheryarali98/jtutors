@@ -21,6 +21,7 @@ import {
   getEmailStatusAdmin,
   getStripeStatusAdmin,
   getBlockedStudentsAdmin,
+  bumpClientCacheVersionAdmin,
   backfillStudentTermsAdmin,
   getUserDetail,
   updateBackgroundCheckStatus,
@@ -66,6 +67,7 @@ router.post('/payments/:id/refund', refundPaymentAdmin);
 router.get('/integrations/google-classroom/status', getGoogleClassroomStatusAdmin);
 router.get('/integrations/email/status', getEmailStatusAdmin);
 router.get('/integrations/stripe/status', getStripeStatusAdmin);
+router.post('/cache/refresh-clients', bumpClientCacheVersionAdmin);
 router.get('/students/blocked', getBlockedStudentsAdmin);
 router.post('/students/backfill-terms', backfillStudentTermsAdmin);
 router.get('/users/:id/detail', getUserDetail);

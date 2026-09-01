@@ -503,6 +503,10 @@ model AdminSettings {
   defaultTutorImage   String?
   adminPaymentInfo    String?
 
+  // Bumping this tells every browser to drop its cached app state and reload
+  // once. Used to push a fix out without asking people to clear their browser.
+  clientCacheVersion Int @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

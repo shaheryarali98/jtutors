@@ -28,6 +28,7 @@ const defaultSettingsPayload: Omit<AdminSettings, 'id' | 'createdAt' | 'updatedA
   genderFieldEnabled: true,
   gradeFieldEnabled: true,
   stateFieldEnabled: true,
+  clientCacheVersion: 1,
   emailLogo: null,
   emailSenderName: 'J Tutors',
   emailSenderEmail: 'info@jtutors.com',
