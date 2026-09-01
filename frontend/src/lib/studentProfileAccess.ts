@@ -15,10 +15,19 @@ type StudentProfilePayload = {
 
 const PROFILE_GATE_CACHE_KEY = 'student-profile-gate'
 
+/**
+ * Bump this to invalidate every browser's stored gate state on the next load.
+ * Entries written by an older build are ignored and removed, so nobody has to
+ * clear their browser or sign in again to pick up a fix.
+ */
+const PROFILE_GATE_CACHE_VERSION = 2
+
 type StudentProfileGateCache = {
   profileCompleted: boolean
   termsAccepted: boolean
 }
+
+type StoredGateCache = StudentProfileGateCache & { version?: number }
 
 export const getStudentProfileGateCache = (): StudentProfileGateCache | null => {
   if (typeof window === 'undefined') return null
@@ -26,7 +35,14 @@ export const getStudentProfileGateCache = (): StudentProfileGateCache | null => 
   try {
     const raw = window.sessionStorage.getItem(PROFILE_GATE_CACHE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as StudentProfileGateCache
+
+    const parsed = JSON.parse(raw) as StoredGateCache
+    if (parsed?.version !== PROFILE_GATE_CACHE_VERSION) {
+      window.sessionStorage.removeItem(PROFILE_GATE_CACHE_KEY)
+      return null
+    }
+
+    return { profileCompleted: parsed.profileCompleted, termsAccepted: parsed.termsAccepted }
   } catch (error) {
     console.error('Unable to read student profile gate cache:', error)
     return null
@@ -37,7 +53,8 @@ export const setStudentProfileGateCache = (value: StudentProfileGateCache) => {
   if (typeof window === 'undefined') return
 
   try {
-    window.sessionStorage.setItem(PROFILE_GATE_CACHE_KEY, JSON.stringify(value))
+    const payload: StoredGateCache = { ...value, version: PROFILE_GATE_CACHE_VERSION }
+    window.sessionStorage.setItem(PROFILE_GATE_CACHE_KEY, JSON.stringify(payload))
     window.dispatchEvent(new CustomEvent('student-profile-gate-updated', { detail: value }))
   } catch (error) {
     console.error('Unable to write student profile gate cache:', error)

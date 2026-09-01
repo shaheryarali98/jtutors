@@ -233,6 +233,15 @@ const StudentProfile = () => {
         return
       }
 
+      // The gate requires accepted terms, so refuse the save here rather than
+      // letting the student save into a state that silently blocks them from
+      // viewing tutors later.
+      if (!platformAgreementChecked) {
+        setValidationError('Please tick the agreement box under Terms and Conditions to continue.')
+        setLoading(false)
+        return
+      }
+
       console.log('✅ Profile validation passed. Submitting with:', {
         firstName: data.firstName,
         lastName: data.lastName,
@@ -252,6 +261,9 @@ const StudentProfile = () => {
         profileImage,
         languagesSpoken: sanitizedLanguages,
         learningLocationPreferences: learningPreferences,
+        // Ticking the box only ever set local state; it was never sent, so the
+        // acceptance was lost and the student was blocked on every other device.
+        termsAccepted: platformAgreementChecked,
       })
 
       setSuccess(response.data.message || 'Profile updated successfully')

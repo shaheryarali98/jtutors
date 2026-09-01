@@ -726,6 +726,106 @@ export const getGoogleClassroomStatusAdmin = async (_req: Request, res: Response
   }
 };
 
+/**
+ * Who is currently blocked by the student profile gate, and why.
+ * The gate needs profileCompleted AND termsAccepted; this shows which of the
+ * two each student is missing so it is obvious whether it is genuinely an
+ * incomplete profile or the lost terms flag.
+ */
+export const getBlockedStudentsAdmin = async (_req: Request, res: Response) => {
+  try {
+    const students = await prisma.student.findMany({
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        profileCompleted: true,
+        termsAccepted: true,
+        createdAt: true,
+        user: { select: { email: true } },
+        _count: { select: { bookings: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const blocked = students
+      .filter((student) => !student.profileCompleted || !student.termsAccepted)
+      .map((student) => ({
+        id: student.id,
+        email: student.user?.email ?? null,
+        name: `${student.firstName ?? ''} ${student.lastName ?? ''}`.trim() || null,
+        profileCompleted: student.profileCompleted,
+        termsAccepted: student.termsAccepted,
+        bookings: student._count.bookings,
+        missing: [
+          ...(student.profileCompleted ? [] : ['profileCompleted']),
+          ...(student.termsAccepted ? [] : ['termsAccepted']),
+        ],
+      }));
+
+    res.json({
+      totalStudents: students.length,
+      blockedCount: blocked.length,
+      // The group the lost-terms bug created: profile finished, terms missing.
+      termsOnlyCount: blocked.filter((b) => b.profileCompleted && !b.termsAccepted).length,
+      blocked,
+    });
+  } catch (error) {
+    console.error('Get blocked students error:', error);
+    res.status(500).json({ error: 'Error fetching blocked students' });
+  }
+};
+
+/**
+ * Restore the terms flag for students who completed their profile before the
+ * checkbox was wired up to the server. Their acceptance was recorded only in
+ * the browser, so they are blocked on every other device through no action of
+ * their own. Only touches students whose profile is already complete, and
+ * never clears an existing acceptance.
+ */
+export const backfillStudentTermsAdmin = async (req: Request, res: Response) => {
+  try {
+    const { dryRun } = req.body as { dryRun?: boolean };
+
+    const candidates = await prisma.student.findMany({
+      where: { profileCompleted: true, termsAccepted: false },
+      select: { id: true, firstName: true, lastName: true, user: { select: { email: true } } },
+    });
+
+    if (dryRun) {
+      return res.json({
+        dryRun: true,
+        wouldUpdate: candidates.length,
+        students: candidates.map((c) => ({
+          id: c.id,
+          email: c.user?.email ?? null,
+          name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || null,
+        })),
+      });
+    }
+
+    const result = await prisma.student.updateMany({
+      where: { profileCompleted: true, termsAccepted: false },
+      data: { termsAccepted: true, termsAcceptedAt: new Date() },
+    });
+
+    console.log(`Backfilled termsAccepted for ${result.count} student(s).`);
+
+    res.json({
+      dryRun: false,
+      updated: result.count,
+      students: candidates.map((c) => ({
+        id: c.id,
+        email: c.user?.email ?? null,
+        name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || null,
+      })),
+    });
+  } catch (error) {
+    console.error('Backfill student terms error:', error);
+    res.status(500).json({ error: 'Error backfilling student terms' });
+  }
+};
+
 export const getStripeStatusAdmin = async (_req: Request, res: Response) => {
   try {
     const secret = process.env.STRIPE_SECRET_KEY || '';
