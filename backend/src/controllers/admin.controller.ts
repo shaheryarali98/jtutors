@@ -746,17 +746,14 @@ export const bumpClientCacheVersionAdmin = async (_req: Request, res: Response) 
       return res.status(404).json({ error: 'Admin settings not found' });
     }
 
-    const updated = await prisma.adminSettings.update({
-      where: { id: settings.id },
-      data: { clientCacheVersion: { increment: 1 } },
-      select: { clientCacheVersion: true },
-    });
+    const { bumpClientCacheVersion } = await import('../services/settings.service');
+    const clientCacheVersion = await bumpClientCacheVersion();
 
-    console.log(`Client cache version bumped to ${updated.clientCacheVersion}.`);
+    console.log(`Client cache version bumped to ${clientCacheVersion}.`);
 
     res.json({
       message: 'All browsers will refresh their cached data on their next page load.',
-      clientCacheVersion: updated.clientCacheVersion,
+      clientCacheVersion,
     });
   } catch (error) {
     console.error('Bump client cache version error:', error);

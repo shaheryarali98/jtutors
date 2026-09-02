@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
-import { getFormattedAdminSettings } from '../services/settings.service';
+import { getFormattedAdminSettings, getClientCacheVersion } from '../services/settings.service';
 
 export const getPublicSettings = async (_req: Request, res: Response) => {
   try {
     const settings = await getFormattedAdminSettings();
+    const clientCacheVersion = await getClientCacheVersion();
     res.json({
       settings: {
         sendSignupConfirmation: settings.sendSignupConfirmation,
@@ -33,7 +34,7 @@ export const getPublicSettings = async (_req: Request, res: Response) => {
         defaultTutorImage: settings.defaultTutorImage,
         // Browsers compare this to the value they stored. A bump makes every
         // client drop its cached app state and reload once.
-        clientCacheVersion: (settings as any).clientCacheVersion ?? 1,
+        clientCacheVersion,
         hourlyFee: {
           min: 20,
           max: 500,
