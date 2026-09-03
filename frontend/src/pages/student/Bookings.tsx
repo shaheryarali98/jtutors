@@ -384,14 +384,17 @@ const StudentBookings = () => {
 
         return true
       })
-      // Sessions that have already happened drop below the ones still to come;
-      // newest first within each group.
+      // Upcoming sessions first, soonest at the top, so the next session to
+      // attend leads the list. Sessions that have already happened drop below
+      // them, most recently finished first.
       .sort((a, b) => {
         const now = Date.now()
+        const aStart = new Date(a.startTime).getTime()
+        const bStart = new Date(b.startTime).getTime()
         const aPast = new Date(a.endTime ?? a.startTime).getTime() < now
         const bPast = new Date(b.endTime ?? b.startTime).getTime() < now
         if (aPast !== bPast) return aPast ? 1 : -1
-        return new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+        return aPast ? bStart - aStart : aStart - bStart
       })
   }, [bookings, dateFrom, dateTo, dismissedIds, paymentFilter, searchTerm, showHidden, statusFilter, timeFilter])
 
