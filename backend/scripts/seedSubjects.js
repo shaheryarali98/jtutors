@@ -39,6 +39,7 @@ const subjectCategories = {
     'Geometry',
     'Linear algebra',
     'Logic',
+    'Personal Finance',
     'Precalculus',
     'Prealgebra',
     'Probability',

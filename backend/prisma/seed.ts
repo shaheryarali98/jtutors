@@ -15,7 +15,7 @@ const subjectsHierarchy = {
     'Mathematics': [
         'Actuarial Science', 'Algebra 1', 'Algebra 2', 'Calculus', 'Discrete Math',
         'Elementary Math', 'Geometry', 'Linear Algebra', 'Logic',
-        'Precalculus', 'Prealgebra', 'Probability', 'Statistics',
+        'Personal Finance', 'Precalculus', 'Prealgebra', 'Probability', 'Statistics',
         'Trigonometry'
     ],
     'Science': [
