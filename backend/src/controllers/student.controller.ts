@@ -526,6 +526,7 @@ export const searchTutors = async (req: Request, res: Response) => {
           include: {
             subject: true,
           },
+          orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
         },
         experiences: true,
         educations: true,
@@ -621,6 +622,7 @@ export const getTutorDetails = async (req: Request, res: Response) => {
           include: {
             subject: true,
           },
+          orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
         },
         experiences: true,
         educations: true,
@@ -863,6 +865,7 @@ export const getMyBookings = async (req: Request, res: Response) => {
               include: {
                 subject: true,
               },
+              orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
             },
           },
         },
@@ -919,6 +922,7 @@ export const getSavedInstructors = async (req: Request, res: Response) => {
               include: {
                 subject: true,
               },
+              orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
             },
             experiences: true,
             educations: true,
@@ -989,6 +993,7 @@ export const addSavedInstructor = async (req: Request, res: Response) => {
               include: {
                 subject: true,
               },
+              orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
             },
             experiences: true,
             educations: true,

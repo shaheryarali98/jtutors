@@ -39,6 +39,7 @@ async function ensureProductionColumns() {
   const criticalBookingPatches = [
     ['Booking.stripePaymentMethodId', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripePaymentMethodId" TEXT`],
     ['Booking.couponCode', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`],
+    ['TutorSubject.displayOrder', `ALTER TABLE "TutorSubject" ADD COLUMN IF NOT EXISTS "displayOrder" INTEGER NOT NULL DEFAULT 0`],
   ] as const;
 
   for (const [label, sql] of criticalBookingPatches) {

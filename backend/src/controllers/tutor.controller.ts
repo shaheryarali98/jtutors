@@ -508,6 +508,10 @@ export const addSubjects = async (req: Request, res: Response) => {
     const userId = req.user!.userId;
     const { subjectIds } = req.body; // Array of subject IDs
 
+    if (!Array.isArray(subjectIds) || subjectIds.some((id) => typeof id !== 'string')) {
+      return res.status(400).json({ error: 'subjectIds must be an array of strings' });
+    }
+
     const tutor = await prisma.tutor.findUnique({
       where: { userId }
     });
@@ -516,13 +520,21 @@ export const addSubjects = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Tutor profile not found' });
     }
 
-    // Add subjects
+    const lastSubject = await prisma.tutorSubject.findFirst({
+      where: { tutorId: tutor.id },
+      orderBy: [{ displayOrder: 'desc' }, { createdAt: 'desc' }],
+      select: { displayOrder: true },
+    });
+    const nextDisplayOrder = (lastSubject?.displayOrder ?? -1) + 1;
+
+    // Add new subjects after the tutor's existing ordered subjects.
     const tutorSubjects = await Promise.all(
-      subjectIds.map((subjectId: string) =>
+      subjectIds.map((subjectId: string, index: number) =>
         prisma.tutorSubject.create({
           data: {
             tutorId: tutor.id,
-            subjectId
+            subjectId,
+            displayOrder: nextDisplayOrder + index,
           },
           include: {
             subject: true
@@ -560,7 +572,7 @@ export const removeSubject = async (req: Request, res: Response) => {
     await prisma.tutorSubject.deleteMany({
       where: {
         tutorId: tutor.id,
-        subjectId
+        OR: [{ id: subjectId }, { subjectId }],
       }
     });
 
@@ -573,6 +585,70 @@ export const removeSubject = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Remove subject error:', error);
     res.status(500).json({ error: 'Error removing subject' });
+  }
+};
+
+export const reorderSubjects = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { subjectIds } = req.body as { subjectIds?: unknown };
+
+    if (
+      !Array.isArray(subjectIds) ||
+      subjectIds.some((id) => typeof id !== 'string') ||
+      new Set(subjectIds).size !== subjectIds.length
+    ) {
+      return res.status(400).json({ error: 'subjectIds must be an ordered array of unique strings' });
+    }
+
+    const tutor = await prisma.tutor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor profile not found' });
+    }
+
+    const currentSubjects = await prisma.tutorSubject.findMany({
+      where: { tutorId: tutor.id },
+      select: { subjectId: true },
+    });
+    const currentIds = new Set(currentSubjects.map((entry) => entry.subjectId));
+    const orderIsComplete =
+      subjectIds.length === currentIds.size &&
+      subjectIds.every((subjectId) => currentIds.has(subjectId));
+
+    if (!orderIsComplete) {
+      return res.status(400).json({
+        error: 'The order must include every selected subject exactly once',
+      });
+    }
+
+    await prisma.$transaction(
+      subjectIds.map((subjectId, displayOrder) =>
+        prisma.tutorSubject.update({
+          where: {
+            tutorId_subjectId: {
+              tutorId: tutor.id,
+              subjectId,
+            },
+          },
+          data: { displayOrder },
+        })
+      )
+    );
+
+    const subjects = await prisma.tutorSubject.findMany({
+      where: { tutorId: tutor.id },
+      include: { subject: true },
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    res.json({ message: 'Subject order updated successfully', subjects });
+  } catch (error) {
+    console.error('Reorder subjects error:', error);
+    res.status(500).json({ error: 'Error updating subject order' });
   }
 };
 

@@ -23,6 +23,12 @@ type FormattableTutor = {
   gradesCanTeach?: MaybeStoredArray;
   languagesSpoken?: MaybeStoredArray;
   availabilities?: FormattableAvailability[];
+  subjects?: Array<{
+    displayOrder?: number;
+    createdAt?: Date | string;
+    subject?: { name?: string };
+    [key: string]: unknown;
+  }>;
   [key: string]: unknown;
 };
 
@@ -39,6 +45,18 @@ export const formatTutor = (tutor: FormattableTutor | null) => {
     ...tutor,
     gradesCanTeach: parseStringArray(tutor.gradesCanTeach),
     languagesSpoken: parseStringArray(tutor.languagesSpoken),
+    subjects: tutor.subjects
+      ? [...tutor.subjects].sort((a, b) => {
+          const orderDifference = (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
+          if (orderDifference !== 0) return orderDifference;
+
+          const createdDifference =
+            new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
+          if (createdDifference !== 0) return createdDifference;
+
+          return (a.subject?.name ?? '').localeCompare(b.subject?.name ?? '');
+        })
+      : tutor.subjects,
     availabilities: tutor.availabilities
       ? tutor.availabilities.map((availability) => ({
           ...availability,

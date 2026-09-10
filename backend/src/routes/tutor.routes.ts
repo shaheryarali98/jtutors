@@ -24,6 +24,7 @@ router.delete('/profile/education/:id', tutorController.deleteEducation);
 
 // Subjects
 router.post('/profile/subjects', tutorController.addSubjects);
+router.put('/profile/subjects/order', tutorController.reorderSubjects);
 router.delete('/profile/subjects/:subjectId', tutorController.removeSubject);
 
 // Availability

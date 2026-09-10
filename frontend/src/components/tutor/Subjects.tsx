@@ -13,6 +13,7 @@ interface Subject {
 interface TutorSubject {
   id: string;
   subjectId: string;
+  displayOrder?: number;
   subject: Subject;
 }
 
@@ -35,6 +36,8 @@ const Subjects = () => {
   const [fetchingSubjects, setFetchingSubjects] = useState(true);
   const [feedback, setFeedback] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [orderDirty, setOrderDirty] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   useEffect(() => {
     fetchSubjects();
@@ -71,6 +74,7 @@ const Subjects = () => {
       const response = await api.get("/auth/me");
       const subjects = response.data.tutor?.subjects || [];
       setTutorSubjects(subjects);
+      setOrderDirty(false);
       // Initialize selectedSubjects with current subjects
       setSelectedSubjects(subjects.map((ts: TutorSubject) => ts.subjectId));
     } catch (error) {
@@ -91,6 +95,43 @@ const Subjects = () => {
   const getSubcategories = (categoryId: string) => {
     // Filter the flat list by parentId
     return allSubjects.filter((s) => s.parentId === categoryId);
+  };
+
+  const moveSubject = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= tutorSubjects.length) return;
+
+    setTutorSubjects((current) => {
+      const reordered = [...current];
+      const [moved] = reordered.splice(fromIndex, 1);
+      reordered.splice(toIndex, 0, moved);
+      return reordered;
+    });
+    setOrderDirty(true);
+    setFeedback("");
+    setErrorMessage("");
+  };
+
+  const handleSaveOrder = async () => {
+    try {
+      setSavingOrder(true);
+      setFeedback("");
+      setErrorMessage("");
+
+      const response = await api.put("/tutor/profile/subjects/order", {
+        subjectIds: tutorSubjects.map((entry) => entry.subjectId),
+      });
+
+      setTutorSubjects(response.data.subjects || tutorSubjects);
+      setOrderDirty(false);
+      setFeedback("Subject order saved. Your primary subjects will appear first.");
+      window.dispatchEvent(new Event("tutor-profile-updated"));
+      setTimeout(() => setFeedback(""), 3000);
+    } catch (error) {
+      console.error("Error updating subject order:", error);
+      setErrorMessage("Unable to save the subject order. Please try again.");
+    } finally {
+      setSavingOrder(false);
+    }
   };
 
   // --- SAVE HANDLER (The core logic) ---
@@ -274,16 +315,59 @@ const Subjects = () => {
           <h3 className="text-lg font-semibold mb-3">
             ✅ Your Current Teaching Subjects
           </h3>
-          <div className="flex flex-wrap gap-2">
-            {tutorSubjects.map((ts) => (
-              <span
+          <p className="text-sm text-gray-600 mb-4">
+            Put your main subjects first. The first subjects are shown most prominently on your profile and tutor cards.
+          </p>
+          <div className="space-y-2 max-w-2xl">
+            {tutorSubjects.map((ts, index) => (
+              <div
                 key={ts.id}
-                className="px-4 py-2 bg-primary-600 text-white rounded-full text-sm shadow-md"
+                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
               >
-                {ts.subject.name}
-              </span>
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1 font-medium text-slate-800">
+                  {ts.subject.name}
+                </span>
+                {index === 0 && (
+                  <span className="hidden rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 sm:inline">
+                    Primary
+                  </span>
+                )}
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => moveSubject(index, index - 1)}
+                    disabled={index === 0 || savingOrder}
+                    aria-label={`Move ${ts.subject.name} up`}
+                    title="Move up"
+                    className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveSubject(index, index + 1)}
+                    disabled={index === tutorSubjects.length - 1 || savingOrder}
+                    aria-label={`Move ${ts.subject.name} down`}
+                    title="Move down"
+                    className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    ↓
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={handleSaveOrder}
+            disabled={!orderDirty || savingOrder}
+            className="btn btn-primary mt-4 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {savingOrder ? "Saving Order..." : "Save Subject Order"}
+          </button>
         </div>
       )}
 

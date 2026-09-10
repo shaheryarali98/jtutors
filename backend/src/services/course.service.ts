@@ -89,7 +89,10 @@ export const getPublishedCourses = async (filters?: { search?: string }) => {
           lastName: true,
           profileImage: true,
           tagline: true,
-          subjects: { include: { subject: { select: { name: true } } } },
+          subjects: {
+            include: { subject: { select: { name: true } } },
+            orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+          },
         },
       },
       _count: { select: { enrollments: { where: { status: 'PAID' } } } },
@@ -109,7 +112,10 @@ export const getCourseById = async (courseId: string) => {
           profileImage: true,
           tagline: true,
           hourlyFee: true,
-          subjects: { include: { subject: { select: { name: true } } } },
+          subjects: {
+            include: { subject: { select: { name: true } } },
+            orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+          },
         },
       },
       _count: { select: { enrollments: { where: { status: 'PAID' } } } },

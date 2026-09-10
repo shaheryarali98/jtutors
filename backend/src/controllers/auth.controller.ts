@@ -273,7 +273,8 @@ export const getCurrentUser = async (req: Request, res: Response) => {
             subjects: {
               include: {
                 subject: true
-              }
+              },
+              orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }]
             },
             availabilities: true,
             backgroundCheck: true

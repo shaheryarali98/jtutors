@@ -901,7 +901,10 @@ export const getEmailStatusAdmin = async (_req: Request, res: Response) => {
           include: {
             experiences: true,
             educations: true,
-            subjects: { include: { subject: true } },
+            subjects: {
+              include: { subject: true },
+              orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+            },
             availabilities: true,
             backgroundCheck: true,
           },
@@ -1019,7 +1022,10 @@ export const getPublicTutors = async (req: Request, res: Response) => {
         ...((minFee || maxFee) ? { hourlyFee: { ...(minFee ? { gte: parseFloat(minFee as string) } : {}), ...(maxFee ? { lte: parseFloat(maxFee as string) } : {}) } } : {}),
       },
       include: {
-        subjects: { include: { subject: true } },
+        subjects: {
+          include: { subject: true },
+          orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+        },
         experiences: true,
         educations: true,
       },
@@ -1136,6 +1142,7 @@ export const getPublicTutorDetails = async (req: Request, res: Response) => {
           include: {
             subject: true,
           },
+          orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
         },
         experiences: true,
         educations: true,
@@ -1569,18 +1576,22 @@ export const setTutorSubjectsAdmin = async (req: Request, res: Response) => {
       where: { id: { in: uniqueIds } },
       select: { id: true },
     });
-    const validIds = existingSubjects.map((subject) => subject.id);
+    const existingIds = new Set(existingSubjects.map((subject) => subject.id));
+    const validIds = uniqueIds.filter((subjectId) => existingIds.has(subjectId));
 
     await prisma.$transaction([
       prisma.tutorSubject.deleteMany({ where: { tutorId } }),
       ...(validIds.length > 0
-        ? [prisma.tutorSubject.createMany({ data: validIds.map((subjectId) => ({ tutorId, subjectId })) })]
+        ? [prisma.tutorSubject.createMany({
+            data: validIds.map((subjectId, displayOrder) => ({ tutorId, subjectId, displayOrder })),
+          })]
         : []),
     ]);
 
     const subjects = await prisma.tutorSubject.findMany({
       where: { tutorId },
       include: { subject: true },
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
     });
     const profileCompletion = await calculateProfileCompletion(tutorId);
 

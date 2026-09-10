@@ -191,6 +191,7 @@ model TutorSubject {
   tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   subjectId String
   subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  displayOrder Int   @default(0)
 
   createdAt DateTime @default(now())
 
