@@ -145,35 +145,39 @@ async function ensureProductionColumns() {
   }
 }
 
-async function ensurePersonalFinanceSubject() {
+async function ensureRequiredSubjects() {
   const prisma = new PrismaClient();
-  const categoryName = 'Mathematics';
-  const subjectName = 'Personal Finance';
+  const requiredSubjects = [
+    { categoryName: 'Mathematics', subjectName: 'Personal Finance' },
+    { categoryName: 'Jewish Studies', subjectName: 'Bat Mitzvah' },
+  ];
 
   try {
-    const category = await prisma.subject.upsert({
-      where: { name: categoryName },
-      update: {},
-      create: { name: categoryName, parentId: null },
-    });
-
-    const subject = await prisma.subject.findUnique({
-      where: { name: subjectName },
-    });
-
-    if (!subject) {
-      await prisma.subject.create({
-        data: { name: subjectName, parentId: category.id },
+    for (const { categoryName, subjectName } of requiredSubjects) {
+      const category = await prisma.subject.upsert({
+        where: { name: categoryName },
+        update: {},
+        create: { name: categoryName, parentId: null },
       });
-      console.log(`Created subject on server startup: ${subjectName}`);
-    } else if (subject.parentId !== category.id) {
-      await prisma.subject.update({
-        where: { id: subject.id },
-        data: { parentId: category.id },
+
+      const subject = await prisma.subject.findUnique({
+        where: { name: subjectName },
       });
-      console.log(`Updated ${subjectName} parent to ${categoryName} on server startup`);
-    } else {
-      console.log(`${subjectName} subject verified on server startup`);
+
+      if (!subject) {
+        await prisma.subject.create({
+          data: { name: subjectName, parentId: category.id },
+        });
+        console.log(`Created subject on server startup: ${subjectName}`);
+      } else if (subject.parentId !== category.id) {
+        await prisma.subject.update({
+          where: { id: subject.id },
+          data: { parentId: category.id },
+        });
+        console.log(`Updated ${subjectName} parent to ${categoryName} on server startup`);
+      } else {
+        console.log(`${subjectName} subject verified on server startup`);
+      }
     }
   } finally {
     await prisma.$disconnect();
@@ -300,7 +304,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Patch missing DB columns and start server
-ensureProductionColumns().then(ensurePersonalFinanceSubject).then(() => {
+ensureProductionColumns().then(ensureRequiredSubjects).then(() => {
   app.listen(PORT, async () => {
     console.log(`🚀 Server is running on port ${PORT}`);
     // Ensure email templates are seeded on startup

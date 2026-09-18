@@ -200,6 +200,7 @@ const subjectCategories = {
   ],
   'Jewish Studies': [
     'Bar Mitzvah',
+    'Bat Mitzvah',
     'Chassidus',
     'Chumash',
     'Conversational Hebrew',
