@@ -529,7 +529,7 @@ const StudentBookings = () => {
               const tutor = booking.tutor
               const start = new Date(booking.startTime)
               const end = new Date(booking.endTime)
-              const needsPayment = booking.status === 'CONFIRMED' && (!booking.payment || booking.payment.paymentStatus !== 'PAID')
+              const needsPayment = booking.classSession?.status === 'COMPLETED' && (!booking.payment || booking.payment.paymentStatus !== 'PAID')
               const hasPendingExtraTime = booking.extraTimeCharge?.status === 'PENDING'
               const bookingCoupon = getBookingCoupon(booking)
               const persistedCouponCode = booking.payment?.couponCode?.trim().toLowerCase() || ''
@@ -672,7 +672,7 @@ const StudentBookings = () => {
                   </div>
 
                   {/* Session space link */}
-                  {booking.status === 'CONFIRMED' && booking.payment?.paymentStatus === 'PAID' && (
+                  {booking.status === 'CONFIRMED' && (
                     <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
                       <p className="text-sm font-semibold text-indigo-900 mb-3">Your Tutoring Session</p>
                       {booking.classSession?.pencilSpaceUrl ? (
@@ -693,6 +693,7 @@ const StudentBookings = () => {
 
                   {/* Dispute window — shown while payment is held after tutor marks complete */}
                   {booking.classSession?.tutorApproved &&
+                    booking.payment?.paymentStatus === 'PAID' &&
                     !booking.classSession.paymentReleased && (
                     <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                       <p className="font-semibold text-amber-900">Payment pending release</p>
@@ -793,7 +794,7 @@ const StudentBookings = () => {
                   <div className="mt-6 flex flex-col md:flex-row gap-3">
                     {booking.status === 'PENDING' && (!booking.payment || booking.payment.paymentStatus !== 'PAID') && (
                       <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
-                        ⌛ Awaiting tutor confirmation — you'll be able to pay once the tutor confirms.
+                        ⌛ Awaiting tutor confirmation. Your saved card will not be charged until this session is completed.
                       </div>
                     )}
                     {needsPayment && (

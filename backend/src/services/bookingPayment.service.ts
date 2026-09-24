@@ -86,12 +86,11 @@ export type BookingChargeResult =
 /**
  * Charge the card the student saved when they booked.
  *
- * Called when the tutor accepts. Nothing was charged at booking time — the card
- * was only stored — so this is the point money actually moves. A failure here
- * never blocks the confirmation: the booking stays CONFIRMED and the student
- * still has the normal "Pay now" button as a fallback.
+ * Called after the tutor marks the session complete. Nothing is charged when
+ * the family books or when the tutor accepts. A failure never reverses session
+ * completion; the student still has the manual "Pay now" fallback.
  */
-export const chargeBookingOnConfirmation = async (
+export const chargeBookingAfterCompletion = async (
   bookingId: string
 ): Promise<BookingChargeResult> => {
   const booking = await prisma.booking.findUnique({
@@ -160,14 +159,12 @@ export const chargeBookingOnConfirmation = async (
       payment_method: booking.stripePaymentMethodId,
       off_session: true,
       confirm: true,
-      application_fee_amount: bd.platformFeeCents,
-      transfer_data: { destination: booking.tutor.stripeAccountId },
       metadata: {
         paymentId: payment.id,
         bookingId: booking.id,
         studentId: booking.studentId,
         tutorId: booking.tutorId,
-        chargedOn: 'tutor_confirmation',
+        chargedOn: 'session_completion',
       },
     });
 

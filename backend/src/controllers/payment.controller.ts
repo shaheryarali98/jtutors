@@ -52,6 +52,7 @@ export const validateBookingCouponController = async (req: Request, res: Respons
       couponCode: coupon.canonicalCode,
       discountPercent: coupon.discountPercent,
       discountAmount: coupon.discountAmount,
+      firstSessionOnly: coupon.firstSessionOnly,
       message: coupon.discountAmount > 0
         ? '$10 off applied!'
         : '50% off your first tutoring session applied!',
@@ -201,11 +202,15 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
       include: {
         tutor: { select: { id: true, firstName: true, lastName: true, hourlyFee: true, stripeAccountId: true, stripeOnboarded: true } },
         payment: true,
+        classSession: { select: { status: true } },
       },
     });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     if (booking.studentId !== student.id) return res.status(403).json({ error: 'Unauthorized' });
     if (booking.payment?.paymentStatus === 'PAID') return res.status(400).json({ error: 'Already paid' });
+    if (booking.classSession?.status !== 'COMPLETED') {
+      return res.status(400).json({ error: 'Payment is due only after the session is completed.' });
+    }
 
     const devBypass =
       process.env.NODE_ENV !== 'production' &&

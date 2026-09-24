@@ -212,7 +212,9 @@ export const createEnrollmentCheckoutSession = async (options: {
 };
 
 // Create Stripe Checkout Session for a booking (1:1 session) payment.
-// Same breakdown logic as enrollment.
+// The platform holds the charge until the student confirms the completed
+// session (or the release timer expires), then paymentRelease transfers the
+// tutor's share. Do not use transfer_data here or the tutor would be paid twice.
 export const createBookingCheckoutSession = async (options: {
   bookingTitle: string;
   bookingDescription: string;
@@ -244,12 +246,6 @@ export const createBookingCheckoutSession = async (options: {
         quantity: 1,
       },
     ],
-    payment_intent_data: {
-      application_fee_amount: breakdown.platformFeeCents,
-      transfer_data: {
-        destination: options.tutorStripeAccountId,
-      },
-    },
     success_url: options.successUrl,
     cancel_url: options.cancelUrl,
     metadata: {

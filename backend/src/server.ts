@@ -39,6 +39,8 @@ async function ensureProductionColumns() {
   const criticalBookingPatches = [
     ['Booking.stripePaymentMethodId', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripePaymentMethodId" TEXT`],
     ['Booking.couponCode', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`],
+    ['Booking.bookingSeriesId', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingSeriesId" TEXT`],
+    ['Booking.bookingSeriesId index', `CREATE INDEX IF NOT EXISTS "Booking_bookingSeriesId_idx" ON "Booking"("bookingSeriesId")`],
     ['TutorSubject.displayOrder', `ALTER TABLE "TutorSubject" ADD COLUMN IF NOT EXISTS "displayOrder" INTEGER NOT NULL DEFAULT 0`],
   ] as const;
 
@@ -289,10 +291,10 @@ app.get('/api/tutors/:tutorId', publicTutorRateLimit, getPublicTutorDetails);
 
 // Health check (both paths — /health and /api/health for frontend warm-up pings)
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString() });
+  res.json({ ok: true, timestamp: new Date().toISOString(), features: { recurringBookings: true } });
 });
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString() });
+  res.json({ ok: true, timestamp: new Date().toISOString(), features: { recurringBookings: true } });
 });
 
 // Error handling middleware

@@ -8,7 +8,6 @@ import { sendTemplatedEmail } from '../services/emailTemplate.service';
 import { getWalletSummary } from '../services/wallet.service';
 import { stripe } from '../services/stripe.service';
 import { listStripeSupportedCountries, resolveStripeCountryCode } from '../services/stripeCountry.service';
-import type { chargeBookingOnConfirmation } from '../services/bookingPayment.service';
 
 const prisma = new PrismaClient();
 
@@ -1413,6 +1412,7 @@ export const getTutorSessions = async (req: Request, res: Response) => {
         (new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime()) / (1000 * 60 * 60);
       return {
         id: booking.id,
+        bookingSeriesId: booking.bookingSeriesId,
         status: booking.status,
         startTime: booking.startTime,
         endTime: booking.endTime,
@@ -1583,22 +1583,6 @@ export const confirmBooking = async (req: Request, res: Response) => {
       data: { status: 'CONFIRMED' },
     });
 
-    // The student's card was captured at booking time but not charged.
-    // Accepting is the point money moves. A failure here does not undo the
-    // confirmation — the student keeps the manual "Pay now" fallback.
-    let chargeResult: Awaited<ReturnType<typeof chargeBookingOnConfirmation>> | null = null;
-    try {
-      const { chargeBookingOnConfirmation } = await import('../services/bookingPayment.service');
-      chargeResult = await chargeBookingOnConfirmation(id);
-      if (chargeResult.status === 'PAID') {
-        console.log(`Booking ${id} charged automatically on confirmation.`);
-      } else {
-        console.warn(`Booking ${id} not auto-charged:`, chargeResult.reason);
-      }
-    } catch (chargeError) {
-      console.error('Auto-charge on confirmation failed:', chargeError);
-    }
-
     // Notify student
     try {
       const studentEmail = booking.student?.user.email;
@@ -1618,13 +1602,58 @@ export const confirmBooking = async (req: Request, res: Response) => {
     res.json({
       message: 'Booking confirmed successfully.',
       booking: updated,
-      payment: chargeResult
-        ? { status: chargeResult.status, ...('reason' in chargeResult ? { reason: chargeResult.reason } : {}) }
-        : null,
     });
   } catch (error) {
     console.error('Confirm booking error:', error);
     res.status(500).json({ error: 'Error confirming booking' });
+  }
+};
+
+export const confirmBookingSeries = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { seriesId } = req.params;
+
+    const tutor = await prisma.tutor.findUnique({ where: { userId } });
+    if (!tutor) return res.status(404).json({ error: 'Tutor profile not found' });
+
+    const bookings = await prisma.booking.findMany({
+      where: { bookingSeriesId: seriesId, tutorId: tutor.id, status: 'PENDING' },
+      orderBy: { startTime: 'asc' },
+      include: { student: { include: { user: true } } },
+    });
+    if (bookings.length === 0) {
+      return res.status(404).json({ error: 'No pending sessions remain in this booking series.' });
+    }
+
+    await prisma.booking.updateMany({
+      where: { id: { in: bookings.map((booking) => booking.id) }, status: 'PENDING' },
+      data: { status: 'CONFIRMED' },
+    });
+
+    try {
+      const student = bookings[0].student;
+      const studentEmail = student?.user.email;
+      const studentName = [student?.firstName, student?.lastName].filter(Boolean).join(' ') || studentEmail || 'Student';
+      if (studentEmail) {
+        await sendEmail({
+          to: studentEmail,
+          subject: `${bookings.length} sessions confirmed by your tutor`,
+          html: `<p>Hi ${studentName},</p><p>${bookings.length} sessions in your recurring booking have been confirmed by ${`${tutor.firstName || ''} ${tutor.lastName || ''}`.trim() || 'your tutor'}.</p><p>The first confirmed session is ${bookings[0].startTime.toLocaleString()}.</p><p>The JTutors Team</p>`,
+          text: `${bookings.length} sessions in your recurring booking have been confirmed. The first is ${bookings[0].startTime.toLocaleString()}.`,
+        });
+      }
+    } catch (emailError) {
+      console.error('Error sending series confirmation email:', emailError);
+    }
+
+    res.json({
+      message: `${bookings.length} sessions confirmed successfully.`,
+      confirmedCount: bookings.length,
+    });
+  } catch (error) {
+    console.error('Confirm booking series error:', error);
+    res.status(500).json({ error: 'Error confirming booking series' });
   }
 };
 

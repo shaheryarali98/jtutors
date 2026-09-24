@@ -51,6 +51,7 @@ router.get('/sessions', tutorController.getTutorSessions);
 router.get('/earnings', tutorController.getTutorEarnings);
 router.get('/jtutors-email', tutorController.getJTutorsEmail);
 router.patch('/bookings/:id/confirm', tutorController.confirmBooking);
+router.patch('/booking-series/:seriesId/confirm', tutorController.confirmBookingSeries);
 router.patch('/bookings/:id/decline', tutorController.declineBooking);
 router.patch('/bookings/:id/cancel', tutorController.cancelBookingTutor);
 

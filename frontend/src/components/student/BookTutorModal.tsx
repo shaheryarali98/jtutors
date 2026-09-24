@@ -40,10 +40,13 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
   const [error, setError] = useState('')
   const [slots, setSlots] = useState<AvailabilitySlot[]>([])
   const [selectedSlotIdx, setSelectedSlotIdx] = useState<number | null>(null)
+  const [bookingMode, setBookingMode] = useState<'single' | 'multiple'>('single')
+  const [selectedSlotIndices, setSelectedSlotIndices] = useState<number[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [couponCode, setCouponCode] = useState('')
   const [discountPercent, setDiscountPercent] = useState(0)
   const [couponDiscountAmount, setCouponDiscountAmount] = useState(0)
+  const [couponFirstSessionOnly, setCouponFirstSessionOnly] = useState(false)
   const [couponFeedback, setCouponFeedback] = useState('')
   const [couponFeedbackType, setCouponFeedbackType] = useState<'success' | 'error' | ''>('')
   const [validatingCoupon, setValidatingCoupon] = useState(false)
@@ -59,10 +62,13 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
       setError('')
       setSlots([])
       setSelectedSlotIdx(null)
+      setBookingMode('single')
+      setSelectedSlotIndices([])
       setLoadingSlots(true)
       setCouponCode('')
       setDiscountPercent(0)
       setCouponDiscountAmount(0)
+      setCouponFirstSessionOnly(false)
       setCouponFeedback('')
       setCouponFeedbackType('')
       setSavedCards([])
@@ -70,7 +76,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
       setSetupClientSecret(null)
       setCardSetupError('')
 
-      // Card is captured now but not charged until the tutor accepts.
+      // Card is captured now; each session is charged only after completion.
       api
         .get('/student/payment-methods')
         .then((res) => {
@@ -139,6 +145,46 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
     return Array.from(groups.values())
   }, [slots])
 
+  const selectedSlots = useMemo(
+    () => selectedSlotIndices.map((idx) => slots[idx]).filter(Boolean),
+    [selectedSlotIndices, slots]
+  )
+
+  const toggleSeriesSlot = (idx: number) => {
+    setSelectedSlotIndices((current) =>
+      current.includes(idx) ? current.filter((value) => value !== idx) : [...current, idx].sort((a, b) => a - b)
+    )
+  }
+
+  const addMatchingWeeklySlots = () => {
+    if (selectedSlots.length === 0) return
+    const weeklyPatterns = selectedSlots.map((slot) => {
+      const start = new Date(slot.start)
+      return {
+        weekday: start.getDay(),
+        hour: start.getHours(),
+        minute: start.getMinutes(),
+        duration: new Date(slot.end).getTime() - start.getTime(),
+      }
+    })
+
+    const matches = slots.reduce<number[]>((indices, slot, idx) => {
+      const start = new Date(slot.start)
+      const duration = new Date(slot.end).getTime() - start.getTime()
+      const isMatch = weeklyPatterns.some(
+        (pattern) =>
+          pattern.weekday === start.getDay() &&
+          pattern.hour === start.getHours() &&
+          pattern.minute === start.getMinutes() &&
+          pattern.duration === duration
+      )
+      if (isMatch) indices.push(idx)
+      return indices
+    }, [])
+
+    setSelectedSlotIndices(Array.from(new Set([...selectedSlotIndices, ...matches])).sort((a, b) => a - b))
+  }
+
   if (!isOpen || !tutor) {
     return null
   }
@@ -149,32 +195,49 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
     setError('')
 
     try {
-      if (selectedSlotIdx === null || !slots[selectedSlotIdx]) {
-        throw new Error('Please select one of the available time slots.')
+      const bookingSlots = bookingMode === 'multiple'
+        ? selectedSlots
+        : selectedSlotIdx !== null && slots[selectedSlotIdx]
+          ? [slots[selectedSlotIdx]]
+          : []
+      if (bookingSlots.length === 0) throw new Error('Please select an available time slot.')
+      if (bookingMode === 'multiple' && bookingSlots.length < 2) {
+        throw new Error('Please select at least two sessions for a recurring booking.')
       }
 
-      const bookingStart = new Date(slots[selectedSlotIdx].start)
-      const bookingEnd = new Date(slots[selectedSlotIdx].end)
+      const bookingStart = new Date(bookingSlots[0].start)
+      const bookingEnd = new Date(bookingSlots[0].end)
 
-      if (!cardCaptureRef.current) {
+      const allowLocalPaymentBypass = import.meta.env.DEV && Boolean(cardSetupError)
+      if (!cardCaptureRef.current && !allowLocalPaymentBypass) {
         throw new Error('The card form is not ready yet. Please wait a moment and try again.')
       }
-      const paymentMethodId = await cardCaptureRef.current.resolvePaymentMethod()
+      const paymentMethodId = allowLocalPaymentBypass
+        ? undefined
+        : await cardCaptureRef.current!.resolvePaymentMethod()
 
-      const response = await api.post('/student/bookings', {
+      const commonPayload = {
         tutorId: tutor.id,
-        startTime: bookingStart.toISOString(),
-        endTime: bookingEnd.toISOString(),
         notes: notes.trim() || undefined,
         paymentMethodId,
         couponCode: discountPercent > 0 || couponDiscountAmount > 0 ? couponCode.trim() : undefined,
-      })
+      }
+      const response = bookingMode === 'multiple'
+        ? await api.post('/student/bookings/series', {
+            ...commonPayload,
+            slots: bookingSlots.map((slot) => ({ startTime: slot.start, endTime: slot.end })),
+          })
+        : await api.post('/student/bookings', {
+            ...commonPayload,
+            startTime: bookingStart.toISOString(),
+            endTime: bookingEnd.toISOString(),
+          })
 
       if (discountPercent > 0 && couponCode.trim()) {
         localStorage.setItem(
           LOCAL_BOOKING_COUPON_KEY,
           JSON.stringify({
-            bookingId: response.data?.booking?.id ?? null,
+            bookingId: response.data?.booking?.id ?? response.data?.bookings?.[0]?.id ?? null,
             tutorId: tutor.id,
             startTime: bookingStart.toISOString(),
             endTime: bookingEnd.toISOString(),
@@ -199,11 +262,18 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
 
   const displayImage = resolveImageUrl(tutor.profileImage)
   const selectedSlot = selectedSlotIdx !== null ? slots[selectedSlotIdx] : null
-  const sessionHours = selectedSlot
-    ? Math.max(0, (new Date(selectedSlot.end).getTime() - new Date(selectedSlot.start).getTime()) / 3_600_000)
-    : 0
-  const baseSessionPrice = tutor.hourlyFee * sessionHours
-  const discountAmount = baseSessionPrice * (discountPercent / 100) + couponDiscountAmount
+  const pricedSlots = bookingMode === 'multiple' ? selectedSlots : selectedSlot ? [selectedSlot] : []
+  const totalHours = pricedSlots.reduce(
+    (sum, slot) => sum + Math.max(0, (new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 3_600_000),
+    0
+  )
+  const slotPrices = pricedSlots.map(
+    (slot) => tutor.hourlyFee * Math.max(0, (new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 3_600_000)
+  )
+  const baseSessionPrice = slotPrices.reduce((sum, price) => sum + price, 0)
+  const percentDiscountBase = couponFirstSessionOnly ? (slotPrices[0] || 0) : baseSessionPrice
+  const discountedSessionCount = couponFirstSessionOnly ? Math.min(1, pricedSlots.length) : pricedSlots.length
+  const discountAmount = percentDiscountBase * (discountPercent / 100) + couponDiscountAmount * discountedSessionCount
   const finalSessionPrice = Math.max(0, baseSessionPrice - discountAmount)
 
 
@@ -211,6 +281,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
     if (!couponCode.trim()) {
       setDiscountPercent(0)
       setCouponDiscountAmount(0)
+      setCouponFirstSessionOnly(false)
       setCouponFeedback('Please enter a coupon code.')
       setCouponFeedbackType('error')
       return
@@ -222,11 +293,13 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
       setCouponCode(response.data.couponCode)
       setDiscountPercent(response.data.discountPercent)
       setCouponDiscountAmount(response.data.discountAmount || 0)
+      setCouponFirstSessionOnly(Boolean(response.data.firstSessionOnly))
       setCouponFeedback(response.data.message)
       setCouponFeedbackType('success')
     } catch (err: any) {
       setDiscountPercent(0)
       setCouponDiscountAmount(0)
+      setCouponFirstSessionOnly(false)
       setCouponFeedback(err.response?.data?.error || 'Unable to validate coupon right now.')
       setCouponFeedbackType('error')
     } finally {
@@ -290,9 +363,33 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="label">Booking type</label>
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setBookingMode('single')}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                    bookingMode === 'single' ? 'bg-white text-[#012c54] shadow-sm' : 'text-slate-600'
+                  }`}
+                >
+                  One session
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingMode('multiple')}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                    bookingMode === 'multiple' ? 'bg-white text-[#012c54] shadow-sm' : 'text-slate-600'
+                  }`}
+                >
+                  Multiple sessions
+                </button>
+              </div>
+            </div>
+
             {loadingSlots ? (
               <p className="text-sm text-slate-500">Loading available slots...</p>
-            ) : slots.length > 0 ? (
+            ) : slots.length > 0 && bookingMode === 'single' ? (
               <div>
                 <label className="label">Select a time slot *</label>
                 <select
@@ -312,6 +409,68 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
                   ))}
                 </select>
               </div>
+            ) : slots.length > 0 && bookingMode === 'multiple' ? (
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <label className="label mb-0">Select sessions *</label>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Choose at least two dates. Select one or more preferred weekly times, then add every matching week.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={selectedSlotIndices.length === 0}
+                      onClick={addMatchingWeeklySlots}
+                      className="rounded-lg border border-[#012c54] px-3 py-2 text-xs font-semibold text-[#012c54] hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Add same times weekly
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedSlotIndices.length === 0}
+                      onClick={() => setSelectedSlotIndices([])}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-72 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  {slotsByDay.map((group) => (
+                    <div key={group.key} className="rounded-lg bg-white p-3 shadow-sm">
+                      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{group.label}</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {group.slots.map(({ slot, idx }) => {
+                          const checked = selectedSlotIndices.includes(idx)
+                          return (
+                            <label
+                              key={slot.start}
+                              className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                                checked
+                                  ? 'border-blue-500 bg-blue-50 font-semibold text-[#012c54]'
+                                  : 'border-slate-200 text-slate-700 hover:border-blue-300'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleSeriesSlot(idx)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                              />
+                              {getSlotTimeLabel(slot)}
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm font-semibold text-[#012c54]">
+                  {selectedSlotIndices.length} session{selectedSlotIndices.length === 1 ? '' : 's'} selected
+                </p>
+              </div>
             ) : (
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-center">
                 <p className="text-sm font-semibold text-amber-800">No available time slots</p>
@@ -324,19 +483,21 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
               <div className="flex items-center justify-between gap-4 text-sm">
-                <span className="font-medium text-slate-600">Estimated session total</span>
+                <span className="font-medium text-slate-600">
+                  Estimated {bookingMode === 'multiple' ? 'series' : 'session'} total
+                </span>
                 <span className="text-lg font-bold text-slate-900">
                   ${finalSessionPrice.toFixed(2)}
                 </span>
               </div>
 
-              {selectedSlot && (
+              {pricedSlots.length > 0 && (
                 <div className="space-y-1 text-sm text-slate-600">
                   <div className="flex items-center justify-between gap-4">
-                    <span>Session length</span>
+                    <span>{bookingMode === 'multiple' ? `${pricedSlots.length} sessions` : 'Session length'}</span>
                     <span>
-                      {sessionHours.toFixed(sessionHours % 1 === 0 ? 0 : 2)} hour
-                      {sessionHours === 1 ? '' : 's'}
+                      {totalHours.toFixed(totalHours % 1 === 0 ? 0 : 2)} hour
+                      {totalHours === 1 ? '' : 's'} total
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
@@ -367,6 +528,7 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
                       setCouponCode(event.target.value)
                       setDiscountPercent(0)
                       setCouponDiscountAmount(0)
+                      setCouponFirstSessionOnly(false)
                       setCouponFeedback('')
                       setCouponFeedbackType('')
                     }}
@@ -396,13 +558,19 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
               <div>
                 <label className="label mb-0">Payment method *</label>
                 <p className="text-xs text-slate-500 mt-1">
-                  Your card is saved now but <strong>not charged</strong>. You are only charged
-                  once {tutor.firstName} accepts this session.
+                  Your card is saved now but <strong>not charged upfront</strong>. Each session is
+                  charged separately only after it is completed.
                 </p>
               </div>
 
               {cardSetupError ? (
-                <p className="text-sm text-red-600">{cardSetupError}</p>
+                import.meta.env.DEV ? (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    Local test mode: Stripe is not configured, so no card will be saved or charged.
+                  </p>
+                ) : (
+                  <p className="text-sm text-red-600">{cardSetupError}</p>
+                )
               ) : (
                 <BookingCardCapture
                   ref={cardCaptureRef}
@@ -449,12 +617,16 @@ const BookTutorModal = ({ tutor, isOpen, onClose, onBooked, onError }: BookTutor
                   submitting ||
                   loadingSlots ||
                   slots.length === 0 ||
-                  selectedSlotIdx === null ||
-                  Boolean(cardSetupError) ||
-                  (!setupClientSecret && savedCards.length === 0)
+                  (bookingMode === 'single' ? selectedSlotIdx === null : selectedSlotIndices.length < 2) ||
+                  (!import.meta.env.DEV && Boolean(cardSetupError)) ||
+                  (!import.meta.env.DEV && !setupClientSecret && savedCards.length === 0)
                 }
               >
-                {submitting ? 'Sending hire request...' : 'Confirm hire request'}
+                {submitting
+                  ? 'Sending hire request...'
+                  : bookingMode === 'multiple'
+                    ? `Request ${selectedSlotIndices.length} sessions`
+                    : 'Confirm hire request'}
               </button>
             </div>
           </form>

@@ -5,6 +5,7 @@ import api from '../../lib/api'
 
 interface TutorSession {
   id: string
+  bookingSeriesId?: string | null
   status: string
   startTime: string
   endTime: string
@@ -60,6 +61,7 @@ const TutorSessions = () => {
   const [completing, setCompleting] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [confirmingSeriesId, setConfirmingSeriesId] = useState<string | null>(null)
   const [decliningId, setDecliningId] = useState<string | null>(null)
   const [requestingExtraId, setRequestingExtraId] = useState<string | null>(null)
   const [actionMsg, setActionMsg] = useState('')
@@ -98,6 +100,20 @@ const TutorSessions = () => {
       setError(err.response?.data?.error || 'Failed to confirm booking.')
     } finally {
       setConfirmingId(null)
+    }
+  }
+
+  const handleConfirmSeries = async (seriesId: string, count: number) => {
+    if (!window.confirm(`Confirm all ${count} remaining sessions in this recurring booking?`)) return
+    setConfirmingSeriesId(seriesId); setActionMsg(''); setError('')
+    try {
+      const response = await api.patch(`/tutor/booking-series/${seriesId}/confirm`)
+      setActionMsg(response.data?.message || `${count} sessions confirmed! The student has been notified.`)
+      await fetchSessions()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to confirm the recurring booking.')
+    } finally {
+      setConfirmingSeriesId(null)
     }
   }
 
@@ -328,6 +344,16 @@ const TutorSessions = () => {
     [filteredSessions]
   )
 
+  const pendingSeriesCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    sessions.forEach((session) => {
+      if (session.status === 'PENDING' && session.bookingSeriesId) {
+        counts.set(session.bookingSeriesId, (counts.get(session.bookingSeriesId) || 0) + 1)
+      }
+    })
+    return counts
+  }, [sessions])
+
   const activeSessions = useMemo(
     () => filteredSessions.filter((s) => s.status === 'CONFIRMED' || s.status === 'COMPLETED'),
     [filteredSessions]
@@ -361,6 +387,11 @@ const TutorSessions = () => {
             {new Date(session.startTime).toLocaleString()} • {session.durationHours.toFixed(1)} hrs
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
+            {session.bookingSeriesId && (
+              <span className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                Recurring booking
+              </span>
+            )}
             <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusColors[session.status] || 'bg-slate-200 text-slate-700'}`}>
               {session.status}
             </span>
@@ -424,12 +455,27 @@ const TutorSessions = () => {
         <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-3 items-center">
           <button
             type="button"
-            disabled={confirmingId === session.id}
+            disabled={confirmingId === session.id || confirmingSeriesId === session.bookingSeriesId}
             onClick={() => handleConfirmBooking(session.id)}
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
           >
             {confirmingId === session.id ? 'Confirming…' : '✓ Confirm Booking'}
           </button>
+          {session.bookingSeriesId && (pendingSeriesCounts.get(session.bookingSeriesId) || 0) > 1 && (
+            <button
+              type="button"
+              disabled={confirmingSeriesId === session.bookingSeriesId}
+              onClick={() => handleConfirmSeries(
+                session.bookingSeriesId!,
+                pendingSeriesCounts.get(session.bookingSeriesId!) || 0
+              )}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
+            >
+              {confirmingSeriesId === session.bookingSeriesId
+                ? 'Confirming series…'
+                : `Confirm all ${pendingSeriesCounts.get(session.bookingSeriesId) || 0}`}
+            </button>
+          )}
           <button
             type="button"
             disabled={decliningId === session.id}
@@ -438,7 +484,7 @@ const TutorSessions = () => {
           >
             {decliningId === session.id ? 'Declining…' : '✕ Decline'}
           </button>
-          <p className="text-xs text-slate-500">Confirm to let the student proceed with payment.</p>
+          <p className="text-xs text-slate-500">Confirmation reserves this session. Payment occurs after completion.</p>
         </div>
       )}
 
@@ -467,7 +513,7 @@ const TutorSessions = () => {
                     ? `Session must end before marking complete (ends ${sessionEndTime.toLocaleString()})`
                     : !sessionEnded
                     ? `Testing mode enabled: you can mark complete before end time (scheduled end ${sessionEndTime.toLocaleString()}).`
-                    : 'Marks the session as done and releases payment to you.'}
+                    : 'Marks the session as done, charges it, and starts the payment release process.'}
                 </p>
               </div>
               <button

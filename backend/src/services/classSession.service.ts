@@ -204,6 +204,20 @@ export const completeClassSession = async (
     },
   });
 
+  // Families may reserve many dates in advance, but each saved card is charged
+  // only after that individual session is actually completed.
+  try {
+    const { chargeBookingAfterCompletion } = await import('./bookingPayment.service');
+    const chargeResult = await chargeBookingAfterCompletion(updated.bookingId);
+    if (chargeResult.status === 'PAID') {
+      console.log(`Booking ${updated.bookingId} charged after session completion.`);
+    } else {
+      console.warn(`Booking ${updated.bookingId} was not auto-charged after completion:`, chargeResult.reason);
+    }
+  } catch (chargeError) {
+    console.error(`Auto-charge after session ${classSessionId} completion failed:`, chargeError);
+  }
+
   // Email student asking them to confirm the session happened
   try {
     const studentEmail = updated.booking.student.user.email;

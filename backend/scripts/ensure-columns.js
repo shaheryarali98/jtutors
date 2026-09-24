@@ -24,6 +24,8 @@ const STATEMENTS = [
   ['AdminSettings.clientCacheVersion', `ALTER TABLE "AdminSettings" ADD COLUMN IF NOT EXISTS "clientCacheVersion" INTEGER NOT NULL DEFAULT 1`],
   ['Booking.stripePaymentMethodId', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "stripePaymentMethodId" TEXT`],
   ['Booking.couponCode', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`],
+  ['Booking.bookingSeriesId', `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "bookingSeriesId" TEXT`],
+  ['Booking.bookingSeriesId index', `CREATE INDEX IF NOT EXISTS "Booking_bookingSeriesId_idx" ON "Booking"("bookingSeriesId")`],
   ['TutorSubject.displayOrder', `ALTER TABLE "TutorSubject" ADD COLUMN IF NOT EXISTS "displayOrder" INTEGER NOT NULL DEFAULT 0`],
   ['Payment.couponCode', `ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponCode" TEXT`],
   ['Payment.couponDiscountPercent', `ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "couponDiscountPercent" DOUBLE PRECISION NOT NULL DEFAULT 0`],

@@ -5,6 +5,7 @@ import { gradeMatches } from '../utils/grade';
 import { getAdminSettings } from '../services/settings.service';
 import { sendEmail } from '../services/email.service';
 import { sendTemplatedEmail } from '../services/emailTemplate.service';
+import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -175,7 +176,7 @@ const generateBookableSlots = (
   tutorTimeZone: string
 ) => {
   const now = new Date();
-  const horizonDays = 14; // look 2 weeks ahead
+  const horizonDays = 90; // allow families to reserve recurring sessions for roughly 3 months
   const safeZone = getSafeTimeZone(tutorTimeZone);
   const slots: Array<{ start: string; end: string }> = [];
 
@@ -225,10 +226,10 @@ const generateBookableSlots = (
 
   // Keep every day of the rolling window represented. A flat cap of 30 meant a
   // tutor with a wide daily block filled the whole list from the first three or
-  // four days, so the later days of the fortnight were never offered. Capping
+  // four days, so later dates in the booking horizon were never offered. Capping
   // per day instead keeps the horizon visible while bounding the payload.
   const MAX_SLOTS_PER_DAY = 12;
-  const MAX_SLOTS_TOTAL = 200;
+  const MAX_SLOTS_TOTAL = 1200;
   const perDayCount = new Map<string, number>();
 
   return slots
@@ -745,7 +746,7 @@ export const createBooking = async (req: Request, res: Response) => {
     }
 
     // Card capture: the student saves a card up front, but nothing is charged
-    // until the tutor accepts. Verify the card really belongs to this student
+    // until this session is completed. Verify the card really belongs to this student
     // before storing it against the booking.
     let verifiedPaymentMethodId: string | null = null;
     if (paymentMethodId) {
@@ -836,6 +837,182 @@ export const createBooking = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Create booking error:', error);
     res.status(500).json({ error: 'Error creating booking' });
+  }
+};
+
+export const createBookingSeries = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { tutorId, slots, paymentMethodId, couponCode } = req.body as {
+      tutorId?: string;
+      slots?: Array<{ startTime?: string; endTime?: string }>;
+      paymentMethodId?: string;
+      couponCode?: string;
+    };
+
+    if (!tutorId || !Array.isArray(slots) || slots.length < 2) {
+      return res.status(400).json({ error: 'Select at least two sessions to create a recurring booking.' });
+    }
+    if (slots.length > 100) {
+      return res.status(400).json({ error: 'A recurring booking can contain up to 100 sessions.' });
+    }
+
+    const parsedSlots = slots
+      .map((slot) => ({ start: new Date(slot.startTime || ''), end: new Date(slot.endTime || '') }))
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    if (parsedSlots.some(({ start, end }) => Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start)) {
+      return res.status(400).json({ error: 'One or more selected sessions has an invalid time.' });
+    }
+
+    const uniqueSlots = new Set(parsedSlots.map(({ start, end }) => `${start.toISOString()}|${end.toISOString()}`));
+    if (uniqueSlots.size !== parsedSlots.length) {
+      return res.status(400).json({ error: 'The recurring booking contains duplicate sessions.' });
+    }
+
+    for (let index = 1; index < parsedSlots.length; index += 1) {
+      if (parsedSlots[index].start < parsedSlots[index - 1].end) {
+        return res.status(400).json({ error: 'Selected sessions cannot overlap each other.' });
+      }
+    }
+
+    const [student, tutor] = await Promise.all([
+      prisma.student.findUnique({ where: { userId } }),
+      prisma.tutor.findUnique({ where: { id: tutorId }, include: { availabilities: true } }),
+    ]);
+
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+    if (!tutor) return res.status(404).json({ error: 'Tutor not found' });
+    if (!tutor.availabilities.length) {
+      return res.status(400).json({ error: 'This tutor has not opened any bookable time slots yet.' });
+    }
+
+    const tutorTimeZone = getSafeTimeZone(tutor.timezone);
+    const unavailableSlot = parsedSlots.find(
+      ({ start, end }) => !bookingMatchesAvailability(tutor.availabilities, start, end, tutorTimeZone)
+    );
+    if (unavailableSlot) {
+      return res.status(400).json({
+        error: `The session on ${unavailableSlot.start.toLocaleString()} is no longer available. Please refresh and select again.`,
+      });
+    }
+
+    const firstStart = parsedSlots[0].start;
+    const lastEnd = parsedSlots[parsedSlots.length - 1].end;
+    const existingBookings = await prisma.booking.findMany({
+      where: {
+        tutorId,
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        startTime: { lt: lastEnd },
+        endTime: { gt: firstStart },
+      },
+      select: { startTime: true, endTime: true },
+    });
+
+    const conflict = parsedSlots.find(({ start, end }) =>
+      existingBookings.some((booking) => start < booking.endTime && end > booking.startTime)
+    );
+    if (conflict) {
+      return res.status(409).json({
+        error: `The session on ${conflict.start.toLocaleString()} was just booked. Please refresh and choose another time.`,
+      });
+    }
+
+    let verifiedPaymentMethodId: string | null = null;
+    if (paymentMethodId) {
+      const { stripe } = await import('../services/stripe.service');
+      const stripeCustomerId = (student as any).stripeCustomerId as string | null;
+      if (!stripe) return res.status(500).json({ error: 'Stripe is not configured' });
+      if (!stripeCustomerId) {
+        return res.status(400).json({ error: 'No payment profile found. Please re-add your card.' });
+      }
+      try {
+        const method = await stripe.paymentMethods.retrieve(paymentMethodId);
+        if (method.customer !== stripeCustomerId) {
+          return res.status(400).json({ error: 'That payment method does not belong to your account.' });
+        }
+        verifiedPaymentMethodId = method.id;
+      } catch (stripeError) {
+        console.error('Payment method verification failed:', stripeError);
+        return res.status(400).json({ error: 'We could not verify that card. Please try adding it again.' });
+      }
+    }
+
+    const bookingSeriesId = randomUUID();
+    const bookings = await prisma.$transaction(
+      parsedSlots.map(({ start, end }) =>
+        prisma.booking.create({
+          data: {
+            studentId: student.id,
+            tutorId,
+            startTime: start,
+            endTime: end,
+            status: 'PENDING',
+            stripePaymentMethodId: verifiedPaymentMethodId,
+            couponCode: couponCode?.trim() || null,
+            bookingSeriesId,
+          },
+        })
+      )
+    );
+
+    const { ensureGoogleClassroomForBooking } = await import('../services/classSession.service');
+    try {
+      // All sessions in the series belong to the same tutor/student pair, so
+      // resolve their Pencil Space once and reuse it instead of making dozens
+      // of identical external API calls for a long series.
+      const firstClassSession = await ensureGoogleClassroomForBooking(
+        bookings[0].id,
+        `Class with ${tutor.firstName || 'Tutor'}`
+      );
+      await prisma.$transaction(
+        bookings.slice(1).map((booking) =>
+          prisma.classSession.create({
+            data: {
+              bookingId: booking.id,
+              pencilSpaceId: firstClassSession?.pencilSpaceId || null,
+              pencilSpaceUrl: firstClassSession?.pencilSpaceUrl || null,
+              status: 'SCHEDULED',
+            },
+          })
+        )
+      );
+    } catch (classroomError) {
+      console.error(`Error creating classrooms for recurring series ${bookingSeriesId}:`, classroomError);
+      // Keep the booking request valid even if the optional classroom provider
+      // is unavailable. Missing sessions can still be created from the tutor UI.
+    }
+
+    try {
+      const tutorWithUser = await prisma.tutor.findUnique({
+        where: { id: tutorId },
+        include: { user: { select: { email: true } } },
+      });
+      const studentWithUser = await prisma.student.findUnique({
+        where: { id: student.id },
+        include: { user: { select: { email: true } } },
+      });
+      if (tutorWithUser?.user.email && studentWithUser) {
+        const studentName = [studentWithUser.firstName, studentWithUser.lastName].filter(Boolean).join(' ') || studentWithUser.user.email;
+        await sendEmail({
+          to: tutorWithUser.user.email,
+          subject: `New recurring booking request (${bookings.length} sessions)`,
+          html: `<p>Hi ${tutorWithUser.firstName || 'Tutor'},</p><p>${studentName} requested ${bookings.length} sessions from ${firstStart.toLocaleString()} through ${parsedSlots[parsedSlots.length - 1].start.toLocaleString()}.</p><p>You can confirm the sessions individually or confirm the remaining series together from your JTutors dashboard.</p>`,
+          text: `${studentName} requested ${bookings.length} sessions from ${firstStart.toLocaleString()} through ${parsedSlots[parsedSlots.length - 1].start.toLocaleString()}. You can confirm them individually or together from your dashboard.`,
+        });
+      }
+    } catch (emailError) {
+      console.error('Error sending recurring booking notification:', emailError);
+    }
+
+    res.status(201).json({
+      message: `${bookings.length} booking requests created successfully.`,
+      bookingSeriesId,
+      bookings,
+    });
+  } catch (error) {
+    console.error('Create recurring booking error:', error);
+    res.status(500).json({ error: 'Error creating recurring booking' });
   }
 };
 

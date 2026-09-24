@@ -29,6 +29,7 @@ router.get('/tutors/:tutorId', studentController.getTutorDetails);
 
 // Bookings
 router.post('/bookings', studentController.createBooking);
+router.post('/bookings/series', studentController.createBookingSeries);
 router.get('/bookings', studentController.getMyBookings);
 router.patch('/bookings/:id/cancel', studentController.cancelBookingStudent);
 

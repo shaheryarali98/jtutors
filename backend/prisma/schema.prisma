@@ -265,10 +265,11 @@ model Booking {
   endTime   DateTime
   status    String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED, COMPLETED
 
-  // Card captured at booking time. Nothing is charged until the tutor accepts,
-  // at which point this payment method is charged off-session.
+  // Card captured at booking time. Each session is charged separately only
+  // after the tutor marks that session complete.
   stripePaymentMethodId String?
   couponCode            String?
+  bookingSeriesId       String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -278,6 +279,8 @@ model Booking {
   payment          Payment?
   extraTimeCharges ExtraTimeCharge[]
   tip              Tip?
+
+  @@index([bookingSeriesId])
 }
 
 model Tip {
