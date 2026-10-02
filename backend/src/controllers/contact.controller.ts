@@ -12,7 +12,7 @@ export const submitContactForm = async (req: Request, res: Response) => {
     }
 
     // Send to admin
-    await sendEmail({
+    const delivery = await sendEmail({
       to: CONTACT_EMAIL,
       subject: `[JTutors Contact] ${subject}`,
       html: `
@@ -32,7 +32,14 @@ export const submitContactForm = async (req: Request, res: Response) => {
       text: `New Contact Form Submission\n\nFrom: ${name} (${email})\nSubject: ${subject}\n\nMessage:\n${message}`,
     });
 
-    res.json({ success: true, message: 'Your message has been sent successfully.' });
+    res.json({
+      success: true,
+      message: 'Your message has been sent successfully.',
+      emailDelivery: {
+        delivered: delivery.delivered,
+        sentCopySaved: delivery.sentCopySaved ?? false,
+      },
+    });
   } catch (error) {
     console.error('[Contact] Error sending contact form:', error);
     res.status(500).json({ error: 'Failed to send message. Please try again.' });
