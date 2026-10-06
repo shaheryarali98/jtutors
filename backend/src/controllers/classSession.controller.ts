@@ -11,6 +11,7 @@ import {
 import {
   ensurePencilUserForStudent,
   ensurePencilUserForTutor,
+  ensurePencilSpaceMembers,
   getPencilJoinUrl,
 } from '../services/pencilSpaces.service';
 import { PrismaClient } from '@prisma/client';
@@ -332,12 +333,24 @@ export const getJoinUrlController = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'You are not a participant of this session' });
     }
 
-    // Resolve the requesting user's persisted Pencil identity. Tutors keep their
-    // Teacher account (and therefore host controls); students keep theirs.
-    // Admins observe through the tutor's account.
-    const pencilUserId = isStudent
-      ? await ensurePencilUserForStudent(classSession.booking.studentId)
-      : await ensurePencilUserForTutor(classSession.booking.tutorId);
+    // Resolve both persisted identities and repair membership before every
+    // join. This guarantees that tutor and student are authorised into the
+    // same stored Space even for rooms created by the older integration.
+    const [tutorPencilUserId, studentPencilUserId] = await Promise.all([
+      ensurePencilUserForTutor(classSession.booking.tutorId),
+      ensurePencilUserForStudent(classSession.booking.studentId),
+    ]);
+    if (classSession.pencilSpaceId) {
+      await ensurePencilSpaceMembers(
+        classSession.pencilSpaceId,
+        tutorPencilUserId,
+        studentPencilUserId
+      );
+    }
+
+    // Tutors retain host controls; students enter as participants. Admins
+    // observe through the tutor identity.
+    const pencilUserId = isStudent ? studentPencilUserId : tutorPencilUserId;
 
     const joinUrl = await getPencilJoinUrl(pencilUserId, classSession.pencilSpaceUrl);
 

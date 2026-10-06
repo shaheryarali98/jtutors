@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { getAdminSettings, getFormattedAdminSettings, updateAdminSettings } from '../services/settings.service';
-import { ensureGoogleClassroomForBooking } from '../services/classSession.service';
+import { completeClassSession, ensureGoogleClassroomForBooking } from '../services/classSession.service';
 import { confirmPayment, markPaymentRefunded } from '../services/payment.service';
 import { getGoogleClassroomStatus } from '../services/googleClassroom.service';
 import { getEmailStatus } from '../services/email.service';
@@ -568,9 +568,35 @@ export const updateBookingStatusAdmin = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid booking status' });
     }
 
-    const updated = await prisma.booking.update({
+    const normalizedStatus = status.toUpperCase();
+    const existing = await prisma.booking.findUnique({
       where: { id },
-      data: { status: status.toUpperCase() },
+      include: { classSession: true },
+    });
+    if (!existing) return res.status(404).json({ error: 'Booking not found' });
+
+    if (normalizedStatus === 'COMPLETED') {
+      // Completing from the admin table must use the same workflow as the
+      // tutor button: complete the session, create its invoice, attempt the
+      // saved-card charge, and start the confirmation/release timeline.
+      const classSession = existing.classSession || await ensureGoogleClassroomForBooking(id);
+      if (!classSession) {
+        return res.status(500).json({ error: 'Unable to create the class session for this booking' });
+      }
+      await completeClassSession(
+        classSession.id,
+        existing.tutorId,
+        'Session completed from the admin dashboard.'
+      );
+    } else {
+      await prisma.booking.update({
+        where: { id },
+        data: { status: normalizedStatus },
+      });
+    }
+
+    const updated = await prisma.booking.findUniqueOrThrow({
+      where: { id },
       include: {
         student: { include: { user: true } },
         tutor: { include: { user: true } },
@@ -580,7 +606,9 @@ export const updateBookingStatusAdmin = async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: 'Booking updated successfully',
+      message: normalizedStatus === 'COMPLETED'
+        ? 'Session completed and invoice prepared successfully'
+        : 'Booking updated successfully',
       booking: mapAdminBooking(updated),
     });
   } catch (error) {

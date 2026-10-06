@@ -814,11 +814,12 @@ export const createBooking = async (req: Request, res: Response) => {
     }
 
     // Notify tutor about the new booking
+    let bookingEmailDelivery: { delivered: boolean; sentCopySaved?: boolean } | null = null;
     try {
       const tutorEmail = booking.tutor.user.email;
       const studentEmail = booking.student.user.email;
       const studentName = [booking.student.firstName, booking.student.lastName].filter(Boolean).join(' ') || studentEmail;
-      await sendTemplatedEmail('SESSION_BOOKED_TUTOR', tutorEmail, {
+      bookingEmailDelivery = await sendTemplatedEmail('SESSION_BOOKED_TUTOR', tutorEmail, {
         tutorName: tutor.firstName || tutorEmail,
         studentName,
         studentEmail,
@@ -833,6 +834,12 @@ export const createBooking = async (req: Request, res: Response) => {
     res.status(201).json({
       message: 'Booking created successfully. Google Classroom will be set up automatically.',
       booking,
+      emailDelivery: bookingEmailDelivery
+        ? {
+            delivered: bookingEmailDelivery.delivered,
+            sentCopySaved: bookingEmailDelivery.sentCopySaved ?? false,
+          }
+        : { delivered: false, sentCopySaved: false },
     });
   } catch (error) {
     console.error('Create booking error:', error);
@@ -983,6 +990,7 @@ export const createBookingSeries = async (req: Request, res: Response) => {
       // is unavailable. Missing sessions can still be created from the tutor UI.
     }
 
+    let bookingEmailDelivery: { delivered: boolean; sentCopySaved?: boolean } | null = null;
     try {
       const tutorWithUser = await prisma.tutor.findUnique({
         where: { id: tutorId },
@@ -994,7 +1002,7 @@ export const createBookingSeries = async (req: Request, res: Response) => {
       });
       if (tutorWithUser?.user.email && studentWithUser) {
         const studentName = [studentWithUser.firstName, studentWithUser.lastName].filter(Boolean).join(' ') || studentWithUser.user.email;
-        await sendEmail({
+        bookingEmailDelivery = await sendEmail({
           to: tutorWithUser.user.email,
           subject: `New recurring booking request (${bookings.length} sessions)`,
           html: `<p>Hi ${tutorWithUser.firstName || 'Tutor'},</p><p>${studentName} requested ${bookings.length} sessions from ${firstStart.toLocaleString()} through ${parsedSlots[parsedSlots.length - 1].start.toLocaleString()}.</p><p>You can confirm the sessions individually or confirm the remaining series together from your JTutors dashboard.</p>`,
@@ -1009,6 +1017,12 @@ export const createBookingSeries = async (req: Request, res: Response) => {
       message: `${bookings.length} booking requests created successfully.`,
       bookingSeriesId,
       bookings,
+      emailDelivery: bookingEmailDelivery
+        ? {
+            delivered: bookingEmailDelivery.delivered,
+            sentCopySaved: bookingEmailDelivery.sentCopySaved ?? false,
+          }
+        : { delivered: false, sentCopySaved: false },
     });
   } catch (error) {
     console.error('Create recurring booking error:', error);

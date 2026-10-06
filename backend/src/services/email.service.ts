@@ -134,6 +134,10 @@ export const saveEmailToSent = async (
   const hosts = lastWorkingImapHost && discoveredHosts.includes(lastWorkingImapHost)
     ? [lastWorkingImapHost, ...discoveredHosts.filter((host) => host !== lastWorkingImapHost)]
     : discoveredHosts;
+  // Retry the preferred host once after all fallbacks. SMTP delivery may have
+  // succeeded while IMAP had a brief connection reset; one bounded retry is
+  // enough to cover that without holding normal requests indefinitely.
+  const hostsToTry = hosts.length > 0 ? [...hosts, hosts[0]] : hosts;
   const user = process.env.IMAP_USER || process.env.SMTP_USER;
   const pass = process.env.IMAP_PASS || process.env.SMTP_PASS;
   const port = Number(process.env.IMAP_PORT || 993);
@@ -146,7 +150,7 @@ export const saveEmailToSent = async (
   }
 
   const connectionErrors: string[] = [];
-  for (const host of hosts) {
+  for (const host of hostsToTry) {
     const client = createClient({
       host,
       port,

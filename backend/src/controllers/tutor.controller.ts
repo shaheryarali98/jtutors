@@ -1574,6 +1574,17 @@ export const confirmBooking = async (req: Request, res: Response) => {
       },
     });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (booking.status === 'CONFIRMED' || booking.status === 'COMPLETED') {
+      // Treat retries as success. A slow response or double-click must not make
+      // the tutor think a booking that was already confirmed has failed.
+      try {
+        const { ensureGoogleClassroomForBooking } = await import('../services/classSession.service');
+        await ensureGoogleClassroomForBooking(booking.id, `Class with ${tutor.firstName || 'Tutor'}`);
+      } catch (classroomError) {
+        console.error('Error ensuring session resources after booking confirmation:', classroomError);
+      }
+      return res.json({ message: 'Booking is already confirmed.', booking });
+    }
     if (booking.status !== 'PENDING') {
       return res.status(400).json({ error: 'Only PENDING bookings can be confirmed.' });
     }
@@ -1583,17 +1594,25 @@ export const confirmBooking = async (req: Request, res: Response) => {
       data: { status: 'CONFIRMED' },
     });
 
+    try {
+      const { ensureGoogleClassroomForBooking } = await import('../services/classSession.service');
+      await ensureGoogleClassroomForBooking(booking.id, `Class with ${tutor.firstName || 'Tutor'}`);
+    } catch (classroomError) {
+      console.error('Error ensuring session resources after booking confirmation:', classroomError);
+    }
+
     // Notify student
+    let confirmationEmailDelivery: { delivered: boolean; sentCopySaved?: boolean } | null = null;
     try {
       const studentEmail = booking.student?.user.email;
       const studentName = [booking.student?.firstName, booking.student?.lastName].filter(Boolean).join(' ') || studentEmail || 'Student';
       if (studentEmail) {
-        await sendTemplatedEmail('BOOKING_CONFIRMED_STUDENT', studentEmail, {
+        confirmationEmailDelivery = await sendTemplatedEmail('BOOKING_CONFIRMED_STUDENT', studentEmail, {
           studentName,
           tutorName: `${tutor.firstName || ''} ${tutor.lastName || ''}`.trim() || 'Your tutor',
           startTime: booking.startTime.toLocaleString(),
           endTime: booking.endTime.toLocaleString(),
-        }).catch((err: unknown) => console.error('Confirm booking email error:', err));
+        });
       }
     } catch (emailError) {
       console.error('Error sending confirmation email:', emailError);
@@ -1602,6 +1621,12 @@ export const confirmBooking = async (req: Request, res: Response) => {
     res.json({
       message: 'Booking confirmed successfully.',
       booking: updated,
+      emailDelivery: confirmationEmailDelivery
+        ? {
+            delivered: confirmationEmailDelivery.delivered,
+            sentCopySaved: confirmationEmailDelivery.sentCopySaved ?? false,
+          }
+        : { delivered: false, sentCopySaved: false },
     });
   } catch (error) {
     console.error('Confirm booking error:', error);

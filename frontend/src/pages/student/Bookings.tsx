@@ -252,8 +252,25 @@ const StudentBookings = () => {
     }
   }
 
-  const handleJoinSpace = (pencilSpaceUrl: string) => {
-    window.open(pencilSpaceUrl, '_blank', 'noopener,noreferrer')
+  const handleJoinSpace = async (classSessionId: string) => {
+    setError('')
+    const joinWindow = window.open('about:blank', '_blank')
+
+    try {
+      const response = await api.get<{ joinUrl: string }>(`/class-sessions/${classSessionId}/join-url`)
+      const joinUrl = response.data?.joinUrl
+      if (!joinUrl) throw new Error('The session link is unavailable.')
+
+      if (joinWindow) {
+        joinWindow.opener = null
+        joinWindow.location.replace(joinUrl)
+      } else {
+        window.location.assign(joinUrl)
+      }
+    } catch (err: any) {
+      joinWindow?.close()
+      setError(err.response?.data?.error || err.message || 'Unable to join the Pencil Space.')
+    }
   }
 
   const handleTipTutor = async (booking: Booking) => {
@@ -678,7 +695,7 @@ const StudentBookings = () => {
                       {booking.classSession?.pencilSpaceUrl ? (
                         <button
                           type="button"
-                          onClick={() => handleJoinSpace(booking.classSession!.pencilSpaceUrl!)}
+                          onClick={() => handleJoinSpace(booking.classSession!.id)}
                           className="btn btn-primary inline-flex items-center justify-center gap-2"
                         >
                           🖊 Start Tutoring Session

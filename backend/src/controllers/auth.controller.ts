@@ -112,14 +112,20 @@ export const register = async (req: Request, res: Response) => {
       },
     });
 
+    let signupEmailDelivery: { delivered: boolean; sentCopySaved?: boolean } | null = null;
     if (shouldSendConfirmationEmail && !isAdmin) {
-      // Only send confirmation email to non-admin users
-      sendTemplatedEmail("SIGNUP_SUCCESS", email, {
-        userName: email,
-        email: email,
-      }).catch((emailErr) => {
+      // Wait for both SMTP delivery and the Sent-folder archive before
+      // finishing registration. Fire-and-forget made this flow impossible to
+      // verify and allowed a process restart to interrupt the archive step.
+      try {
+        signupEmailDelivery = await sendTemplatedEmail("SIGNUP_SUCCESS", normalizedEmail, {
+          userName: normalizedEmail,
+          email: normalizedEmail,
+        });
+      } catch (emailErr) {
         console.error("Failed to send signup confirmation email:", emailErr);
-      });
+        signupEmailDelivery = { delivered: false, sentCopySaved: false };
+      }
     }
 
     // Generate JWT token
@@ -150,6 +156,12 @@ export const register = async (req: Request, res: Response) => {
         emailConfirmed: user.emailConfirmed,
         profileImage: profileImage,
       },
+      emailDelivery: signupEmailDelivery
+        ? {
+            delivered: signupEmailDelivery.delivered,
+            sentCopySaved: signupEmailDelivery.sentCopySaved ?? false,
+          }
+        : null,
     });
   } catch (error: any) {
     console.error("Registration error:", error);

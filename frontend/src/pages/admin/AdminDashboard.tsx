@@ -855,12 +855,21 @@ const AdminDashboard = () => {
   }
 
   const handleBookingStatusChange = async (bookingId: string, status: string) => {
+    if (
+      status === 'COMPLETED' &&
+      !window.confirm('Mark this session complete and prepare its invoice? If a saved card is available, it will be charged now.')
+    ) {
+      return
+    }
+
     try {
-      await api.patch(`/admin/bookings/${bookingId}`, { status })
+      const response = await api.patch(`/admin/bookings/${bookingId}`, { status })
       await loadHires()
-    } catch (err) {
+      setError('')
+      if (response.data?.message) window.alert(response.data.message)
+    } catch (err: any) {
       console.error('Error updating booking status:', err)
-      setError('Failed to update booking status.')
+      setError(err.response?.data?.error || 'Failed to update booking status.')
     }
   }
 
@@ -1153,6 +1162,16 @@ const AdminDashboard = () => {
                                   </div>
                                 </div>
                               )}
+                              {booking.status === 'COMPLETED' &&
+                                (booking.classSession?.status !== 'COMPLETED' || !booking.payment) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleBookingStatusChange(booking.id, 'COMPLETED')}
+                                    className="mt-2 text-xs font-semibold text-amber-700 hover:text-amber-800 underline"
+                                  >
+                                    Finalize session &amp; create invoice
+                                  </button>
+                                )}
                             </td>
                             <td className="px-4 py-3 text-slate-600">
                               {booking.classSession?.googleClassroomLink ? (

@@ -108,17 +108,6 @@ export const chargeBookingAfterCompletion = async (
   if (booking.payment?.paymentStatus === 'PAID') {
     return { status: 'SKIPPED', reason: 'Already paid' };
   }
-  if (!stripe) return { status: 'SKIPPED', reason: 'Stripe is not configured' };
-  if (!booking.stripePaymentMethodId) {
-    return { status: 'SKIPPED', reason: 'No card was saved for this booking' };
-  }
-
-  const customerId = (booking.student as any).stripeCustomerId as string | null;
-  if (!customerId) return { status: 'SKIPPED', reason: 'Student has no Stripe customer' };
-
-  if (!booking.tutor.stripeAccountId || !booking.tutor.stripeOnboarded) {
-    return { status: 'SKIPPED', reason: 'Tutor has not completed Stripe onboarding' };
-  }
 
   const priced = await priceBooking(booking, booking.couponCode, booking.studentId);
   const bd = priced.breakdown;
@@ -150,6 +139,21 @@ export const chargeBookingAfterCompletion = async (
           paymentStatus: 'PENDING',
         },
       });
+
+  // Always create the invoice record once a session is completed. Older
+  // in-person bookings may not have a saved card, but they must still appear
+  // as pending invoices so the family can use the manual Pay now fallback.
+  if (!stripe) return { status: 'SKIPPED', reason: 'Stripe is not configured' };
+  if (!booking.stripePaymentMethodId) {
+    return { status: 'SKIPPED', reason: 'No card was saved for this booking' };
+  }
+
+  const customerId = (booking.student as any).stripeCustomerId as string | null;
+  if (!customerId) return { status: 'SKIPPED', reason: 'Student has no Stripe customer' };
+
+  if (!booking.tutor.stripeAccountId || !booking.tutor.stripeOnboarded) {
+    return { status: 'SKIPPED', reason: 'Tutor has not completed Stripe onboarding' };
+  }
 
   try {
     const intent = await stripe.paymentIntents.create({

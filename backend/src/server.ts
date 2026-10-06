@@ -290,11 +290,22 @@ app.get('/api/tutors', publicTutorRateLimit, getPublicTutors);
 app.get('/api/tutors/:tutorId', publicTutorRateLimit, getPublicTutorDetails);
 
 // Health check (both paths — /health and /api/health for frontend warm-up pings)
+const getHealthPayload = () => ({
+  ok: true,
+  timestamp: new Date().toISOString(),
+  features: {
+    recurringBookings: true,
+    authenticatedPencilJoin: true,
+    completionInvoices: true,
+    eventEmailDeliveryStatus: true
+  }
+});
+
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString(), features: { recurringBookings: true } });
+  res.json(getHealthPayload());
 });
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString(), features: { recurringBookings: true } });
+  res.json(getHealthPayload());
 });
 
 // Error handling middleware

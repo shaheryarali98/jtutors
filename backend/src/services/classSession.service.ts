@@ -176,33 +176,49 @@ export const completeClassSession = async (
   }
 
   if (classSession.status === 'COMPLETED') {
+    if (classSession.booking.status !== 'COMPLETED') {
+      await prisma.booking.update({
+        where: { id: classSession.bookingId },
+        data: { status: 'COMPLETED' },
+      });
+    }
+    // Idempotent repair path for legacy rows that were marked complete before
+    // invoice creation was wired to session completion.
+    const { chargeBookingAfterCompletion } = await import('./bookingPayment.service');
+    await chargeBookingAfterCompletion(classSession.bookingId);
     return classSession;
   }
 
   const autoReleaseAt = new Date(Date.now() + AUTO_RELEASE_HOURS * 60 * 60 * 1000);
 
-  const updated = await prisma.classSession.update({
-    where: { id: classSessionId },
-    data: {
-      status: 'COMPLETED',
-      completedAt: new Date(),
-      tutorApproved: true,
-      adminApproved: true,
-      adminApprovedAt: new Date(),
-      autoReleaseAt,
-      ...(actualHoursTaught && { actualHoursTaught }),
-      ...(notes && { notes }),
-    },
-    include: {
-      booking: {
-        include: {
-          student: { include: { user: true } },
-          tutor: { include: { user: true } },
-          payment: true,
+  const [updated] = await prisma.$transaction([
+    prisma.classSession.update({
+      where: { id: classSessionId },
+      data: {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+        tutorApproved: true,
+        adminApproved: true,
+        adminApprovedAt: new Date(),
+        autoReleaseAt,
+        ...(actualHoursTaught && { actualHoursTaught }),
+        ...(notes && { notes }),
+      },
+      include: {
+        booking: {
+          include: {
+            student: { include: { user: true } },
+            tutor: { include: { user: true } },
+            payment: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.booking.update({
+      where: { id: classSession.bookingId },
+      data: { status: 'COMPLETED' },
+    }),
+  ]);
 
   // Families may reserve many dates in advance, but each saved card is charged
   // only after that individual session is actually completed.

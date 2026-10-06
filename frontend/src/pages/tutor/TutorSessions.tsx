@@ -78,7 +78,9 @@ const TutorSessions = () => {
     try {
       setLoading(true)
       setError('')
-      const response = await api.get<{ sessions: TutorSession[] }>('/tutor/sessions')
+      const response = await api.get<{ sessions: TutorSession[] }>('/tutor/sessions', {
+        params: { _fresh: Date.now() },
+      })
       setSessions(response.data.sessions)
     } catch (err) {
       console.error('Error loading tutor sessions:', err)
@@ -94,6 +96,12 @@ const TutorSessions = () => {
     setConfirmingId(bookingId); setActionMsg(''); setError('')
     try {
       await api.patch(`/tutor/bookings/${bookingId}/confirm`)
+      // Move the card immediately. The server call is authoritative; a slow or
+      // cached follow-up list request must not leave the successful booking in
+      // the Pending section and make the button look broken.
+      setSessions((current) => current.map((session) => (
+        session.id === bookingId ? { ...session, status: 'CONFIRMED' } : session
+      )))
       setActionMsg('Booking confirmed! The student has been notified.')
       await fetchSessions()
     } catch (err: any) {
@@ -226,8 +234,25 @@ const TutorSessions = () => {
     }
   }
 
-  const handleJoinSpace = (pencilSpaceUrl: string) => {
-    window.open(pencilSpaceUrl, '_blank', 'noopener,noreferrer')
+  const handleJoinSpace = async (classSessionId: string) => {
+    setError('')
+    const joinWindow = window.open('about:blank', '_blank')
+
+    try {
+      const response = await api.get<{ joinUrl: string }>(`/class-sessions/${classSessionId}/join-url`)
+      const joinUrl = response.data?.joinUrl
+      if (!joinUrl) throw new Error('The session link is unavailable.')
+
+      if (joinWindow) {
+        joinWindow.opener = null
+        joinWindow.location.replace(joinUrl)
+      } else {
+        window.location.assign(joinUrl)
+      }
+    } catch (err: any) {
+      joinWindow?.close()
+      setError(err.response?.data?.error || err.message || 'Unable to join the Pencil Space.')
+    }
   }
 
   const handleCreateSpace = async (classSessionId: string) => {
@@ -431,7 +456,7 @@ const TutorSessions = () => {
             {session.classSession?.pencilSpaceUrl ? (
               <button
                 type="button"
-                onClick={() => handleJoinSpace(session.classSession!.pencilSpaceUrl!)}
+                onClick={() => handleJoinSpace(session.classSession!.id)}
                 className="inline-flex items-center gap-1.5 bg-[#5046e5] hover:bg-[#4338ca] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
               >
                 🖊 Join Space
@@ -455,7 +480,10 @@ const TutorSessions = () => {
         <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-3 items-center">
           <button
             type="button"
-            disabled={confirmingId === session.id || confirmingSeriesId === session.bookingSeriesId}
+            disabled={
+              confirmingId === session.id ||
+              Boolean(session.bookingSeriesId && confirmingSeriesId === session.bookingSeriesId)
+            }
             onClick={() => handleConfirmBooking(session.id)}
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
           >
