@@ -16,10 +16,10 @@ export interface PaymentBreakdown {
   basePriceCents: number;
   studentFeeCents: number;       // studentFeePercent % of base
   adminCommissionCents: number;  // platformCommissionPercent % of base (admin keeps)
-  tutorDeductionCents: number;   // adminCommissionPercentage % of base (tutor-side deduction)
+  tutorDeductionCents: number;   // legacy reporting field; always zero for new payments
   studentPaysCents: number;      // base + studentFee — this is the Stripe line-item amount
-  tutorPayoutCents: number;      // base - adminCommission - tutorDeduction
-  platformFeeCents: number;      // studentFee + adminCommission + tutorDeduction — application_fee_amount
+  tutorPayoutCents: number;      // base - adminCommission
+  platformFeeCents: number;      // studentFee + adminCommission — application_fee_amount
 }
 
 export const calculatePaymentBreakdown = async (

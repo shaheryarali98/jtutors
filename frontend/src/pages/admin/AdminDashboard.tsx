@@ -63,7 +63,7 @@ interface AdminSettings {
   sendSignupConfirmation: boolean
   sendProfileCompletionEmail: boolean
   autoApproveUsers: boolean
-  adminCommissionPercentage: number   // tutor deduction %
+  adminCommissionPercentage: number   // legacy field; no longer applied
   adminCommissionFixed: number
   platformCommissionPercent?: number  // admin platform commission %
   studentFeePercentage?: number       // student service fee %
@@ -1286,7 +1286,7 @@ const AdminDashboard = () => {
                           <th className="px-4 py-3">Base</th>
                           <th className="px-4 py-3">Student Fee</th>
                           <th className="px-4 py-3">Student Pays</th>
-                          <th className="px-4 py-3">Tutor Deduction</th>
+                          <th className="px-4 py-3">Platform Commission</th>
                           <th className="px-4 py-3">Tutor Payout</th>
                           <th className="px-4 py-3">Status</th>
                           <th className="px-4 py-3">Updated</th>
@@ -1310,7 +1310,9 @@ const AdminDashboard = () => {
                                 : `$${payment.amount.toFixed(2)}`} {payment.currency}
                             </td>
                             <td className="px-4 py-3 text-slate-600">
-                              {payment.tutorDeductionAmount != null ? `$${payment.tutorDeductionAmount.toFixed(2)}` : '—'}
+                              {payment.tutorAmount != null
+                                ? `$${Math.max(0, payment.amount - payment.tutorAmount).toFixed(2)}`
+                                : '—'}
                             </td>
                             <td className="px-4 py-3 text-slate-600">
                               {payment.tutorAmount != null ? `$${payment.tutorAmount.toFixed(2)}` : '—'}
@@ -1953,7 +1955,7 @@ const AdminDashboard = () => {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Admin Platform Commission %
+                          Platform Commission %
                         </label>
                         <div className="flex items-center gap-4">
                           <input
@@ -1961,7 +1963,7 @@ const AdminDashboard = () => {
                             step="0.1"
                             min="0"
                             max="100"
-                            value={settings.platformCommissionPercent ?? 10}
+                            value={settings.platformCommissionPercent ?? 9.25}
                             onChange={(event) =>
                               handleUpdateSettings({ platformCommissionPercent: parseFloat(event.target.value) })
                             }
@@ -1971,30 +1973,7 @@ const AdminDashboard = () => {
                           <span className="text-sm text-slate-500">%</span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          Admin keeps this % of the base price (e.g., 10%)
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Tutor Deduction %
-                        </label>
-                        <div className="flex items-center gap-4">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="100"
-                            value={settings.adminCommissionPercentage}
-                            onChange={(event) =>
-                              handleUpdateSettings({ adminCommissionPercentage: parseFloat(event.target.value) })
-                            }
-                            disabled={savingSettings}
-                            className="input w-32"
-                          />
-                          <span className="text-sm text-slate-500">%</span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Deducted from tutor payout in addition to admin commission (e.g., 9.25%)
+                          JTutors keeps this percentage of the base lesson price; the remainder goes to the tutor.
                         </p>
                       </div>
                       <div>
@@ -2017,36 +1996,15 @@ const AdminDashboard = () => {
                           <span className="text-sm text-slate-500">%</span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          Added on top of session price, charged to students (e.g., 4.5%)
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Admin Commission Fixed Fee
-                        </label>
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm text-slate-500">$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={settings.adminCommissionFixed}
-                            onChange={(event) =>
-                              handleUpdateSettings({ adminCommissionFixed: parseFloat(event.target.value) })
-                            }
-                            disabled={savingSettings}
-                            className="input w-32"
-                          />
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Fixed fee added to commission (e.g., $0.00)
+                          Added on top of the base price, paid by the student, and retained by JTutors.
                         </p>
                       </div>
                       <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700 space-y-1">
                         <p><strong>Example for $100 base price:</strong></p>
                         <p>Student pays: ${(100 * (1 + (settings.studentFeePercentage ?? 4.5) / 100)).toFixed(2)} (base + {settings.studentFeePercentage ?? 4.5}% service fee)</p>
-                        <p>Admin keeps: ${(100 * ((settings.platformCommissionPercent ?? 10) + (settings.adminCommissionPercentage ?? 9.25) + (settings.studentFeePercentage ?? 4.5)) / 100).toFixed(2)} ({(settings.platformCommissionPercent ?? 10) + (settings.adminCommissionPercentage ?? 9.25) + (settings.studentFeePercentage ?? 4.5)}% total)</p>
-                        <p>Tutor receives: ${(100 - (100 * ((settings.platformCommissionPercent ?? 10) + (settings.adminCommissionPercentage ?? 9.25)) / 100)).toFixed(2)}</p>
+                        <p>Platform keeps: ${(100 * ((settings.platformCommissionPercent ?? 9.25) + (settings.studentFeePercentage ?? 4.5)) / 100).toFixed(2)} ({settings.platformCommissionPercent ?? 9.25}% commission + {settings.studentFeePercentage ?? 4.5}% student service fee)</p>
+                        <p>Tutor receives: ${(100 - (100 * (settings.platformCommissionPercent ?? 9.25) / 100)).toFixed(2)} (base minus {settings.platformCommissionPercent ?? 9.25}% commission)</p>
+                        <p className="pt-1 text-xs text-slate-500">No additional tutor deduction is applied.</p>
                       </div>
                     </div>
                   </div>

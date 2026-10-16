@@ -396,7 +396,7 @@ model Payment {
 
   // Fee breakdown (all stored as dollar amounts for audit)
   studentFeeAmount     Float @default(0) // 4.5% of base, charged to student
-  tutorDeductionAmount Float @default(0) // 9.25% of base, deducted from tutor
+  tutorDeductionAmount Float @default(0) // legacy reporting field; zero for new payments
   studentChargeAmount  Float @default(0) // base + studentFee = what student pays total
 
   // First-session promotion audit fields
@@ -628,14 +628,14 @@ model Enrollment {
 
   // Amounts (dollar values)
   amount         Float // studentChargeAmount = base + student fee (what Stripe charges)
-  tutorAmount    Float // tutor payout = base - adminCommission - tutorDeduction
-  platformAmount Float // total platform fee = studentFee + adminCommission + tutorDeduction
+  tutorAmount    Float // tutor payout = base - platform commission
+  platformAmount Float // total platform fee = studentFee + platform commission
 
   // Detailed fee breakdown
   basePriceAmount       Float? // base course price
   studentFeeAmount      Float? // 4.5% added to student charge
-  adminCommissionAmount Float? // 10% admin platform commission
-  tutorDeductionAmount  Float? // 9.25% tutor-side deduction
+  adminCommissionAmount Float? // platform commission configured by admin (currently 9.25%)
+  tutorDeductionAmount  Float? // legacy reporting field; zero for new payments
   studentChargeAmount   Float? // = amount (kept for clarity)
 
   paidAt    DateTime?

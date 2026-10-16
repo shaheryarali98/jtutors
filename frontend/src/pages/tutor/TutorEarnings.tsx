@@ -15,7 +15,7 @@ interface EarningsSummary {
 interface PaymentRow {
   id: string
   amount: number          // base price
-  tutorAmount: number     // tutor payout after deductions
+  tutorAmount: number     // tutor payout after platform commission
   currency: string
   paymentStatus: string
   paidAt?: string | null
@@ -24,7 +24,7 @@ interface PaymentRow {
   studentName: string
   studentEmail: string
   studentChargeAmount?: number | null  // what student actually paid
-  tutorDeductionAmount?: number | null // deduction from tutor
+  tutorDeductionAmount?: number | null // legacy field; no longer applied
   adminCommissionAmount?: number | null
 }
 
@@ -303,7 +303,7 @@ const TutorEarnings = () => {
                     <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       <th className="px-4 py-3">Student</th>
                       <th className="px-4 py-3">Student Paid</th>
-                      <th className="px-4 py-3">Tutor Deduction</th>
+                      <th className="px-4 py-3">Platform Commission</th>
                       <th className="px-4 py-3">Your Payout</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Paid at</th>
@@ -320,9 +320,7 @@ const TutorEarnings = () => {
                           ${(payment.studentChargeAmount ?? payment.amount).toFixed(2)} {payment.currency}
                         </td>
                         <td className="px-4 py-3 text-red-600">
-                          {payment.tutorDeductionAmount != null
-                            ? `-$${payment.tutorDeductionAmount.toFixed(2)}`
-                            : '—'}
+                          -${Math.max(0, payment.amount - payment.tutorAmount).toFixed(2)}
                         </td>
                         <td className="px-4 py-3 text-slate-900 font-semibold">
                           ${payment.tutorAmount.toFixed(2)} {payment.currency}

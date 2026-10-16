@@ -18,14 +18,14 @@ export interface CreatePaymentData {
 export const calculateCommission = async (
   amount: number  // base price in dollars
 ): Promise<{
-  adminCommissionPercentage: number;  // tutor deduction %
+  adminCommissionPercentage: number;  // legacy setting retained for API compatibility
   adminCommissionFixed: number;
-  adminCommissionAmount: number;      // total platform gross (studentFee + adminComm + tutorDeduction)
+  adminCommissionAmount: number;      // total platform gross (studentFee + platform commission)
   tutorAmount: number;                // tutor payout in dollars
   studentFeePercentage: number;
   studentFeeAmount: number;
   studentChargeAmount: number;        // what student pays = base + studentFee
-  tutorDeductionAmount: number;       // 9.25% tutor deduction in dollars
+  tutorDeductionAmount: number;       // legacy reporting field; zero for new payments
 }> => {
   const basePriceCents = Math.round(amount * 100);
   const bd = await calculatePaymentBreakdown(basePriceCents);
