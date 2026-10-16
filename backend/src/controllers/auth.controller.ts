@@ -74,6 +74,7 @@ export const register = async (req: Request, res: Response) => {
 
     // Get admin settings, but don't fail registration if settings query fails
     let shouldSendConfirmationEmail = true; // Default to true
+    const adminNotificationEmail = 'info@jtutors.com';
     try {
       const settings = await getAdminSettings();
       shouldSendConfirmationEmail = settings.sendSignupConfirmation;
@@ -128,6 +129,25 @@ export const register = async (req: Request, res: Response) => {
       }
     }
 
+    // The welcome email above is addressed to the person who registered. The
+    // admin needs a separate Inbox notification so a saved copy in Sent is not
+    // mistaken for an account alert.
+    let adminEmailDelivery: { delivered: boolean; sentCopySaved?: boolean } | null = null;
+    try {
+      const frontendUrl = (process.env.FRONTEND_URL || 'https://jtutors.com').replace(/\/$/, '');
+      adminEmailDelivery = await sendTemplatedEmail('NEW_ACCOUNT_ADMIN', adminNotificationEmail, {
+        userEmail: normalizedEmail,
+        role: normalizedRole,
+        registeredAt: user.createdAt.toISOString(),
+        adminDashboardUrl: `${frontendUrl}/admin/dashboard#users`,
+      });
+    } catch (emailErr) {
+      // Account creation must never be rolled back because an administrative
+      // notification mailbox is temporarily unavailable.
+      console.error('Failed to send new-account notification to admin:', emailErr);
+      adminEmailDelivery = { delivered: false, sentCopySaved: false };
+    }
+
     // Generate JWT token
     if (!process.env.JWT_SECRET) {
       console.error("JWT_SECRET is not set in environment variables");
@@ -162,6 +182,10 @@ export const register = async (req: Request, res: Response) => {
             sentCopySaved: signupEmailDelivery.sentCopySaved ?? false,
           }
         : null,
+      adminEmailDelivery: {
+        delivered: adminEmailDelivery?.delivered ?? false,
+        sentCopySaved: adminEmailDelivery?.sentCopySaved ?? false,
+      },
     });
   } catch (error: any) {
     console.error("Registration error:", error);

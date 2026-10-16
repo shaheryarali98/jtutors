@@ -118,6 +118,21 @@ export const initializeDefaultTemplates = async () => {
       variables: JSON.stringify(['userName', 'email']),
     },
     {
+      name: 'NEW_ACCOUNT_ADMIN',
+      subject: 'New {{role}} account created - JTutors',
+      htmlBody: `
+        <h2>New JTutors Account</h2>
+        <p>A new account has been created on JTutors.</p>
+        <p><strong>Email:</strong> {{userEmail}}</p>
+        <p><strong>Role:</strong> {{role}}</p>
+        <p><strong>Registered:</strong> {{registeredAt}}</p>
+        <p><a href="{{adminDashboardUrl}}">View users in the admin dashboard</a></p>
+        <p>This is an administrative notification. The new user receives a separate welcome email.</p>
+      `,
+      textBody: `New JTutors account\n\nEmail: {{userEmail}}\nRole: {{role}}\nRegistered: {{registeredAt}}\n\nView users: {{adminDashboardUrl}}`,
+      variables: JSON.stringify(['userEmail', 'role', 'registeredAt', 'adminDashboardUrl']),
+    },
+    {
       name: 'PROFILE_COMPLETE',
       subject: 'Profile Complete - JTutors',
       htmlBody: `
