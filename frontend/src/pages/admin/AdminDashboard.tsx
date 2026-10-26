@@ -818,25 +818,6 @@ const AdminDashboard = () => {
     })
   }, [users, userSearchQuery, userRoleFilter])
 
-  const handleApproveWithdrawal = async (id: string) => {
-    try {
-      await api.post(`/withdrawals/${id}/approve`, {})
-      await loadWithdrawals()
-    } catch (err) {
-      console.error('Error approving withdrawal:', err)
-      setError('Failed to approve withdrawal.')
-    }
-  }
-
-  const handleRejectWithdrawal = async (id: string, reason: string) => {
-    try {
-      await api.post(`/withdrawals/${id}/reject`, { reason })
-      await loadWithdrawals()
-    } catch (err) {
-      console.error('Error rejecting withdrawal:', err)
-      setError('Failed to reject withdrawal.')
-    }
-  }
 
 
   const handleSaveEmailTemplate = async (template: Partial<EmailTemplate>) => {
@@ -2230,25 +2211,7 @@ const AdminDashboard = () => {
                             {new Date(withdrawal.requestedAt).toLocaleDateString()}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {withdrawal.status === 'PENDING' && (
-                              <div className="flex gap-2 justify-end">
-                                <button
-                                  onClick={() => handleApproveWithdrawal(withdrawal.id)}
-                                  className="text-sm font-semibold text-green-600 hover:text-green-700"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    const reason = prompt('Rejection reason:')
-                                    if (reason) handleRejectWithdrawal(withdrawal.id, reason)
-                                  }}
-                                  className="text-sm font-semibold text-red-600 hover:text-red-700"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            )}
+                            <span className="text-xs text-slate-400">Paid automatically via Stripe</span>
                           </td>
                         </tr>
                       ))}

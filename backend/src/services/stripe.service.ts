@@ -82,17 +82,22 @@ export const confirmPaymentIntent = async (
 export const createTransfer = async (
   amount: number,
   destination: string, // Stripe account ID
-  metadata?: Record<string, string>
+  metadata?: Record<string, string>,
+  sourceTransaction?: string | null // charge ID the funds came from
 ): Promise<Stripe.Transfer | null> => {
   if (!stripe) {
     throw new Error('Stripe is not configured');
   }
 
+  // Tying the transfer to its source charge lets Stripe move the funds even
+  // while they are still pending, instead of failing with "insufficient funds"
+  // whenever the platform's available balance is low.
   return await stripe.transfers.create({
     amount: Math.round(amount * 100),
     currency: 'usd',
     destination,
     metadata,
+    ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
   });
 };
 
