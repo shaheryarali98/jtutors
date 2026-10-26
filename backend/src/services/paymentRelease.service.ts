@@ -90,6 +90,14 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
       amountToTransfer = commission.tutorAmount;
     }
 
+    // Never send more than the tutor's share of what the student was actually
+    // charged. Without this cap, "1.00h taught" on a 55-minute booking paid the
+    // tutor more than the charge covered.
+    if (payment.tutorAmount > 0) {
+      amountToTransfer = Math.min(amountToTransfer, payment.tutorAmount);
+    }
+    amountToTransfer = Math.round(amountToTransfer * 100) / 100;
+
     // Create transfer to tutor's Stripe Connect account (skip in dev bypass mode)
     let transferId: string | undefined;
     if (!devBypass && tutor.stripeAccountId) {
@@ -102,7 +110,8 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
             classSessionId: classSession.id,
             bookingId: classSession.bookingId,
             tutorId: tutor.id,
-          }
+          },
+          payment.stripeChargeId
         );
 
         if (transfer) {
