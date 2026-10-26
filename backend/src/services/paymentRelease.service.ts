@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { createTransfer } from './stripe.service';
+import { createTransfer, confirmPaymentIntent } from './stripe.service';
 import { getPayment } from './payment.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
 
@@ -101,6 +101,22 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
     // Create transfer to tutor's Stripe Connect account (skip in dev bypass mode)
     let transferId: string | undefined;
     if (!devBypass && tutor.stripeAccountId) {
+      // Stripe only accepts a charge ID (ch_/py_) as source_transaction. Some
+      // older rows hold the PaymentIntent ID instead, so resolve it to its charge.
+      let sourceChargeId: string | null = null;
+      const storedId = payment.stripeChargeId || payment.stripePaymentIntentId || '';
+      if (storedId.startsWith('ch_') || storedId.startsWith('py_')) {
+        sourceChargeId = storedId;
+      } else if (storedId.startsWith('pi_')) {
+        try {
+          const intent = await confirmPaymentIntent(storedId);
+          const latest = intent?.latest_charge;
+          sourceChargeId = (typeof latest === 'string' ? latest : latest?.id) || null;
+        } catch (lookupErr: any) {
+          console.warn(`Could not resolve charge for ${storedId}: ${lookupErr?.message}`);
+        }
+      }
+
       try {
         const transfer = await createTransfer(
           amountToTransfer,
@@ -111,7 +127,7 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
             bookingId: classSession.bookingId,
             tutorId: tutor.id,
           },
-          payment.stripeChargeId
+          sourceChargeId
         );
 
         if (transfer) {
