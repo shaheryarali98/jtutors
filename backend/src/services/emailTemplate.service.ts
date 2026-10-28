@@ -247,10 +247,10 @@ export const initializeDefaultTemplates = async () => {
         <p>Hi {{studentName}},</p>
         <p>Your tutor <strong>{{tutorName}}</strong> has marked your session on <strong>{{sessionDate}}</strong> as complete.</p>
         <p>Payment will be automatically released to your tutor on <strong>{{autoReleaseDate}}</strong>.</p>
-        <p><strong>Did something go wrong?</strong> If the session did not happen or there was an issue, please email us at <a href="mailto:support@jtutors.com">support@jtutors.com</a> before <strong>{{autoReleaseDate}}</strong> to open a dispute. Once released, payments cannot be reversed.</p>
+        <p><strong>Did something go wrong?</strong> If the session did not happen or there was an issue, please email us at <a href="mailto:info@jtutors.com">info@jtutors.com</a> before <strong>{{autoReleaseDate}}</strong> to open a dispute. Once released, payments cannot be reversed.</p>
         <p>Best regards,<br/>The JTutors Team</p>
       `,
-      textBody: `Hi {{studentName}},\n\nYour tutor {{tutorName}} has marked your session on {{sessionDate}} as complete.\n\nPayment releases automatically on {{autoReleaseDate}}.\n\nIf the session did NOT happen, email support@jtutors.com BEFORE {{autoReleaseDate}} to dispute.\n\nBest,\nJTutors Team`,
+      textBody: `Hi {{studentName}},\n\nYour tutor {{tutorName}} has marked your session on {{sessionDate}} as complete.\n\nPayment releases automatically on {{autoReleaseDate}}.\n\nIf the session did NOT happen, email info@jtutors.com BEFORE {{autoReleaseDate}} to dispute.\n\nBest,\nJTutors Team`,
       variables: JSON.stringify(['studentName', 'tutorName', 'sessionDate', 'autoReleaseDate']),
     },
     {

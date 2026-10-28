@@ -729,7 +729,7 @@ const StudentBookings = () => {
                       </p>
                       <div className="mt-3">
                         <a
-                          href="mailto:support@jtutors.com?subject=Session%20Dispute"
+                          href="mailto:info@jtutors.com?subject=Session%20Dispute"
                           className="btn btn-outline text-sm border-rose-300 text-rose-600 hover:bg-rose-50"
                         >
                           File a dispute

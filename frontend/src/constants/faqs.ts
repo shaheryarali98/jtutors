@@ -102,6 +102,6 @@ export const faqs: FAQItem[] = [
   {
     question: 'Who do I contact for support?',
     answer:
-      'For platform or marketplace issues, email info@jtutors.com. For website technical support, email support@jtutors.com.',
+      'For platform, marketplace or website technical issues, email info@jtutors.com.',
   },
 ]
