@@ -140,6 +140,7 @@ model Tutor {
   courses          Course[]
   extraTimeCharges ExtraTimeCharge[]
   tips             Tip[]
+  duplicatePayouts DuplicatePayout[]
 }
 
 model Experience {
@@ -337,6 +338,28 @@ model ClassSession {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// A tutor payout that was sent twice for the same session. Tracks how much of
+// the duplicate has been pulled back from the tutor's Stripe balance.
+model DuplicatePayout {
+  id                  String    @id @default(uuid())
+  tutorId             String
+  tutor               Tutor     @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  classSessionId      String?
+  sessionDate         DateTime?
+  originalTransferId  String
+  duplicateTransferId String    @unique
+  amount              Float
+  recoveredAmount     Float     @default(0)
+  status              String    @default("OPEN") // OPEN, RECOVERED, WRITTEN_OFF
+  lastAttemptAt       DateTime?
+  lastError           String?
+  noticeSentAt        DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([tutorId, status])
 }
 
 model ExtraTimeCharge {

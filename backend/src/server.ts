@@ -139,6 +139,28 @@ async function ensureProductionColumns() {
     await _patchPrisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Tip_bookingId_key" ON "Tip"("bookingId")`);
     await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Tip_studentId_status_idx" ON "Tip"("studentId", "status")`);
     await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Tip_tutorId_status_idx" ON "Tip"("tutorId", "status")`);
+    await _patchPrisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "DuplicatePayout" (
+        "id" TEXT NOT NULL,
+        "tutorId" TEXT NOT NULL,
+        "classSessionId" TEXT,
+        "sessionDate" TIMESTAMP(3),
+        "originalTransferId" TEXT NOT NULL,
+        "duplicateTransferId" TEXT NOT NULL,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "recoveredAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "status" TEXT NOT NULL DEFAULT 'OPEN',
+        "lastAttemptAt" TIMESTAMP(3),
+        "lastError" TEXT,
+        "noticeSentAt" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "DuplicatePayout_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "DuplicatePayout_tutorId_fkey" FOREIGN KEY ("tutorId") REFERENCES "Tutor"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
+    await _patchPrisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "DuplicatePayout_duplicateTransferId_key" ON "DuplicatePayout"("duplicateTransferId")`);
+    await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DuplicatePayout_tutorId_status_idx" ON "DuplicatePayout"("tutorId", "status")`);
     console.log('✅ DB columns verified/patched');
   } catch (err: any) {
     console.error('⚠️ Column patch error (non-fatal):', err.message);

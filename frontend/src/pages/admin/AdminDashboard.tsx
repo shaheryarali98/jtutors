@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import Footer from '../../components/Footer'
@@ -195,6 +195,38 @@ interface DetailedUser {
   }
 }
 
+interface DuplicatePayoutItem {
+  id: string
+  sessionDate?: string | null
+  originalTransferId: string
+  duplicateTransferId: string
+  amount: number
+  recoveredAmount: number
+  status: string
+  lastAttemptAt?: string | null
+  lastError?: string | null
+}
+
+interface DuplicatePayoutTutor {
+  tutorId: string
+  tutorName: string
+  email: string
+  duplicateCount: number
+  duplicateTotal: number
+  recoveredTotal: number
+  outstandingTotal: number
+  writtenOffTotal: number
+  lastAttemptAt?: string | null
+  lastError?: string | null
+  noticeSentAt?: string | null
+  items: DuplicatePayoutItem[]
+}
+
+interface DuplicatePayoutsResponse {
+  tutors: DuplicatePayoutTutor[]
+  totals: { duplicateTotal: number; recoveredTotal: number; outstandingTotal: number }
+}
+
 interface Withdrawal {
   id: string
   userId: string
@@ -370,6 +402,9 @@ const AdminDashboard = () => {
   const [settings, setSettings] = useState<AdminSettings | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
+  const [duplicatePayouts, setDuplicatePayouts] = useState<DuplicatePayoutsResponse | null>(null)
+  const [duplicateBusy, setDuplicateBusy] = useState(false)
+  const [expandedDuplicateTutor, setExpandedDuplicateTutor] = useState<string | null>(null)
   const [classSessions, setClassSessions] = useState<ClassSession[]>([])
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([])
   const [bookings, setBookings] = useState<AdminBooking[]>([])
@@ -444,6 +479,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (activeTab === 'withdrawals') {
       loadWithdrawals()
+      loadDuplicatePayouts()
     } else if (activeTab === 'classes') {
       loadClassSessions()
     } else if (activeTab === 'emails') {
@@ -487,6 +523,71 @@ const AdminDashboard = () => {
       setWithdrawals(res.data.withdrawals)
     } catch (err) {
       console.error('Error loading withdrawals:', err)
+    }
+  }
+
+  const loadDuplicatePayouts = async () => {
+    try {
+      const res = await api.get<DuplicatePayoutsResponse>('/admin/duplicate-payouts')
+      setDuplicatePayouts(res.data)
+    } catch (err) {
+      console.error('Error loading duplicate payouts:', err)
+    }
+  }
+
+  const handleRecoverDuplicates = async (tutorId?: string) => {
+    setDuplicateBusy(true)
+    try {
+      const res = await api.post<{ message: string }>('/admin/duplicate-payouts/recover', tutorId ? { tutorId } : {})
+      await loadDuplicatePayouts()
+      alert(res.data.message)
+    } catch (err: any) {
+      const message = err.response?.data?.error || 'Recovery failed.'
+      setError(message)
+      alert(message)
+    } finally {
+      setDuplicateBusy(false)
+    }
+  }
+
+  const handleImportDuplicates = async () => {
+    setDuplicateBusy(true)
+    try {
+      const res = await api.post<{ message: string }>('/admin/duplicate-payouts/import', {})
+      await loadDuplicatePayouts()
+      alert(res.data.message)
+    } catch (err: any) {
+      const message = err.response?.data?.error || 'Scan failed.'
+      setError(message)
+      alert(message)
+    } finally {
+      setDuplicateBusy(false)
+    }
+  }
+
+  const handleNotifyDuplicate = async (tutor: DuplicatePayoutTutor) => {
+    if (!confirm(`Email ${tutor.tutorName} (${tutor.email}) a statement of their duplicate payments?`)) return
+    try {
+      const res = await api.post<{ message: string }>(`/admin/duplicate-payouts/${tutor.tutorId}/notify`, {})
+      await loadDuplicatePayouts()
+      alert(res.data.message)
+    } catch (err: any) {
+      const message = err.response?.data?.error || 'Could not send notice.'
+      setError(message)
+      alert(message)
+    }
+  }
+
+  const handleWriteOffDuplicate = async (item: DuplicatePayoutItem) => {
+    const left = (item.amount - item.recoveredAmount).toFixed(2)
+    if (!confirm(`Write off the remaining $${left} on transfer ${item.duplicateTransferId}? This stops recovery attempts for it.`)) return
+    try {
+      await api.post(`/admin/duplicate-payouts/${item.id}/write-off`, {})
+      await loadDuplicatePayouts()
+    } catch (err: any) {
+      const message = err.response?.data?.error || 'Could not write off.'
+      setError(message)
+      alert(message)
     }
   }
 
@@ -2222,6 +2323,144 @@ const AdminDashboard = () => {
                         <tr>
                           <td colSpan={6} className="px-4 py-6 text-center text-slate-500 text-sm">
                             No withdrawals found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+            {activeTab === 'withdrawals' && (
+              <section className="bg-white rounded-3xl shadow p-6 mt-6">
+                <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-900">Duplicate Payout Recovery</h2>
+                    <p className="text-sm text-slate-500">
+                      Tutors who were paid twice for the same session. The system checks each tutor's Stripe balance every 30 minutes and pulls the duplicate back as soon as funds are there.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleImportDuplicates}
+                      disabled={duplicateBusy}
+                      className="px-4 py-2 rounded-full border border-slate-300 text-slate-700 text-sm font-semibold disabled:opacity-50"
+                    >
+                      {duplicateBusy ? 'Working…' : 'Scan Stripe for duplicates'}
+                    </button>
+                    <button
+                      onClick={() => handleRecoverDuplicates()}
+                      disabled={duplicateBusy}
+                      className="px-4 py-2 rounded-full bg-slate-900 text-white text-sm font-semibold disabled:opacity-50"
+                    >
+                      {duplicateBusy ? 'Working…' : 'Check all balances now'}
+                    </button>
+                  </div>
+                </div>
+
+                {duplicatePayouts && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-slate-500">Paid twice</div>
+                      <div className="text-2xl font-semibold text-slate-900">${duplicatePayouts.totals.duplicateTotal.toFixed(2)}</div>
+                    </div>
+                    <div className="rounded-2xl bg-green-50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-green-700">Recovered</div>
+                      <div className="text-2xl font-semibold text-green-700">${duplicatePayouts.totals.recoveredTotal.toFixed(2)}</div>
+                    </div>
+                    <div className="rounded-2xl bg-amber-50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-amber-700">Still outstanding</div>
+                      <div className="text-2xl font-semibold text-amber-700">${duplicatePayouts.totals.outstandingTotal.toFixed(2)}</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Tutor</th>
+                        <th className="px-4 py-3 text-right">Sessions</th>
+                        <th className="px-4 py-3 text-right">Paid twice</th>
+                        <th className="px-4 py-3 text-right">Recovered</th>
+                        <th className="px-4 py-3 text-right">Outstanding</th>
+                        <th className="px-4 py-3 text-left">Last check</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(duplicatePayouts?.tutors ?? []).map(tutor => (
+                        <Fragment key={tutor.tutorId}>
+                          <tr className="hover:bg-slate-50">
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-slate-900">{tutor.tutorName}</div>
+                              <div className="text-xs text-slate-500">{tutor.email}</div>
+                              {tutor.noticeSentAt && (
+                                <div className="text-xs text-slate-400">Notified {new Date(tutor.noticeSentAt).toLocaleDateString()}</div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">{tutor.duplicateCount}</td>
+                            <td className="px-4 py-3 text-right">${tutor.duplicateTotal.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right text-green-700">${tutor.recoveredTotal.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-amber-700">${tutor.outstandingTotal.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-slate-500">
+                              {tutor.lastAttemptAt ? new Date(tutor.lastAttemptAt).toLocaleString() : 'Never'}
+                              {tutor.lastError && <div className="text-xs text-red-600 max-w-xs truncate" title={tutor.lastError}>{tutor.lastError}</div>}
+                            </td>
+                            <td className="px-4 py-3 text-right whitespace-nowrap">
+                              <button onClick={() => handleRecoverDuplicates(tutor.tutorId)} disabled={duplicateBusy || tutor.outstandingTotal <= 0} className="text-sm font-semibold text-slate-700 hover:text-slate-900 disabled:opacity-40 mr-3">Check balance</button>
+                              <button onClick={() => handleNotifyDuplicate(tutor)} className="text-sm font-semibold text-blue-600 hover:text-blue-700 mr-3">Send notice</button>
+                              <button onClick={() => setExpandedDuplicateTutor(expandedDuplicateTutor === tutor.tutorId ? null : tutor.tutorId)} className="text-sm font-semibold text-slate-500 hover:text-slate-700">
+                                {expandedDuplicateTutor === tutor.tutorId ? 'Hide' : 'Details'}
+                              </button>
+                            </td>
+                          </tr>
+                          {expandedDuplicateTutor === tutor.tutorId && (
+                            <tr>
+                              <td colSpan={7} className="px-4 pb-4 bg-slate-50">
+                                <table className="min-w-full text-xs">
+                                  <thead className="text-slate-500">
+                                    <tr>
+                                      <th className="px-3 py-2 text-left">Session</th>
+                                      <th className="px-3 py-2 text-left">Correct payment</th>
+                                      <th className="px-3 py-2 text-left">Duplicate payment</th>
+                                      <th className="px-3 py-2 text-right">Amount</th>
+                                      <th className="px-3 py-2 text-right">Recovered</th>
+                                      <th className="px-3 py-2 text-left">Status</th>
+                                      <th className="px-3 py-2 text-right"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {tutor.items.map(item => (
+                                      <tr key={item.id} className="border-t border-slate-200">
+                                        <td className="px-3 py-2">{item.sessionDate ? new Date(item.sessionDate).toLocaleDateString() : '—'}</td>
+                                        <td className="px-3 py-2"><a className="text-blue-600 hover:underline" href={`https://dashboard.stripe.com/connect/transfers/${item.originalTransferId}`} target="_blank" rel="noreferrer">{item.originalTransferId}</a></td>
+                                        <td className="px-3 py-2"><a className="text-blue-600 hover:underline" href={`https://dashboard.stripe.com/connect/transfers/${item.duplicateTransferId}`} target="_blank" rel="noreferrer">{item.duplicateTransferId}</a></td>
+                                        <td className="px-3 py-2 text-right">${item.amount.toFixed(2)}</td>
+                                        <td className="px-3 py-2 text-right text-green-700">${item.recoveredAmount.toFixed(2)}</td>
+                                        <td className="px-3 py-2">
+                                          <span className={`inline-flex px-2 py-0.5 rounded-full font-medium ${item.status === 'RECOVERED' ? 'bg-green-100 text-green-700' : item.status === 'WRITTEN_OFF' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{item.status === 'OPEN' ? 'Waiting for balance' : item.status === 'RECOVERED' ? 'Recovered' : 'Written off'}</span>
+                                          {item.lastError && <div className="text-red-600 mt-1 max-w-xs truncate" title={item.lastError}>{item.lastError}</div>}
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                          {item.status === 'OPEN' && (
+                                            <button onClick={() => handleWriteOffDuplicate(item)} className="font-semibold text-slate-500 hover:text-red-600">Write off</button>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      ))}
+                      {(duplicatePayouts?.tutors.length ?? 0) === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-6 text-center text-slate-500 text-sm">
+                            No duplicate payouts recorded.
                           </td>
                         </tr>
                       )}

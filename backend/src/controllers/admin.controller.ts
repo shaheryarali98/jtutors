@@ -1913,3 +1913,61 @@ export const updateStudentProfileAdmin = async (req: Request, res: Response) => 
     res.status(500).json({ error: 'Error updating student profile' });
   }
 };
+
+// ---------------------------------------------------------------------------
+// Duplicate payout recovery
+// ---------------------------------------------------------------------------
+export const getDuplicatePayoutsAdmin = async (_req: Request, res: Response) => {
+  try {
+    const { listDuplicatePayouts } = await import('../services/duplicatePayout.service');
+    res.json(await listDuplicatePayouts());
+  } catch (error: any) {
+    console.error('Get duplicate payouts error:', error);
+    res.status(500).json({ error: error.message || 'Error loading duplicate payouts' });
+  }
+};
+
+export const recoverDuplicatePayoutsAdmin = async (req: Request, res: Response) => {
+  try {
+    const { attemptDuplicateRecovery } = await import('../services/duplicatePayout.service');
+    const tutorId = typeof req.body?.tutorId === 'string' ? req.body.tutorId : undefined;
+    const result = await attemptDuplicateRecovery({ tutorId });
+    res.json({ message: `Recovered $${result.recovered.toFixed(2)} from ${result.attempted} transfer(s). ${result.stillOpen} still open.`, result });
+  } catch (error: any) {
+    console.error('Recover duplicate payouts error:', error);
+    res.status(500).json({ error: error.message || 'Error running recovery' });
+  }
+};
+
+export const notifyDuplicatePayoutAdmin = async (req: Request, res: Response) => {
+  try {
+    const { sendDuplicateNotice } = await import('../services/duplicatePayout.service');
+    const result = await sendDuplicateNotice(req.params.tutorId);
+    res.json({ message: `Notice sent to ${result.email}`, result });
+  } catch (error: any) {
+    console.error('Notify duplicate payout error:', error);
+    res.status(500).json({ error: error.message || 'Error sending notice' });
+  }
+};
+
+export const writeOffDuplicatePayoutAdmin = async (req: Request, res: Response) => {
+  try {
+    const { writeOffDuplicate } = await import('../services/duplicatePayout.service');
+    await writeOffDuplicate(req.params.id);
+    res.json({ message: 'Duplicate written off' });
+  } catch (error: any) {
+    console.error('Write off duplicate payout error:', error);
+    res.status(500).json({ error: error.message || 'Error writing off duplicate' });
+  }
+};
+
+export const importDuplicatePayoutsAdmin = async (_req: Request, res: Response) => {
+  try {
+    const { importDuplicatesFromStripe } = await import('../services/duplicatePayout.service');
+    const result = await importDuplicatesFromStripe();
+    res.json({ message: `Scanned ${result.scanned} paid sessions. Added ${result.added} duplicate(s), updated ${result.updated}.`, result });
+  } catch (error: any) {
+    console.error('Import duplicate payouts error:', error);
+    res.status(500).json({ error: error.message || 'Error scanning Stripe' });
+  }
+};

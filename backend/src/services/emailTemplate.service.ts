@@ -225,6 +225,21 @@ export const initializeDefaultTemplates = async () => {
       variables: JSON.stringify(['userName', 'email', 'amount', 'currency', 'withdrawalId', 'reason']),
     },
     {
+      name: 'DUPLICATE_PAYOUT_NOTICE',
+      subject: 'Correction to a duplicate payment - JTutors',
+      htmlBody: `
+        <h2>Correction to a duplicate payment</h2>
+        <p>Hi {{tutorName}},</p>
+        <p>A bug in our payout system sent you a second payment for {{sessionCount}} session(s) that had already been paid. The duplicate total is <strong>{{duplicateTotal}} USD</strong>.</p>
+        <p>So far {{recoveredTotal}} USD has been returned through Stripe. The remaining <strong>{{outstandingTotal}} USD</strong> will be deducted automatically from your upcoming Stripe payouts until it is cleared. Your correct earnings are not affected.</p>
+        <p>Sessions involved: {{sessionList}}</p>
+        <p>We are sorry for the confusion. Reply to this email if any amount looks wrong.</p>
+        <p>Best regards,<br/>The JTutors Team</p>
+      `,
+      textBody: `Correction to a duplicate payment\n\nHi {{tutorName}},\n\nA bug in our payout system sent you a second payment for {{sessionCount}} session(s) that had already been paid. Duplicate total: {{duplicateTotal}} USD. Returned so far: {{recoveredTotal}} USD. Remaining {{outstandingTotal}} USD will be deducted from your upcoming Stripe payouts. Your correct earnings are not affected.\n\nSessions: {{sessionList}}\n\nSorry for the confusion. Reply if any amount looks wrong.\n\nJTutors Team`,
+      variables: JSON.stringify(['tutorName', 'sessionCount', 'duplicateTotal', 'recoveredTotal', 'outstandingTotal', 'sessionList']),
+    },
+    {
       name: 'SESSION_BOOKED_TUTOR',
       subject: 'New Session Booked - JTutors',
       htmlBody: `

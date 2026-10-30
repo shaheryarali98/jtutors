@@ -38,6 +38,11 @@ import {
   saveTutorAvailabilityAdmin,
   deleteTutorAvailabilityAdmin,
   updateStudentProfileAdmin,
+  getDuplicatePayoutsAdmin,
+  recoverDuplicatePayoutsAdmin,
+  notifyDuplicatePayoutAdmin,
+  writeOffDuplicatePayoutAdmin,
+  importDuplicatePayoutsAdmin,
 } from '../controllers/admin.controller';
 
 const router = express.Router();
@@ -92,6 +97,13 @@ router.delete('/tutors/:tutorId/availabilities/:availabilityId', deleteTutorAvai
 
 // Admin edit control over student profiles
 router.patch('/students/:studentId/profile', updateStudentProfileAdmin);
+
+// Duplicate payout recovery
+router.get('/duplicate-payouts', getDuplicatePayoutsAdmin);
+router.post('/duplicate-payouts/recover', recoverDuplicatePayoutsAdmin);
+router.post('/duplicate-payouts/import', importDuplicatePayoutsAdmin);
+router.post('/duplicate-payouts/:tutorId/notify', notifyDuplicatePayoutAdmin);
+router.post('/duplicate-payouts/:id/write-off', writeOffDuplicatePayoutAdmin);
 
 export default router;
 

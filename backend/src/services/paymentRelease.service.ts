@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { createTransfer, confirmPaymentIntent, retrieveCharge } from './stripe.service';
+import { createTransfer, confirmPaymentIntent, retrieveCharge, listTransfersToAccount } from './stripe.service';
 import { getPayment } from './payment.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
 
@@ -117,20 +117,46 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
         }
       }
 
-      // Charges made before 24 Sep 2026 (and all course/tip charges) paid the
-      // tutor directly via transfer_data. Transferring again would pay twice.
+      // Guard 1: claim the session atomically. Two callers (cron, student
+      // confirm, admin button) can never both pass this line for one session.
+      const claimed = await prisma.classSession.updateMany({
+        where: { id: classSessionId, paymentReleased: false },
+        data: { paymentReleased: true, paymentReleasedAt: new Date() },
+      });
+      if (claimed.count === 0) {
+        return { success: true, error: 'Payment already released' };
+      }
+      const unclaim = () =>
+        prisma.classSession.update({
+          where: { id: classSessionId },
+          data: { paymentReleased: false, paymentReleasedAt: null },
+        });
+
+      // Guard 2: destination charges (all 1:1 sessions since Oct 2026, courses,
+      // tips, and everything before 24 Sep 2026) already paid the tutor when
+      // the student was charged. Transferring again would pay twice.
       if (sourceChargeId) {
         const charge = await retrieveCharge(sourceChargeId);
         const existing = charge?.transfer;
         const existingId = typeof existing === 'string' ? existing : existing?.id;
         if (existingId) {
-          await prisma.classSession.update({
-            where: { id: classSessionId },
-            data: { paymentReleased: true, paymentReleasedAt: new Date() },
-          });
           console.log(`[Release] ${classSessionId}: tutor already paid at charge time via ${existingId}; skipped duplicate transfer.`);
           return { success: true, transferId: existingId, error: 'Tutor was already paid when the student was charged' };
         }
+      }
+
+      // Guard 3: a release transfer for this session already exists in Stripe
+      // (for example the DB flag was lost). Never send a second one.
+      try {
+        const prior = (await listTransfersToAccount(tutor.stripeAccountId)).find(
+          t => t.metadata?.classSessionId === classSession.id
+        );
+        if (prior) {
+          console.log(`[Release] ${classSessionId}: transfer ${prior.id} already exists; skipped duplicate transfer.`);
+          return { success: true, transferId: prior.id, error: 'Transfer already existed' };
+        }
+      } catch (listErr: any) {
+        console.warn(`[Release] Could not list prior transfers: ${listErr?.message}`);
       }
 
       try {
@@ -143,7 +169,10 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
             bookingId: classSession.bookingId,
             tutorId: tutor.id,
           },
-          sourceChargeId
+          sourceChargeId,
+          // Guard 4: Stripe-side idempotency. A retry of the same session within
+          // 24h returns the original transfer instead of creating another.
+          `release-${classSession.id}`
         );
 
         if (transfer) {
@@ -151,6 +180,7 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
         }
       } catch (error: any) {
         console.error('Error creating Stripe transfer:', error);
+        await unclaim();
         return { success: false, error: `Failed to create transfer: ${error.message}` };
       }
     } else {

@@ -95,7 +95,8 @@ export const createTransfer = async (
   amount: number,
   destination: string, // Stripe account ID
   metadata?: Record<string, string>,
-  sourceTransaction?: string | null // charge ID the funds came from
+  sourceTransaction?: string | null, // charge ID the funds came from
+  idempotencyKey?: string            // same key => Stripe returns the same transfer, never a second one
 ): Promise<Stripe.Transfer | null> => {
   if (!stripe) {
     throw new Error('Stripe is not configured');
@@ -104,13 +105,41 @@ export const createTransfer = async (
   // Tying the transfer to its source charge lets Stripe move the funds even
   // while they are still pending, instead of failing with "insufficient funds"
   // whenever the platform's available balance is low.
-  return await stripe.transfers.create({
-    amount: Math.round(amount * 100),
-    currency: 'usd',
-    destination,
-    metadata,
-    ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
-  });
+  return await stripe.transfers.create(
+    {
+      amount: Math.round(amount * 100),
+      currency: 'usd',
+      destination,
+      metadata,
+      ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
+    },
+    idempotencyKey ? { idempotencyKey } : undefined
+  );
+};
+
+// Every transfer the platform has ever sent to one connected account.
+export const listTransfersToAccount = async (accountId: string): Promise<Stripe.Transfer[]> => {
+  if (!stripe) return [];
+  const out: Stripe.Transfer[] = [];
+  for await (const t of stripe.transfers.list({ destination: accountId, limit: 100 })) out.push(t);
+  return out;
+};
+
+// USD the connected account can be debited from right now, in cents.
+export const getConnectedAvailableCents = async (accountId: string): Promise<number> => {
+  if (!stripe) return 0;
+  const bal = await stripe.balance.retrieve({}, { stripeAccount: accountId });
+  return bal.available.filter(b => b.currency === 'usd').reduce((a, b) => a + b.amount, 0);
+};
+
+// Pull part or all of a transfer back from the connected account.
+export const reverseTransfer = async (
+  transferId: string,
+  amountCents: number,
+  description: string
+): Promise<Stripe.TransferReversal> => {
+  if (!stripe) throw new Error('Stripe is not configured');
+  return stripe.transfers.createReversal(transferId, { amount: amountCents, description });
 };
 
 // Create payout for withdrawal
