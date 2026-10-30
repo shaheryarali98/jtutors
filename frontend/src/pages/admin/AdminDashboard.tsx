@@ -879,9 +879,12 @@ const AdminDashboard = () => {
     try {
       await api.post(`/class-sessions/${sessionId}/release-payment`, {})
       await loadClassSessions()
+      alert('Payment released to the tutor.')
     } catch (err: any) {
       console.error('Error releasing payment:', err)
-      setError(err.response?.data?.error || 'Failed to release payment.')
+      const message = err.response?.data?.error || 'Failed to release payment.'
+      setError(message)
+      alert(`Release failed: ${message}`)
     }
   }
 
