@@ -20,6 +20,9 @@ async function runAutoRelease() {
       include: {
         booking: { include: { payment: true } },
       },
+      // Oldest debt first, so a tutor who has waited longest is paid before
+      // newer sessions use up whatever balance is available.
+      orderBy: { autoReleaseAt: 'asc' },
     });
 
     if (overdue.length === 0) return;
