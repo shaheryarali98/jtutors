@@ -78,6 +78,18 @@ export const confirmPaymentIntent = async (
   return await stripe.paymentIntents.retrieve(paymentIntentId);
 };
 
+// Fetch a charge so callers can see whether it already carried a transfer
+// to the tutor (destination charge). Returns null on any lookup failure.
+export const retrieveCharge = async (chargeId: string): Promise<Stripe.Charge | null> => {
+  if (!stripe) return null;
+  try {
+    return await stripe.charges.retrieve(chargeId);
+  } catch (err: any) {
+    console.warn(`Could not retrieve charge ${chargeId}: ${err?.message}`);
+    return null;
+  }
+};
+
 // Create transfer to tutor's connected account
 export const createTransfer = async (
   amount: number,

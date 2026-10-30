@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { createTransfer, confirmPaymentIntent } from './stripe.service';
+import { createTransfer, confirmPaymentIntent, retrieveCharge } from './stripe.service';
 import { getPayment } from './payment.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
 
@@ -114,6 +114,22 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
           sourceChargeId = (typeof latest === 'string' ? latest : latest?.id) || null;
         } catch (lookupErr: any) {
           console.warn(`Could not resolve charge for ${storedId}: ${lookupErr?.message}`);
+        }
+      }
+
+      // Charges made before 24 Sep 2026 (and all course/tip charges) paid the
+      // tutor directly via transfer_data. Transferring again would pay twice.
+      if (sourceChargeId) {
+        const charge = await retrieveCharge(sourceChargeId);
+        const existing = charge?.transfer;
+        const existingId = typeof existing === 'string' ? existing : existing?.id;
+        if (existingId) {
+          await prisma.classSession.update({
+            where: { id: classSessionId },
+            data: { paymentReleased: true, paymentReleasedAt: new Date() },
+          });
+          console.log(`[Release] ${classSessionId}: tutor already paid at charge time via ${existingId}; skipped duplicate transfer.`);
+          return { success: true, transferId: existingId, error: 'Tutor was already paid when the student was charged' };
         }
       }
 
