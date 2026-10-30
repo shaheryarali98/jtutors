@@ -163,6 +163,10 @@ export const chargeBookingAfterCompletion = async (
       payment_method: booking.stripePaymentMethodId,
       off_session: true,
       confirm: true,
+      // Destination charge: tutor's share lands in their connected account
+      // immediately; the platform keeps the service fee + commission.
+      application_fee_amount: bd.platformFeeCents,
+      transfer_data: { destination: booking.tutor.stripeAccountId },
       metadata: {
         paymentId: payment.id,
         bookingId: booking.id,
