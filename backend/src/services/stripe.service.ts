@@ -132,6 +132,17 @@ export const getConnectedAvailableCents = async (accountId: string): Promise<num
   return bal.available.filter(b => b.currency === 'usd').reduce((a, b) => a + b.amount, 0);
 };
 
+// One transfer, with its source charge and reversal totals.
+export const retrieveTransfer = async (transferId: string): Promise<Stripe.Transfer | null> => {
+  if (!stripe) return null;
+  try {
+    return await stripe.transfers.retrieve(transferId);
+  } catch (err: any) {
+    console.warn(`Could not retrieve transfer ${transferId}: ${err?.message}`);
+    return null;
+  }
+};
+
 // Pull part or all of a transfer back from the connected account.
 export const reverseTransfer = async (
   transferId: string,

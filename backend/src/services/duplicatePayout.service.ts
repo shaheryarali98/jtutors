@@ -1,11 +1,47 @@
 import { PrismaClient } from '@prisma/client';
-import { getConnectedAvailableCents, reverseTransfer, retrieveCharge, confirmPaymentIntent, listTransfersToAccount } from './stripe.service';
+import { getConnectedAvailableCents, reverseTransfer, retrieveCharge, confirmPaymentIntent, listTransfersToAccount, retrieveTransfer } from './stripe.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
 
 const prisma = new PrismaClient();
 
 const toCents = (n: number) => Math.round(n * 100);
 const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
+
+/**
+ * Proof, from Stripe itself, that a transfer is the SECOND payment for a
+ * session and not the original. The original is the one Stripe attached to
+ * the student's charge (charge.transfer, and it carries source_transaction).
+ * Anything that fails these checks is never reversed.
+ */
+export const verifyIsDuplicate = async (
+  duplicateTransferId: string,
+  originalTransferId: string
+): Promise<{ ok: boolean; reason?: string }> => {
+  if (duplicateTransferId === originalTransferId) {
+    return { ok: false, reason: 'duplicate and original IDs are the same' };
+  }
+  const dup = await retrieveTransfer(duplicateTransferId);
+  if (!dup) return { ok: false, reason: 'duplicate transfer not found in Stripe' };
+  if (dup.source_transaction) {
+    return { ok: false, reason: 'this transfer is attached to a student charge, so it is an original payment' };
+  }
+  if (!dup.metadata?.classSessionId) {
+    return { ok: false, reason: 'transfer has no session reference, cannot prove it is a duplicate' };
+  }
+  const orig = await retrieveTransfer(originalTransferId);
+  if (!orig) return { ok: false, reason: 'original transfer not found in Stripe' };
+  const chargeId = typeof orig.source_transaction === 'string' ? orig.source_transaction : orig.source_transaction?.id;
+  if (!chargeId) return { ok: false, reason: 'original transfer is not attached to a student charge' };
+  const charge = await retrieveCharge(chargeId);
+  const chargeTransfer = typeof charge?.transfer === 'string' ? charge.transfer : charge?.transfer?.id;
+  if (chargeTransfer !== originalTransferId) {
+    return { ok: false, reason: 'the student charge does not point at the recorded original transfer' };
+  }
+  if (dup.destination !== orig.destination) {
+    return { ok: false, reason: 'duplicate and original went to different tutors' };
+  }
+  return { ok: true };
+};
 
 /**
  * Every duplicate payout, grouped per tutor, with totals. Used by the admin
@@ -126,6 +162,19 @@ export const attemptDuplicateRecovery = async (opts: { tutorId?: string } = {}) 
       }
       if (availableCents <= 0) {
         summary.stillOpen += 1;
+        continue;
+      }
+
+      // Never reverse an original payment. Re-prove the duplicate against
+      // Stripe every single time before touching it.
+      const proof = await verifyIsDuplicate(r.duplicateTransferId, r.originalTransferId);
+      if (!proof.ok) {
+        summary.stillOpen += 1;
+        summary.errors.push(`${r.duplicateTransferId}: refused, ${proof.reason}`);
+        await prisma.duplicatePayout.update({
+          where: { id: r.id },
+          data: { lastAttemptAt: new Date(), lastError: `Refused: ${proof.reason}` },
+        });
         continue;
       }
 
