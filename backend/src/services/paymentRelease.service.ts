@@ -136,9 +136,19 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
       // Guard 2: destination charges (all 1:1 sessions since Oct 2026, courses,
       // tips, and everything before 24 Sep 2026) already paid the tutor when
       // the student was charged. Transferring again would pay twice.
-      if (sourceChargeId) {
-        const charge = await retrieveCharge(sourceChargeId);
-        const existing = charge?.transfer;
+      // Fail closed: if the charge cannot be read from Stripe right now, do
+      // not pay. The session stays in the queue and is retried next run.
+      if (!sourceChargeId) {
+        await unclaim();
+        return { success: false, error: `Cannot verify the student charge (${storedId || 'no charge id'}) with Stripe; not paying until it can be checked` };
+      }
+      const charge = await retrieveCharge(sourceChargeId);
+      if (!charge) {
+        await unclaim();
+        return { success: false, error: `Stripe did not return charge ${sourceChargeId}; not paying until it can be checked` };
+      }
+      {
+        const existing = charge.transfer;
         const existingId = typeof existing === 'string' ? existing : existing?.id;
         if (existingId) {
           console.log(`[Release] ${classSessionId}: tutor already paid at charge time via ${existingId}; skipped duplicate transfer.`);
@@ -148,6 +158,7 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
 
       // Guard 3: a release transfer for this session already exists in Stripe
       // (for example the DB flag was lost). Never send a second one.
+      // Fail closed here too.
       try {
         const prior = (await listTransfersToAccount(tutor.stripeAccountId)).find(
           t => t.metadata?.classSessionId === classSession.id
@@ -157,7 +168,8 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
           return { success: true, transferId: prior.id, error: 'Transfer already existed' };
         }
       } catch (listErr: any) {
-        console.warn(`[Release] Could not list prior transfers: ${listErr?.message}`);
+        await unclaim();
+        return { success: false, error: `Could not check Stripe for an existing transfer: ${listErr?.message}` };
       }
 
       // Duplicate adjustment: while the tutor still holds money from a

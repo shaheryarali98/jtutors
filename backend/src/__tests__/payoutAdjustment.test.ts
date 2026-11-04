@@ -60,7 +60,7 @@ stubModule('../services/stripe.service', real => ({
     return { id, amount: Math.round(amount * 100), destination };
   },
   confirmPaymentIntent: async (id: string) => ({ id, latest_charge: id.replace('pi_', 'ch_') }),
-  retrieveCharge: async (chargeId: string) => ({ id: chargeId, transfer: stripeStub.chargesWithTransfer.get(chargeId) || null }),
+  retrieveCharge: async (chargeId: string) => (chargeId.startsWith('ch_fail') ? null : { id: chargeId, transfer: stripeStub.chargesWithTransfer.get(chargeId) || null }),
   listTransfersToAccount: async () => [],
   retrieveTransfer: async (id: string) => stripeStub.transfers.get(id) || null,
   getConnectedAvailableCents: async () => stripeStub.availableCents,

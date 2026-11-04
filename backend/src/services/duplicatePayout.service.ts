@@ -39,18 +39,19 @@ export const settleAgainstDuplicates = async (
     orderBy: { sessionDate: 'asc' },
   });
   let left = cents;
-  for (const r of open) {
+  for (const row of open) {
     if (left <= 0) break;
-    const remaining = toCents(r.amount) - toCents(r.recoveredAmount);
-    if (remaining <= 0) continue;
-    const take = Math.min(remaining, left);
-    const settlementId = await prisma.$transaction(async tx => {
-      const s = await tx.duplicateSettlement.create({
-        data: { duplicatePayoutId: r.id, classSessionId, amount: take / 100 },
-      });
+    // Re-read and update with the amount we read as a condition, so a
+    // concurrent settlement on the same row can never double-apply.
+    for (let attempt = 0; attempt < 3 && left > 0; attempt += 1) {
+      const r = await prisma.duplicatePayout.findUnique({ where: { id: row.id } });
+      if (!r || r.status !== 'OPEN') break;
+      const remaining = toCents(r.amount) - toCents(r.recoveredAmount);
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, left);
       const newRecovered = (toCents(r.recoveredAmount) + take) / 100;
-      await tx.duplicatePayout.update({
-        where: { id: r.id },
+      const updated = await prisma.duplicatePayout.updateMany({
+        where: { id: r.id, status: 'OPEN', recoveredAmount: r.recoveredAmount },
         data: {
           recoveredAmount: newRecovered,
           settledAmount: (toCents(r.settledAmount) + take) / 100,
@@ -59,11 +60,15 @@ export const settleAgainstDuplicates = async (
           lastError: null,
         },
       });
-      return s.id;
-    });
-    applied.push({ duplicatePayoutId: r.id, settlementId, cents: take });
-    left -= take;
-    console.log(`[DuplicateSettle] kept $${money(take / 100)} of session ${classSessionId} against ${r.duplicateTransferId}`);
+      if (updated.count === 0) continue; // someone else changed it; re-read and retry
+      const s = await prisma.duplicateSettlement.create({
+        data: { duplicatePayoutId: r.id, classSessionId, amount: take / 100 },
+      });
+      applied.push({ duplicatePayoutId: r.id, settlementId: s.id, cents: take });
+      left -= take;
+      console.log(`[DuplicateSettle] kept $${money(take / 100)} of session ${classSessionId} against ${r.duplicateTransferId}`);
+      break;
+    }
   }
   return applied;
 };
