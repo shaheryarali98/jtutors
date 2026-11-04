@@ -238,6 +238,15 @@ async function dup(tutorId: string, amount: number, n: number) {
   assert.ok((await prisma.duplicatePayout.findUnique({ where: { id: bad.id } }))!.lastError!.startsWith('Refused'));
   console.log('✓ 8. backup reversal: only from available balance, only on proven duplicates');
 
+  // ---- 9. Fail closed: if Stripe cannot confirm the charge, nothing is paid ---
+  const s9 = await seedPaidSession(T, student.id, 100, 'ch_fail_9');
+  const n9 = calls.transfers.length;
+  const r9 = await releasePaymentToTutor(s9.id);
+  assert.strictEqual(r9.success, false);
+  assert.strictEqual(calls.transfers.length, n9, 'no transfer without a verified charge');
+  assert.strictEqual((await prisma.classSession.findUnique({ where: { id: s9.id } }))!.paymentReleased, false, 'stays in the queue for retry');
+  console.log('✓ 9. unverifiable charge: not paid, retried later');
+
   console.log('\nAll payout adjustment checks passed.');
   await prisma.$disconnect();
 })().catch(async err => {
