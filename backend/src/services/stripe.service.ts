@@ -343,6 +343,7 @@ export const createExtraTimeCheckoutSession = async (options: {
   tutorId: string;
   successUrl: string;
   cancelUrl: string;
+  holdOnPlatform?: boolean;              // tutor holds a duplicate payout: keep the charge, webhook adjusts
 }): Promise<Stripe.Checkout.Session> => {
   if (!stripe) throw new Error('Stripe is not configured');
 
@@ -364,15 +365,18 @@ export const createExtraTimeCheckoutSession = async (options: {
         quantity: 1,
       },
     ],
-    payment_intent_data: {
-      application_fee_amount: breakdown.platformFeeCents,
-      transfer_data: {
-        destination: options.tutorStripeAccountId,
-      },
-    },
+    payment_intent_data: options.holdOnPlatform
+      ? { metadata: { heldForDuplicateAdjustment: 'true' } }
+      : {
+          application_fee_amount: breakdown.platformFeeCents,
+          transfer_data: {
+            destination: options.tutorStripeAccountId,
+          },
+        },
     success_url: options.successUrl,
     cancel_url: options.cancelUrl,
     metadata: {
+      heldForDuplicateAdjustment: options.holdOnPlatform ? 'true' : 'false',
       extraTimeChargeId: options.extraTimeChargeId,
       bookingId: options.bookingId,
       classSessionId: options.classSessionId,
@@ -400,6 +404,7 @@ export const createTipCheckoutSession = async (options: {
   tutorId: string;
   successUrl: string;
   cancelUrl: string;
+  holdOnPlatform?: boolean;              // tutor holds a duplicate payout: keep the tip, webhook adjusts
 }): Promise<Stripe.Checkout.Session> => {
   if (!stripe) throw new Error('Stripe is not configured');
 
@@ -418,15 +423,18 @@ export const createTipCheckoutSession = async (options: {
         quantity: 1,
       },
     ],
-    payment_intent_data: {
-      transfer_data: {
-        destination: options.tutorStripeAccountId,
-      },
-    },
+    payment_intent_data: options.holdOnPlatform
+      ? { metadata: { heldForDuplicateAdjustment: 'true' } }
+      : {
+          transfer_data: {
+            destination: options.tutorStripeAccountId,
+          },
+        },
     success_url: options.successUrl,
     cancel_url: options.cancelUrl,
     metadata: {
       type: 'tip',
+      heldForDuplicateAdjustment: options.holdOnPlatform ? 'true' : 'false',
       tipId: options.tipId,
       bookingId: options.bookingId,
       studentId: options.studentId,

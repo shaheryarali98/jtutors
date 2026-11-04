@@ -470,7 +470,9 @@ export const createExtraTimeCheckoutController = async (req: Request, res: Respo
       });
     }
 
+    const { getOpenDuplicateCents: openDupExtra } = await import('../services/duplicatePayout.service');
     const session = await createExtraTimeCheckoutSession({
+      holdOnPlatform: (await openDupExtra(charge.tutorId)) > 0,
       title: `Extra time with ${charge.tutor.firstName || 'Tutor'} ${charge.tutor.lastName || ''}`.trim(),
       description: `Additional ${charge.extraHours.toFixed(2)} hour(s) for booking #${charge.bookingId.slice(0, 8)}`,
       breakdown,
@@ -582,7 +584,9 @@ export const createTipCheckoutController = async (req: Request, res: Response) =
       });
     }
 
+    const { getOpenDuplicateCents: openDupTip } = await import('../services/duplicatePayout.service');
     const session = await createTipCheckoutSession({
+      holdOnPlatform: (await openDupTip(booking.tutorId)) > 0,
       amountCents: Math.round(normalizedAmount * 100),
       tutorName,
       tutorStripeAccountId: booking.tutor.stripeAccountId!,

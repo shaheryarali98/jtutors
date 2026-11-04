@@ -58,3 +58,7 @@ backend/uploads/
 
 .vercel
 .env*.local
+
+# local payout test database
+backend/prisma/test-payout.db*
+backend/test-payout.db*

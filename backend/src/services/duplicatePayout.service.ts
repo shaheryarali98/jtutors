@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { getConnectedAvailableCents, reverseTransfer, retrieveCharge, confirmPaymentIntent, listTransfersToAccount, retrieveTransfer } from './stripe.service';
+import { getConnectedAvailableCents, reverseTransfer, retrieveCharge, confirmPaymentIntent, listTransfersToAccount, retrieveTransfer, createTransfer } from './stripe.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
 
 const prisma = new PrismaClient();
@@ -66,6 +66,54 @@ export const settleAgainstDuplicates = async (
     console.log(`[DuplicateSettle] kept $${money(take / 100)} of session ${classSessionId} against ${r.duplicateTransferId}`);
   }
   return applied;
+};
+
+/**
+ * A tip or extra-time charge that was kept on the platform because the tutor
+ * holds a duplicate. Apply the tutor's share against the duplicate and send
+ * only what is left over. Safe to call twice: a charge that already carries a
+ * transfer is skipped, and the remainder transfer is idempotent.
+ */
+export const applyHeldCharge = async (opts: {
+  tutorId: string;
+  stripeAccountId: string;
+  paymentIntentId: string;
+  tutorShareCents: number;
+  reference: string; // e.g. "tip:<id>" or "extra-time:<id>"
+}): Promise<{ settledCents: number; transferId?: string }> => {
+  if (opts.tutorShareCents <= 0) return { settledCents: 0 };
+
+  let chargeId = '';
+  const intent = await confirmPaymentIntent(opts.paymentIntentId);
+  const latest = intent?.latest_charge;
+  chargeId = (typeof latest === 'string' ? latest : latest?.id) || '';
+  if (chargeId) {
+    const charge = await retrieveCharge(chargeId);
+    const t = charge?.transfer;
+    if (typeof t === 'string' ? t : t?.id) return { settledCents: 0, transferId: typeof t === 'string' ? t : t?.id }; // already paid directly
+  }
+  const already = await prisma.duplicateSettlement.findFirst({ where: { classSessionId: opts.reference } });
+  if (already) return { settledCents: 0 };
+
+  const openCents = await getOpenDuplicateCents(opts.tutorId);
+  const settled = await settleAgainstDuplicates(opts.tutorId, opts.reference, Math.min(opts.tutorShareCents, openCents));
+  const settledCents = settled.reduce((a, s) => a + s.cents, 0);
+  const remainder = opts.tutorShareCents - settledCents;
+  if (remainder <= 0) return { settledCents };
+
+  try {
+    const transfer = await createTransfer(
+      remainder / 100,
+      opts.stripeAccountId,
+      { reference: opts.reference, tutorId: opts.tutorId, heldForDuplicateAdjustment: 'true' },
+      chargeId || null,
+      `held-${opts.reference}`
+    );
+    return { settledCents, transferId: transfer?.id };
+  } catch (err) {
+    if (settled.length) await undoSettlements(settled);
+    throw err;
+  }
 };
 
 export const undoSettlements = async (applied: SettlementApplied[]) => {

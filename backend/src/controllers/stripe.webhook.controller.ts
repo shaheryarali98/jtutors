@@ -110,6 +110,20 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         },
       });
       console.log(`[Stripe Webhook] Tip confirmed: ${meta.tipId}`);
+      if (meta.heldForDuplicateAdjustment === 'true' && paymentIntentId) {
+        const tip = await prisma.tip.findUnique({ where: { id: meta.tipId }, include: { tutor: true } });
+        if (tip?.tutor.stripeAccountId) {
+          const { applyHeldCharge } = await import('../services/duplicatePayout.service');
+          const r = await applyHeldCharge({
+            tutorId: tip.tutorId,
+            stripeAccountId: tip.tutor.stripeAccountId,
+            paymentIntentId,
+            tutorShareCents: Math.round(tip.amount * 100),
+            reference: `tip:${tip.id}`,
+          });
+          console.log(`[Stripe Webhook] Tip ${tip.id}: $${(r.settledCents / 100).toFixed(2)} kept against duplicate, transfer ${r.transferId || 'none'}`);
+        }
+      }
     } catch (error: any) {
       console.error(`[Stripe Webhook] Error confirming tip ${meta.tipId}:`, error);
       throw error;
@@ -130,6 +144,20 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         },
       });
       console.log(`[Stripe Webhook] Extra-time charge confirmed: ${meta.extraTimeChargeId}`);
+      if (meta.heldForDuplicateAdjustment === 'true' && paymentIntentId) {
+        const extra = await prisma.extraTimeCharge.findUnique({ where: { id: meta.extraTimeChargeId }, include: { tutor: true } });
+        if (extra?.tutor.stripeAccountId) {
+          const { applyHeldCharge } = await import('../services/duplicatePayout.service');
+          const r = await applyHeldCharge({
+            tutorId: extra.tutorId,
+            stripeAccountId: extra.tutor.stripeAccountId,
+            paymentIntentId,
+            tutorShareCents: Math.round(extra.tutorAmount * 100),
+            reference: `extra-time:${extra.id}`,
+          });
+          console.log(`[Stripe Webhook] Extra time ${extra.id}: $${(r.settledCents / 100).toFixed(2)} kept against duplicate, transfer ${r.transferId || 'none'}`);
+        }
+      }
     } catch (error: any) {
       console.error(`[Stripe Webhook] Error confirming extra-time charge ${meta.extraTimeChargeId}:`, error);
       throw error;
