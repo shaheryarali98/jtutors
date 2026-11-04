@@ -8,6 +8,85 @@ const toCents = (n: number) => Math.round(n * 100);
 const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
 
 /**
+ * How much this tutor still holds from duplicate payouts, in cents.
+ * While this is above zero the tutor is not sent new money: their share of
+ * each new session is kept by the platform and applied here instead.
+ */
+export const getOpenDuplicateCents = async (tutorId: string): Promise<number> => {
+  const rows = await prisma.duplicatePayout.findMany({
+    where: { tutorId, status: 'OPEN' },
+    select: { amount: true, recoveredAmount: true },
+  });
+  return rows.reduce((a, r) => a + Math.max(0, toCents(r.amount) - toCents(r.recoveredAmount)), 0);
+};
+
+export type SettlementApplied = { duplicatePayoutId: string; settlementId: string; cents: number };
+
+/**
+ * Apply a session's tutor share (kept on the platform, never transferred)
+ * against the tutor's oldest open duplicates. Returns exactly what was
+ * applied so the caller can undo it if the rest of the release fails.
+ */
+export const settleAgainstDuplicates = async (
+  tutorId: string,
+  classSessionId: string,
+  cents: number
+): Promise<SettlementApplied[]> => {
+  const applied: SettlementApplied[] = [];
+  if (cents <= 0) return applied;
+  const open = await prisma.duplicatePayout.findMany({
+    where: { tutorId, status: 'OPEN' },
+    orderBy: { sessionDate: 'asc' },
+  });
+  let left = cents;
+  for (const r of open) {
+    if (left <= 0) break;
+    const remaining = toCents(r.amount) - toCents(r.recoveredAmount);
+    if (remaining <= 0) continue;
+    const take = Math.min(remaining, left);
+    const settlementId = await prisma.$transaction(async tx => {
+      const s = await tx.duplicateSettlement.create({
+        data: { duplicatePayoutId: r.id, classSessionId, amount: take / 100 },
+      });
+      const newRecovered = (toCents(r.recoveredAmount) + take) / 100;
+      await tx.duplicatePayout.update({
+        where: { id: r.id },
+        data: {
+          recoveredAmount: newRecovered,
+          settledAmount: (toCents(r.settledAmount) + take) / 100,
+          status: toCents(newRecovered) >= toCents(r.amount) ? 'RECOVERED' : 'OPEN',
+          lastAttemptAt: new Date(),
+          lastError: null,
+        },
+      });
+      return s.id;
+    });
+    applied.push({ duplicatePayoutId: r.id, settlementId, cents: take });
+    left -= take;
+    console.log(`[DuplicateSettle] kept $${money(take / 100)} of session ${classSessionId} against ${r.duplicateTransferId}`);
+  }
+  return applied;
+};
+
+export const undoSettlements = async (applied: SettlementApplied[]) => {
+  for (const a of applied) {
+    const r = await prisma.duplicatePayout.findUnique({ where: { id: a.duplicatePayoutId } });
+    if (!r) continue;
+    await prisma.$transaction([
+      prisma.duplicateSettlement.delete({ where: { id: a.settlementId } }),
+      prisma.duplicatePayout.update({
+        where: { id: r.id },
+        data: {
+          recoveredAmount: Math.max(0, toCents(r.recoveredAmount) - a.cents) / 100,
+          settledAmount: Math.max(0, toCents(r.settledAmount) - a.cents) / 100,
+          status: 'OPEN',
+        },
+      }),
+    ]);
+  }
+};
+
+/**
  * Proof, from Stripe itself, that a transfer is the SECOND payment for a
  * session and not the original. The original is the one Stripe attached to
  * the student's charge (charge.transfer, and it carries source_transaction).
@@ -65,6 +144,7 @@ export const listDuplicatePayouts = async () => {
         duplicateCount: 0,
         duplicateTotal: 0,
         recoveredTotal: 0,
+        settledTotal: 0,
         outstandingTotal: 0,
         writtenOffTotal: 0,
         lastAttemptAt: null as Date | null,
@@ -78,6 +158,7 @@ export const listDuplicatePayouts = async () => {
     t.duplicateCount += 1;
     t.duplicateTotal += r.amount;
     t.recoveredTotal += r.recoveredAmount;
+    t.settledTotal += r.settledAmount;
     t.outstandingTotal += outstanding;
     if (r.status === 'WRITTEN_OFF') t.writtenOffTotal += r.amount - r.recoveredAmount;
     if (r.lastAttemptAt && (!t.lastAttemptAt || r.lastAttemptAt > t.lastAttemptAt)) {
@@ -92,6 +173,7 @@ export const listDuplicatePayouts = async () => {
       duplicateTransferId: r.duplicateTransferId,
       amount: r.amount,
       recoveredAmount: r.recoveredAmount,
+      settledAmount: r.settledAmount,
       status: r.status,
       lastAttemptAt: r.lastAttemptAt,
       lastError: r.lastError,
@@ -102,6 +184,7 @@ export const listDuplicatePayouts = async () => {
     ...t,
     duplicateTotal: Number(money(t.duplicateTotal)),
     recoveredTotal: Number(money(t.recoveredTotal)),
+    settledTotal: Number(money(t.settledTotal)),
     outstandingTotal: Number(money(t.outstandingTotal)),
     writtenOffTotal: Number(money(t.writtenOffTotal)),
   }));
@@ -112,6 +195,7 @@ export const listDuplicatePayouts = async () => {
     totals: {
       duplicateTotal: Number(money(tutors.reduce((a, t) => a + t.duplicateTotal, 0))),
       recoveredTotal: Number(money(tutors.reduce((a, t) => a + t.recoveredTotal, 0))),
+      settledTotal: Number(money(tutors.reduce((a, t) => a + t.settledTotal, 0))),
       outstandingTotal: Number(money(tutors.reduce((a, t) => a + t.outstandingTotal, 0))),
     },
   };
@@ -302,8 +386,8 @@ export const importDuplicatesFromStripe = async () => {
 
       for (const d of dupes) {
         const amount = d.amount / 100;
-        const recoveredAmount = d.amount_reversed / 100;
         const existing = await prisma.duplicatePayout.findUnique({ where: { duplicateTransferId: d.id } });
+        const recoveredAmount = (d.amount_reversed + toCents(existing?.settledAmount ?? 0)) / 100;
         if (existing) {
           if (existing.status !== 'WRITTEN_OFF' && toCents(existing.recoveredAmount) !== toCents(recoveredAmount)) {
             await prisma.duplicatePayout.update({

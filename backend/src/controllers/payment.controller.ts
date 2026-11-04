@@ -302,7 +302,10 @@ export const createBookingCheckoutController = async (req: Request, res: Respons
       });
     }
 
+    const { getOpenDuplicateCents } = await import('../services/duplicatePayout.service');
+    const holdOnPlatform = (await getOpenDuplicateCents(booking.tutorId)) > 0;
     const session = await createBookingCheckoutSession({
+      holdOnPlatform,
       bookingTitle: `Tutoring session with ${booking.tutor.firstName ?? 'Tutor'} ${booking.tutor.lastName ?? ''}`.trim(),
       bookingDescription: `Booking #${booking.id.slice(0, 8)} — ${durationHours.toFixed(2)} hour(s)`,
       breakdown: bd,

@@ -351,15 +351,31 @@ model DuplicatePayout {
   originalTransferId  String
   duplicateTransferId String    @unique
   amount              Float
-  recoveredAmount     Float     @default(0)
+  recoveredAmount     Float     @default(0) // reversed from Stripe + settledAmount
+  settledAmount       Float     @default(0) // part of recoveredAmount kept back from later sessions
   status              String    @default("OPEN") // OPEN, RECOVERED, WRITTEN_OFF
   lastAttemptAt       DateTime?
   lastError           String?
   noticeSentAt        DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+  settlements         DuplicateSettlement[]
 
   @@index([tutorId, status])
+}
+
+// One session whose tutor share was kept by the platform instead of being
+// transferred, and applied against a duplicate payout.
+model DuplicateSettlement {
+  id                 String          @id @default(uuid())
+  duplicatePayoutId  String
+  duplicatePayout    DuplicatePayout @relation(fields: [duplicatePayoutId], references: [id], onDelete: Cascade)
+  classSessionId     String
+  amount             Float
+  createdAt          DateTime        @default(now())
+
+  @@index([duplicatePayoutId])
+  @@index([classSessionId])
 }
 
 model ExtraTimeCharge {

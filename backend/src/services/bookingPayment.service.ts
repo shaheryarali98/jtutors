@@ -155,6 +155,12 @@ export const chargeBookingAfterCompletion = async (
     return { status: 'SKIPPED', reason: 'Tutor has not completed Stripe onboarding' };
   }
 
+  // While a tutor still holds money from a duplicate payout, nothing is sent
+  // to them at charge time. The whole charge stays on the platform and the
+  // release step applies their share against the duplicate.
+  const { getOpenDuplicateCents } = await import('./duplicatePayout.service');
+  const holdOnPlatform = (await getOpenDuplicateCents(booking.tutorId)) > 0;
+
   try {
     const intent = await stripe.paymentIntents.create({
       amount: bd.studentPaysCents,
@@ -165,14 +171,19 @@ export const chargeBookingAfterCompletion = async (
       confirm: true,
       // Destination charge: tutor's share lands in their connected account
       // immediately; the platform keeps the service fee + commission.
-      application_fee_amount: bd.platformFeeCents,
-      transfer_data: { destination: booking.tutor.stripeAccountId },
+      ...(holdOnPlatform
+        ? {}
+        : {
+            application_fee_amount: bd.platformFeeCents,
+            transfer_data: { destination: booking.tutor.stripeAccountId },
+          }),
       metadata: {
         paymentId: payment.id,
         bookingId: booking.id,
         studentId: booking.studentId,
         tutorId: booking.tutorId,
         chargedOn: 'session_completion',
+        ...(holdOnPlatform ? { heldForDuplicateAdjustment: 'true' } : {}),
       },
     });
 

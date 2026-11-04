@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { createTransfer, confirmPaymentIntent, retrieveCharge, listTransfersToAccount } from './stripe.service';
 import { getPayment } from './payment.service';
 import { sendTemplatedEmail } from './emailTemplate.service';
+import { getOpenDuplicateCents, settleAgainstDuplicates, undoSettlements } from './duplicatePayout.service';
 
 const prisma = new PrismaClient();
 
@@ -159,9 +160,31 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
         console.warn(`[Release] Could not list prior transfers: ${listErr?.message}`);
       }
 
+      // Duplicate adjustment: while the tutor still holds money from a
+      // duplicate payout, their share of this session stays on the platform
+      // and is applied against that duplicate. Only any remainder is sent.
+      let amountCents = Math.round(amountToTransfer * 100);
+      let settled: Awaited<ReturnType<typeof settleAgainstDuplicates>> = [];
+      let settledCents = 0;
       try {
+        const openCents = await getOpenDuplicateCents(tutor.id);
+        if (openCents > 0) {
+          settled = await settleAgainstDuplicates(tutor.id, classSession.id, Math.min(amountCents, openCents));
+          settledCents = settled.reduce((a, s) => a + s.cents, 0);
+          amountCents -= settledCents;
+        }
+      } catch (settleErr: any) {
+        console.error('[Release] duplicate adjustment failed:', settleErr?.message);
+        await unclaim();
+        return { success: false, error: `Duplicate adjustment failed: ${settleErr.message}` };
+      }
+
+      if (amountCents <= 0) {
+        transferId = 'adjusted-against-duplicate';
+        console.log(`[Release] ${classSessionId}: $${(settledCents / 100).toFixed(2)} kept against duplicate payouts; nothing transferred.`);
+      } else try {
         const transfer = await createTransfer(
-          amountToTransfer,
+          amountCents / 100,
           tutor.stripeAccountId,
           {
             paymentId: payment.id,
@@ -180,9 +203,11 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
         }
       } catch (error: any) {
         console.error('Error creating Stripe transfer:', error);
+        if (settled.length) await undoSettlements(settled);
         await unclaim();
         return { success: false, error: `Failed to create transfer: ${error.message}` };
       }
+      if (settledCents > 0) amountToTransfer = amountCents / 100;
     } else {
       transferId = 'dev_bypass';
       console.log(`[DEV] Skipped Stripe transfer of $${amountToTransfer} to tutor ${tutor.id}`);
@@ -197,7 +222,8 @@ export const releasePaymentToTutor = async (classSessionId: string): Promise<{
       },
     });
 
-    // Send notification email to tutor
+    // Send notification email to tutor (not when the share was kept against a duplicate)
+    if (transferId === 'adjusted-against-duplicate') return { success: true, transferId };
     try {
       await sendTemplatedEmail('PAYMENT_RELEASED', tutor.user.email, {
         userName: tutor.user.email,

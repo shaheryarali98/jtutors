@@ -202,6 +202,7 @@ interface DuplicatePayoutItem {
   duplicateTransferId: string
   amount: number
   recoveredAmount: number
+  settledAmount?: number
   status: string
   lastAttemptAt?: string | null
   lastError?: string | null
@@ -214,6 +215,7 @@ interface DuplicatePayoutTutor {
   duplicateCount: number
   duplicateTotal: number
   recoveredTotal: number
+  settledTotal?: number
   outstandingTotal: number
   writtenOffTotal: number
   lastAttemptAt?: string | null
@@ -224,7 +226,7 @@ interface DuplicatePayoutTutor {
 
 interface DuplicatePayoutsResponse {
   tutors: DuplicatePayoutTutor[]
-  totals: { duplicateTotal: number; recoveredTotal: number; outstandingTotal: number }
+  totals: { duplicateTotal: number; recoveredTotal: number; settledTotal?: number; outstandingTotal: number }
 }
 
 interface Withdrawal {
@@ -2368,6 +2370,9 @@ const AdminDashboard = () => {
                     <div className="rounded-2xl bg-green-50 p-4">
                       <div className="text-xs uppercase tracking-wide text-green-700">Recovered</div>
                       <div className="text-2xl font-semibold text-green-700">${duplicatePayouts.totals.recoveredTotal.toFixed(2)}</div>
+                      <div className="text-xs text-green-700/80 mt-1">
+                        ${(duplicatePayouts.totals.recoveredTotal - (duplicatePayouts.totals.settledTotal ?? 0)).toFixed(2)} reversed from Stripe · ${(duplicatePayouts.totals.settledTotal ?? 0).toFixed(2)} kept from later sessions
+                      </div>
                     </div>
                     <div className="rounded-2xl bg-amber-50 p-4">
                       <div className="text-xs uppercase tracking-wide text-amber-700">Still outstanding</div>
@@ -2402,8 +2407,14 @@ const AdminDashboard = () => {
                             </td>
                             <td className="px-4 py-3 text-right">{tutor.duplicateCount}</td>
                             <td className="px-4 py-3 text-right">${tutor.duplicateTotal.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-right text-green-700">${tutor.recoveredTotal.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-right font-semibold text-amber-700">${tutor.outstandingTotal.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right text-green-700">
+                              ${tutor.recoveredTotal.toFixed(2)}
+                              {(tutor.settledTotal ?? 0) > 0 && <div className="text-xs text-green-700/80">incl. ${(tutor.settledTotal ?? 0).toFixed(2)} kept from sessions</div>}
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold text-amber-700">
+                              ${tutor.outstandingTotal.toFixed(2)}
+                              {tutor.outstandingTotal > 0 && <div className="text-xs font-normal text-slate-500">new sessions are kept until cleared</div>}
+                            </td>
                             <td className="px-4 py-3 text-slate-500">
                               {tutor.lastAttemptAt ? new Date(tutor.lastAttemptAt).toLocaleString() : 'Never'}
                               {tutor.lastError && <div className="text-xs text-red-600 max-w-xs truncate" title={tutor.lastError}>{tutor.lastError}</div>}
@@ -2438,7 +2449,10 @@ const AdminDashboard = () => {
                                         <td className="px-3 py-2"><a className="text-blue-600 hover:underline" href={`https://dashboard.stripe.com/connect/transfers/${item.originalTransferId}`} target="_blank" rel="noreferrer">{item.originalTransferId}</a></td>
                                         <td className="px-3 py-2"><a className="text-blue-600 hover:underline" href={`https://dashboard.stripe.com/connect/transfers/${item.duplicateTransferId}`} target="_blank" rel="noreferrer">{item.duplicateTransferId}</a></td>
                                         <td className="px-3 py-2 text-right">${item.amount.toFixed(2)}</td>
-                                        <td className="px-3 py-2 text-right text-green-700">${item.recoveredAmount.toFixed(2)}</td>
+                                        <td className="px-3 py-2 text-right text-green-700">
+                                          ${item.recoveredAmount.toFixed(2)}
+                                          {(item.settledAmount ?? 0) > 0 && <div className="text-slate-500">${(item.settledAmount ?? 0).toFixed(2)} from sessions</div>}
+                                        </td>
                                         <td className="px-3 py-2">
                                           <span className={`inline-flex px-2 py-0.5 rounded-full font-medium ${item.status === 'RECOVERED' ? 'bg-green-100 text-green-700' : item.status === 'WRITTEN_OFF' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{item.status === 'OPEN' ? 'Waiting for balance' : item.status === 'RECOVERED' ? 'Recovered' : 'Written off'}</span>
                                           {item.lastError && <div className="text-red-600 mt-1 max-w-xs truncate" title={item.lastError}>{item.lastError}</div>}

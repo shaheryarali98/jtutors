@@ -96,9 +96,20 @@ async function runAutoRelease() {
   }
 }
 
+async function importDuplicates() {
+  try {
+    const { importDuplicatesFromStripe } = await import('./duplicatePayout.service');
+    const r = await importDuplicatesFromStripe();
+    console.log(`[Cron] Duplicate import: scanned ${r.scanned}, added ${r.added}, updated ${r.updated}${r.errors.length ? `, errors ${r.errors.length}` : ''}.`);
+  } catch (err: any) {
+    console.error('[Cron] Duplicate import error:', err.message);
+  }
+}
+
 export function startCronJobs() {
-  // Run once on startup (catches any missed releases from downtime)
-  runAutoRelease().then(runDuplicateRecovery);
+  // Run once on startup: record duplicates from Stripe first, so releases
+  // can adjust against them, then catch any missed releases from downtime.
+  importDuplicates().then(runAutoRelease).then(runDuplicateRecovery);
   // Then run every 30 minutes
   setInterval(() => runAutoRelease().then(runDuplicateRecovery), CRON_INTERVAL_MS);
   console.log('✅ Cron jobs started (auto-release + duplicate recovery every 30 min)');

@@ -161,6 +161,20 @@ async function ensureProductionColumns() {
     `);
     await _patchPrisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "DuplicatePayout_duplicateTransferId_key" ON "DuplicatePayout"("duplicateTransferId")`);
     await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DuplicatePayout_tutorId_status_idx" ON "DuplicatePayout"("tutorId", "status")`);
+    await _patchPrisma.$executeRawUnsafe(`ALTER TABLE "DuplicatePayout" ADD COLUMN IF NOT EXISTS "settledAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`);
+    await _patchPrisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "DuplicateSettlement" (
+        "id" TEXT NOT NULL,
+        "duplicatePayoutId" TEXT NOT NULL,
+        "classSessionId" TEXT NOT NULL,
+        "amount" DOUBLE PRECISION NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "DuplicateSettlement_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "DuplicateSettlement_duplicatePayoutId_fkey" FOREIGN KEY ("duplicatePayoutId") REFERENCES "DuplicatePayout"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
+    await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DuplicateSettlement_duplicatePayoutId_idx" ON "DuplicateSettlement"("duplicatePayoutId")`);
+    await _patchPrisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DuplicateSettlement_classSessionId_idx" ON "DuplicateSettlement"("classSessionId")`);
     console.log('✅ DB columns verified/patched');
   } catch (err: any) {
     console.error('⚠️ Column patch error (non-fatal):', err.message);

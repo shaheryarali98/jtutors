@@ -284,6 +284,7 @@ export const createBookingCheckoutSession = async (options: {
   tutorId: string;
   successUrl: string;
   cancelUrl: string;
+  holdOnPlatform?: boolean;              // tutor holds a duplicate payout: keep the whole charge, release step adjusts
 }): Promise<Stripe.Checkout.Session> => {
   if (!stripe) throw new Error('Stripe is not configured');
   const { breakdown } = options;
@@ -304,12 +305,14 @@ export const createBookingCheckoutSession = async (options: {
         quantity: 1,
       },
     ],
-    payment_intent_data: {
-      application_fee_amount: breakdown.platformFeeCents,
-      transfer_data: {
-        destination: options.tutorStripeAccountId,
-      },
-    },
+    payment_intent_data: options.holdOnPlatform
+      ? { metadata: { heldForDuplicateAdjustment: 'true' } }
+      : {
+          application_fee_amount: breakdown.platformFeeCents,
+          transfer_data: {
+            destination: options.tutorStripeAccountId,
+          },
+        },
     success_url: options.successUrl,
     cancel_url: options.cancelUrl,
     metadata: {
